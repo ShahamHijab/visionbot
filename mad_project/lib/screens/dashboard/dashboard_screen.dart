@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../routes/app_routes.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -87,7 +88,7 @@ class HomeTab extends StatelessWidget {
               ],
             ),
             onPressed: () {
-              Navigator.pushNamed(context, '/notifications');
+              Navigator.pushNamed(context, AppRoutes.notifications);
             },
           ),
         ],
@@ -168,7 +169,7 @@ class HomeTab extends StatelessWidget {
                       'GPS Tracking',
                       Icons.location_on_outlined,
                       const Color(0xFF4CAF50),
-                      '/tracking',
+                      AppRoutes.tracking,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -178,7 +179,7 @@ class HomeTab extends StatelessWidget {
                       'View Logs',
                       Icons.history,
                       const Color(0xFF2196F3),
-                      '/logs',
+                      AppRoutes.logs,
                     ),
                   ),
                 ],
@@ -198,14 +199,14 @@ class HomeTab extends StatelessWidget {
                   ),
                   TextButton(
                     onPressed: () {
-                      Navigator.pushNamed(context, '/alerts');
+                      Navigator.pushNamed(context, AppRoutes.alerts);
                     },
                     child: const Text('View All'),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
-              _buildAlertList(),
+              _buildAlertList(context),
             ],
           ),
         ),
@@ -248,7 +249,8 @@ class HomeTab extends StatelessWidget {
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+      String title, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -329,18 +331,23 @@ class HomeTab extends StatelessWidget {
     );
   }
 
-  Widget _buildAlertList() {
+  Widget _buildAlertList(BuildContext context) {
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: 3,
       itemBuilder: (context, index) {
-        return _buildAlertCard(
-          'Fire Detected',
-          'Building A - Floor 2',
-          '2 mins ago',
-          Colors.red,
-          Icons.local_fire_department,
+        return InkWell(
+          onTap: () {
+            Navigator.pushNamed(context, AppRoutes.alertDetail);
+          },
+          child: _buildAlertCard(
+            'Fire Detected',
+            'Building A - Floor 2',
+            '2 mins ago',
+            Colors.red,
+            Icons.local_fire_department,
+          ),
         );
       },
     );
@@ -413,7 +420,7 @@ class HomeTab extends StatelessWidget {
   }
 }
 
-// Placeholder tabs
+// Alerts Tab
 class AlertsTab extends StatelessWidget {
   const AlertsTab({super.key});
 
@@ -421,11 +428,46 @@ class AlertsTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Alerts')),
-      body: const Center(child: Text('Alerts will be shown here')),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.notification_important_outlined,
+              size: 80,
+              color: Colors.grey,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'No new alerts',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.black54,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'All systems are running normally',
+              style: TextStyle(
+                color: Colors.black38,
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pushNamed(context, AppRoutes.alerts);
+              },
+              child: const Text('View All Alerts'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
 
+// Gallery Tab
 class GalleryTab extends StatelessWidget {
   const GalleryTab({super.key});
 
@@ -433,19 +475,208 @@ class GalleryTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Gallery')),
-      body: const Center(child: Text('Gallery will be shown here')),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.photo_library_outlined,
+              size: 80,
+              color: Colors.grey,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'No images yet',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.black54,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Images captured by robots will appear here',
+              style: TextStyle(
+                color: Colors.black38,
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pushNamed(context, AppRoutes.gallery);
+              },
+              child: const Text('View Gallery'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
 
+// Profile Tab
 class ProfileTab extends StatelessWidget {
   const ProfileTab({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
-      body: const Center(child: Text('Profile will be shown here')),
+      appBar: AppBar(
+        title: const Text('Profile'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              Navigator.pushNamed(context, AppRoutes.settings);
+            },
+          ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          // Profile Header
+          Center(
+            child: Column(
+              children: [
+                Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFB800FF), Color(0xFF7EE8FA)],
+                    ),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.person,
+                    size: 50,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'John Doe',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Security Officer',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.black54,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 30),
+          
+          // Menu Items
+          _buildMenuItem(
+            context,
+            'Edit Profile',
+            Icons.person_outline,
+            AppRoutes.profile,
+          ),
+          _buildMenuItem(
+            context,
+            'Change Password',
+            Icons.lock_outline,
+            AppRoutes.changePassword,
+          ),
+          _buildMenuItem(
+            context,
+            'Notifications',
+            Icons.notifications_outlined,
+            AppRoutes.notifications,
+          ),
+          _buildMenuItem(
+            context,
+            'Settings',
+            Icons.settings_outlined,
+            AppRoutes.settings,
+          ),
+          _buildMenuItem(
+            context,
+            'User Guide',
+            Icons.help_outline,
+            AppRoutes.userGuide,
+          ),
+          _buildMenuItem(
+            context,
+            'About',
+            Icons.info_outline,
+            AppRoutes.about,
+          ),
+          
+          const SizedBox(height: 20),
+          
+          // Logout Button
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: ElevatedButton(
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Logout'),
+                    content: const Text('Are you sure you want to logout?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pushNamedAndRemoveUntil(
+                            context,
+                            AppRoutes.login,
+                            (route) => false,
+                          );
+                        },
+                        child: const Text(
+                          'Logout',
+                          style: TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text('Logout'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMenuItem(
+    BuildContext context,
+    String title,
+    IconData icon,
+    String route,
+  ) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(title),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () {
+        Navigator.pushNamed(context, route);
+      },
     );
   }
 }
