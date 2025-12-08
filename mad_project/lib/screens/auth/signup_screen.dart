@@ -1,8 +1,45 @@
 import 'package:flutter/material.dart';
-import 'login_screen.dart';
+import '../../routes/app_routes.dart';
 
-class SignupScreen extends StatelessWidget {
+class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
+
+  @override
+  State<SignupScreen> createState() => _SignupScreenState();
+}
+
+class _SignupScreenState extends State<SignupScreen> {
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  bool _agreeToTerms = false;
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  void _handleSignup() {
+    if (!_agreeToTerms) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please agree to Terms of Service and Privacy Policy'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Navigate to role selection
+    Navigator.pushNamed(context, AppRoutes.roleSelection);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,51 +65,105 @@ class SignupScreen extends StatelessWidget {
               const SizedBox(height: 28),
 
               _inputField(
-                  label: "Full name",
-                  hint: "Your name",
-                  icon: Icons.person_outline),
+                label: "Full name",
+                hint: "Your name",
+                icon: Icons.person_outline,
+                controller: _nameController,
+              ),
 
               const SizedBox(height: 16),
 
               _inputField(
-                  label: "Email Address",
-                  hint: "your.email@example.com",
-                  icon: Icons.email_outlined),
+                label: "Email Address",
+                hint: "your.email@example.com",
+                icon: Icons.email_outlined,
+                controller: _emailController,
+              ),
 
               const SizedBox(height: 16),
 
               _inputField(
-                  label: "Password",
-                  hint: "Enter Your Password",
-                  icon: Icons.lock_outline),
+                label: "Password",
+                hint: "Enter Your Password",
+                icon: Icons.lock_outline,
+                controller: _passwordController,
+                obscure: _obscurePassword,
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                    color: Colors.black54,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _obscurePassword = !_obscurePassword;
+                    });
+                  },
+                ),
+              ),
 
               const SizedBox(height: 16),
 
               _inputField(
-                  label: "Confirm Password",
-                  hint: "Confirm Your Password",
-                  icon: Icons.lock_outline),
+                label: "Confirm Password",
+                hint: "Confirm Your Password",
+                icon: Icons.lock_outline,
+                controller: _confirmPasswordController,
+                obscure: _obscureConfirmPassword,
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscureConfirmPassword
+                        ? Icons.visibility_off
+                        : Icons.visibility,
+                    color: Colors.black54,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _obscureConfirmPassword = !_obscureConfirmPassword;
+                    });
+                  },
+                ),
+              ),
 
               const SizedBox(height: 10),
 
               Row(
                 children: [
-                  Checkbox(value: false, onChanged: (v) {}),
-                  const Expanded(
-                    child: Text.rich(
-                      TextSpan(
-                        text: "I agree to the ",
-                        children: [
-                          TextSpan(
-                            text: "Terms of Service",
-                            style: TextStyle(color: Colors.blue),
-                          ),
-                          TextSpan(text: " and "),
-                          TextSpan(
-                            text: "Privacy Policy",
-                            style: TextStyle(color: Colors.blue),
-                          ),
-                        ],
+                  Checkbox(
+                    value: _agreeToTerms,
+                    onChanged: (v) {
+                      setState(() {
+                        _agreeToTerms = v ?? false;
+                      });
+                    },
+                  ),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _agreeToTerms = !_agreeToTerms;
+                        });
+                      },
+                      child: const Text.rich(
+                        TextSpan(
+                          text: "I agree to the ",
+                          children: [
+                            TextSpan(
+                              text: "Terms of Service",
+                              style: TextStyle(
+                                color: Colors.blue,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            TextSpan(text: " and "),
+                            TextSpan(
+                              text: "Privacy Policy",
+                              style: TextStyle(
+                                color: Colors.blue,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -81,7 +172,7 @@ class SignupScreen extends StatelessWidget {
 
               const SizedBox(height: 10),
 
-              _gradientButton(text: "Create Account", onTap: () {}),
+              _gradientButton(text: "Create Account", onTap: _handleSignup),
 
               const SizedBox(height: 24),
 
@@ -98,15 +189,28 @@ class SignupScreen extends StatelessWidget {
 
               const SizedBox(height: 14),
 
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.purple.shade200),
-                ),
-                child: Image.network(
-                  "https://upload.wikimedia.org/wikipedia/commons/0/09/IOS_Google_icon.png",
-                  width: 32,
+              InkWell(
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Google Sign In - Coming Soon!'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.purple.shade200),
+                  ),
+                  child: Image.network(
+                    "https://upload.wikimedia.org/wikipedia/commons/0/09/IOS_Google_icon.png",
+                    width: 32,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Icon(Icons.g_mobiledata, size: 32);
+                    },
+                  ),
                 ),
               ),
 
@@ -114,8 +218,7 @@ class SignupScreen extends StatelessWidget {
 
               GestureDetector(
                 onTap: () {
-                  Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => const LoginScreen()));
+                  Navigator.pushReplacementNamed(context, AppRoutes.login);
                 },
                 child: const Text.rich(
                   TextSpan(
@@ -124,7 +227,10 @@ class SignupScreen extends StatelessWidget {
                     children: [
                       TextSpan(
                         text: "Sign In",
-                        style: TextStyle(color: Colors.blue),
+                        style: TextStyle(
+                          color: Colors.blue,
+                          fontWeight: FontWeight.w600,
+                        ),
                       )
                     ],
                   ),
@@ -139,10 +245,14 @@ class SignupScreen extends StatelessWidget {
     );
   }
 
-  Widget _inputField(
-      {required String label,
-      required String hint,
-      required IconData icon}) {
+  Widget _inputField({
+    required String label,
+    required String hint,
+    required IconData icon,
+    required TextEditingController controller,
+    bool obscure = false,
+    Widget? suffixIcon,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -155,10 +265,14 @@ class SignupScreen extends StatelessWidget {
             border: Border.all(color: Colors.purple.shade300, width: 1.4),
           ),
           child: TextField(
+            controller: controller,
+            obscureText: obscure,
             decoration: InputDecoration(
               prefixIcon: Icon(icon, color: Colors.black54),
+              suffixIcon: suffixIcon,
               hintText: hint,
               border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(vertical: 14),
             ),
           ),
         ),
