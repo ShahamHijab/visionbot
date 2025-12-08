@@ -1,8 +1,31 @@
 import 'package:flutter/material.dart';
-import 'signup_screen.dart';
+import '../../routes/app_routes.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _rememberMe = false;
+  bool _obscurePassword = true;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  void _handleLogin() {
+    // For now, navigate directly to dashboard
+    // In a real app, you would validate credentials first
+    Navigator.pushReplacementNamed(context, AppRoutes.dashboard);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,6 +63,7 @@ class LoginScreen extends StatelessWidget {
                 label: "Email Address",
                 hint: "your.email@example.com",
                 icon: Icons.email_outlined,
+                controller: _emailController,
               ),
 
               const SizedBox(height: 16),
@@ -49,14 +73,45 @@ class LoginScreen extends StatelessWidget {
                 label: "Password",
                 hint: "Enter Your Password",
                 icon: Icons.lock_outline,
+                controller: _passwordController,
+                obscure: _obscurePassword,
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                    color: Colors.black54,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _obscurePassword = !_obscurePassword;
+                    });
+                  },
+                ),
               ),
 
               const SizedBox(height: 10),
 
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Checkbox(value: false, onChanged: (v) {}),
-                  const Text("Remember Me"),
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: _rememberMe,
+                        onChanged: (v) {
+                          setState(() {
+                            _rememberMe = v ?? false;
+                          });
+                        },
+                      ),
+                      const Text("Remember Me"),
+                    ],
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pushNamed(context, AppRoutes.forgotPassword);
+                    },
+                    child: const Text("Forgot Password?"),
+                  ),
                 ],
               ),
 
@@ -65,7 +120,7 @@ class LoginScreen extends StatelessWidget {
               // Sign in button
               _gradientButton(
                 text: "Sign In",
-                onTap: () {},
+                onTap: _handleLogin,
               ),
 
               const SizedBox(height: 24),
@@ -84,15 +139,29 @@ class LoginScreen extends StatelessWidget {
               const SizedBox(height: 14),
 
               // Google button
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.purple.shade200),
-                ),
-                child: Image.network(
-                  "https://upload.wikimedia.org/wikipedia/commons/0/09/IOS_Google_icon.png",
-                  width: 32,
+              InkWell(
+                onTap: () {
+                  // Handle Google Sign In
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Google Sign In - Coming Soon!'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.purple.shade200),
+                  ),
+                  child: Image.network(
+                    "https://upload.wikimedia.org/wikipedia/commons/0/09/IOS_Google_icon.png",
+                    width: 32,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Icon(Icons.g_mobiledata, size: 32);
+                    },
+                  ),
                 ),
               ),
 
@@ -100,24 +169,26 @@ class LoginScreen extends StatelessWidget {
 
               GestureDetector(
                 onTap: () {
-                  Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => const SignupScreen()));
+                  Navigator.pushNamed(context, AppRoutes.signup);
                 },
                 child: const Text.rich(
                   TextSpan(
-                    text: "Don’t have an account? ",
+                    text: "Don't have an account? ",
                     style: TextStyle(color: Colors.black87),
                     children: [
                       TextSpan(
                         text: "Sign Up",
-                        style: TextStyle(color: Colors.blue),
+                        style: TextStyle(
+                          color: Colors.blue,
+                          fontWeight: FontWeight.w600,
+                        ),
                       )
                     ],
                   ),
                 ),
               ),
+
+              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -125,10 +196,14 @@ class LoginScreen extends StatelessWidget {
     );
   }
 
-  Widget _inputField(
-      {required String label,
-      required String hint,
-      required IconData icon}) {
+  Widget _inputField({
+    required String label,
+    required String hint,
+    required IconData icon,
+    required TextEditingController controller,
+    bool obscure = false,
+    Widget? suffixIcon,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -141,10 +216,14 @@ class LoginScreen extends StatelessWidget {
             border: Border.all(color: Colors.purple.shade300, width: 1.4),
           ),
           child: TextField(
+            controller: controller,
+            obscureText: obscure,
             decoration: InputDecoration(
               prefixIcon: Icon(icon, color: Colors.black54),
+              suffixIcon: suffixIcon,
               hintText: hint,
               border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(vertical: 14),
             ),
           ),
         ),
