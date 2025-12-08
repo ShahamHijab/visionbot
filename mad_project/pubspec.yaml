@@ -22,12 +22,34 @@ environment:
   sdk: ^3.9.2
 
 dependencies:
+  # Core (already have these)
   flutter:
     sdk: flutter
-
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+
+  # Add these as needed:
+  
+  # For image caching
+  cached_network_image: ^3.3.1
+  
+  # For date formatting
+  intl: ^0.19.0
+  
+  # For time ago display
+  timeago: ^3.6.0
+  
+  # For maps (when implementing GPS tracking)
+  google_maps_flutter: ^2.5.3
+  geolocator: ^11.0.0
+  
+  # For HTTP requests (when connecting to backend)
+  http: ^1.2.0
+  
+  # For local storage
+  shared_preferences: ^2.2.2
+  
+  # For image viewing
+  photo_view: ^0.14.0
 
 dev_dependencies:
   flutter_test:
