@@ -1,4 +1,3 @@
-// lib/screens/auth/login_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../routes/app_routes.dart';
@@ -16,6 +15,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _rememberMe = false;
   bool _obscurePassword = true;
+  bool _loading = false;
 
   final AuthService _authService = AuthService();
 
@@ -27,143 +27,152 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
+    if (_loading) return;
+
     final email = _emailController.text.trim();
     final password = _passwordController.text;
 
     if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter email and password'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showError('Please enter email and password');
       return;
     }
+
+    setState(() => _loading = true);
 
     try {
       await _authService.signIn(email, password);
 
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Login failed'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
+      if (!mounted) return;
+      await _navigateAfterAuth();
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      _stopLoading();
 
-      await user.reload();
-      final refreshedUser = FirebaseAuth.instance.currentUser;
+      final msg = _getAuthErrorMessage(e.code);
+      _showError(msg);
+    } catch (e) {
+      if (!mounted) return;
+      _stopLoading();
+      _showError('Login failed. Please try again');
+    }
+  }
 
-      final verified = refreshedUser?.emailVerified ?? false;
+  Future<void> _navigateAfterAuth() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      _stopLoading();
+      _showError('Login failed');
+      return;
+    }
+
+    await user.reload();
+    final refreshedUser = FirebaseAuth.instance.currentUser;
+    final verified = refreshedUser?.emailVerified ?? false;
+
+    if (!mounted) return;
+
+    if (!verified) {
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        AppRoutes.verifyEmail,
+        (route) => false,
+      );
+      return;
+    }
+
+    await _authService.finalizeVerifiedUser();
+    final role = await _authService.getCurrentUserRole();
+
+    if (!mounted) return;
+
+    if (role == null || role.isEmpty) {
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        AppRoutes.roleSelection,
+        (route) => false,
+      );
+      return;
+    }
+
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      AppRoutes.dashboard,
+      (route) => false,
+    );
+  }
+
+  Future<void> _handleGoogleLogin() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+
+    try {
+      await _authService.signInWithGoogle();
 
       if (!mounted) return;
 
-      if (!verified) {
+      final role = await _authService.getCurrentUserRole();
+
+      if (!mounted) return;
+
+      if (role == null || role.isEmpty) {
         Navigator.pushNamedAndRemoveUntil(
           context,
-          AppRoutes.verifyEmail,
+          AppRoutes.roleSelection,
           (route) => false,
         );
         return;
       }
 
-      await _authService.finalizeVerifiedUser();
-
-      final role = await _authService.getCurrentUserRole();
-
-      if (role == null) {
-        Navigator.pushNamed(
-          context,
-          AppRoutes.roleSelection,
-          arguments: {'fromEmailLogin': true},
-        );
-        return;
-      }
-
       Navigator.pushNamedAndRemoveUntil(
         context,
         AppRoutes.dashboard,
         (route) => false,
       );
     } on FirebaseAuthException catch (e) {
-      final msg = e.code == 'user-not-found'
-          ? 'No account found for this email'
-          : e.code == 'wrong-password'
-          ? 'Incorrect password'
-          : e.code == 'invalid-email'
-          ? 'Invalid email format'
-          : e.code == 'user-disabled'
-          ? 'Account disabled'
-          : e.code == 'too-many-requests'
-          ? 'Try again later'
-          : 'Login failed';
+      if (!mounted) return;
+      _stopLoading();
 
+      final msg = e.code == 'popup-blocked'
+          ? 'Popup blocked. Please allow popups'
+          : e.code == 'popup-closed-by-user'
+          ? 'Sign-in cancelled'
+          : 'Google login failed';
+
+      _showError(msg);
+    } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Login failed'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _stopLoading();
+      _showError('Google login failed');
     }
   }
 
-  Future<void> _handleGoogleLogin() async {
-    try {
-      await _authService.signInWithGoogle();
-      await _authService.ensureGoogleUserDocBasic();
-
-      final role = await _authService.getCurrentUserRole();
-
-      if (!mounted) return;
-
-      if (role == null) {
-        Navigator.pushNamed(
-          context,
-          AppRoutes.roleSelection,
-          arguments: {'fromGoogle': true, 'fromLogin': true},
-        );
-        return;
-      }
-
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        AppRoutes.dashboard,
-        (route) => false,
-      );
-    } on FirebaseAuthException catch (e) {
-      final msg = e.code == 'popup-blocked'
-          ? 'Popup blocked. Allow popups'
-          : e.code == 'unauthorized-domain'
-          ? 'Unauthorized domain. Add localhost in Firebase'
-          : e.code == 'operation-not-allowed'
-          ? 'Google sign in not enabled'
-          : e.code == 'popup-closed-by-user'
-          ? 'Popup closed'
-          : 'Google login failed';
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Google login failed'),
-          backgroundColor: Colors.red,
-        ),
-      );
+  String _getAuthErrorMessage(String code) {
+    switch (code) {
+      case 'user-not-found':
+        return 'No account found with this email';
+      case 'wrong-password':
+        return 'Incorrect password';
+      case 'invalid-email':
+        return 'Invalid email format';
+      case 'user-disabled':
+        return 'This account has been disabled';
+      case 'too-many-requests':
+        return 'Too many attempts. Please try again later';
+      case 'invalid-credential':
+        return 'Invalid email or password';
+      default:
+        return 'Login failed. Please try again';
     }
+  }
+
+  void _stopLoading() {
+    if (mounted) setState(() => _loading = false);
+  }
+
+  void _showError(String msg) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
   }
 
   Widget _inputField({
@@ -280,17 +289,22 @@ class _LoginScreenState extends State<LoginScreen> {
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: _handleLogin,
+                  onPressed: _loading ? null : _handleLogin,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF6A11CB),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
                   ),
-                  child: const Text(
-                    "Login",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
+                  child: _loading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
+                          "Login",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -298,7 +312,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 width: double.infinity,
                 height: 52,
                 child: OutlinedButton(
-                  onPressed: _handleGoogleLogin,
+                  onPressed: _loading ? null : _handleGoogleLogin,
                   style: OutlinedButton.styleFrom(
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
@@ -314,7 +328,7 @@ class _LoginScreenState extends State<LoginScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text("Don’t have an account?"),
+                  const Text("Don't have an account?"),
                   TextButton(
                     onPressed: () {
                       Navigator.pushNamed(context, AppRoutes.signup);

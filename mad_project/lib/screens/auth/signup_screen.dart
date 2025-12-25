@@ -1,4 +1,3 @@
-// lib/screens/auth/signup_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../routes/app_routes.dart';
@@ -39,7 +38,6 @@ class _SignupScreenState extends State<SignupScreen> {
 
   Future<void> _handleSignup() async {
     if (_loading) return;
-    setState(() => _loading = true);
 
     final name = _nameController.text.trim();
     final email = _emailController.text.trim();
@@ -48,31 +46,33 @@ class _SignupScreenState extends State<SignupScreen> {
 
     if (!_agreeToTerms) {
       _showError('Please agree to Terms and Privacy Policy');
-      return _stopLoading();
+      return;
     }
 
     if (name.isEmpty || email.isEmpty || password.isEmpty || confirm.isEmpty) {
       _showError('Please fill all fields');
-      return _stopLoading();
+      return;
     }
 
     if (!_isValidEmail(email)) {
       _showError('Enter a valid email');
-      return _stopLoading();
+      return;
     }
 
     if (password.length < 6) {
       _showError('Password must be at least 6 characters');
-      return _stopLoading();
+      return;
     }
 
     if (password != confirm) {
       _showError('Passwords do not match');
-      return _stopLoading();
+      return;
     }
 
+    setState(() => _loading = true);
+
     try {
-      // IMPORTANT: reset any existing session
+      // Sign out any existing session first
       await FirebaseAuth.instance.signOut();
 
       await _authService.signUp(
@@ -85,21 +85,79 @@ class _SignupScreenState extends State<SignupScreen> {
       if (!mounted) return;
       _goToVerify();
     } on FirebaseAuthException catch (e) {
-      // USER ALREADY CREATED → GO TO VERIFY
+      if (!mounted) return;
+      _stopLoading();
+
       if (e.code == 'email-already-in-use') {
-        _goToVerify();
+        // Try to sign in to check verification status
+        try {
+          await _authService.signIn(email, password);
+          if (!mounted) return;
+          _goToVerify();
+        } catch (_) {
+          _showError('Email already in use with different password');
+        }
         return;
       }
 
-      _showError('Signup failed');
-    } catch (_) {
-      // Even if something failed AFTER user creation
-      _goToVerify();
+      _showError(_getAuthErrorMessage(e.code));
+    } catch (e) {
+      if (!mounted) return;
+      _stopLoading();
+      _showError('Signup failed. Please try again');
+    }
+  }
+
+  Future<void> _handleGoogleSignup() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+
+    try {
+      await _authService.signInWithGoogle();
+
+      if (!mounted) return;
+
+      final role = await _authService.getCurrentUserRole();
+
+      if (!mounted) return;
+
+      if (role == null || role.isEmpty) {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          AppRoutes.roleSelection,
+          (route) => false,
+        );
+        return;
+      }
+
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        AppRoutes.dashboard,
+        (route) => false,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      _stopLoading();
+      _showError('Google signup failed');
+    }
+  }
+
+  String _getAuthErrorMessage(String code) {
+    switch (code) {
+      case 'weak-password':
+        return 'Password is too weak';
+      case 'email-already-in-use':
+        return 'Email already registered';
+      case 'invalid-email':
+        return 'Invalid email format';
+      case 'operation-not-allowed':
+        return 'Signup is currently disabled';
+      default:
+        return 'Signup failed. Please try again';
     }
   }
 
   void _goToVerify() {
-    _stopLoading();
     Navigator.pushNamedAndRemoveUntil(
       context,
       AppRoutes.verifyEmail,
@@ -115,22 +173,6 @@ class _SignupScreenState extends State<SignupScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
-  }
-
-  Future<void> _handleGoogleSignup() async {
-    try {
-      await _authService.signInWithGoogle();
-      await _authService.ensureGoogleUserDocBasic();
-
-      if (!mounted) return;
-      Navigator.pushNamed(
-        context,
-        AppRoutes.roleSelection,
-        arguments: {'fromGoogle': true},
-      );
-    } catch (_) {
-      _showError('Google signup failed');
-    }
   }
 
   Widget _inputField({
@@ -184,7 +226,6 @@ class _SignupScreenState extends State<SignupScreen> {
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 28),
-
               _inputField(
                 label: "Full name",
                 hint: "Your name",
@@ -192,7 +233,6 @@ class _SignupScreenState extends State<SignupScreen> {
                 controller: _nameController,
               ),
               const SizedBox(height: 18),
-
               _inputField(
                 label: "Email Address",
                 hint: "your.email@example.com",
@@ -201,7 +241,6 @@ class _SignupScreenState extends State<SignupScreen> {
                 keyboardType: TextInputType.emailAddress,
               ),
               const SizedBox(height: 18),
-
               _inputField(
                 label: "Password",
                 hint: "Create a password",
@@ -217,7 +256,6 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
               ),
               const SizedBox(height: 18),
-
               _inputField(
                 label: "Confirm Password",
                 hint: "Re-enter password",
@@ -235,7 +273,6 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                 ),
               ),
-
               Row(
                 children: [
                   Checkbox(
@@ -250,29 +287,45 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                 ],
               ),
-
               SizedBox(
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
                   onPressed: _loading ? null : _handleSignup,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6A11CB),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
                   child: _loading
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text("Continue"),
+                      : const Text(
+                          "Continue",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                 ),
               ),
-
               const SizedBox(height: 12),
-
               SizedBox(
                 width: double.infinity,
                 height: 52,
                 child: OutlinedButton(
-                  onPressed: _handleGoogleSignup,
-                  child: const Text("Continue with Google"),
+                  onPressed: _loading ? null : _handleGoogleSignup,
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: const Text(
+                    "Continue with Google",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
                 ),
               ),
-
               const SizedBox(height: 16),
             ],
           ),

@@ -18,43 +18,52 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
     if (_loading) return;
     setState(() => _loading = true);
 
-    final ok = await _authService.refreshAndCheckEmailVerified();
+    try {
+      final verified = await _authService.refreshAndCheckEmailVerified();
 
-    if (!ok) {
-      if (mounted) {
-        setState(() => _loading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Email not verified yet'),
-            backgroundColor: Colors.red,
-          ),
-        );
+      if (!verified) {
+        if (mounted) {
+          setState(() => _loading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Email not verified yet. Please check your inbox'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
       }
-      return;
-    }
 
-    await _authService.finalizeVerifiedUser();
+      await _authService.finalizeVerifiedUser();
+      final role = await _authService.getCurrentUserRole();
 
-    final role = await _authService.getCurrentUserRole();
+      if (!mounted) return;
+      setState(() => _loading = false);
 
-    if (!mounted) return;
+      if (role == null || role.isEmpty) {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          AppRoutes.roleSelection,
+          (route) => false,
+        );
+        return;
+      }
 
-    setState(() => _loading = false);
-
-    if (role == null) {
       Navigator.pushNamedAndRemoveUntil(
         context,
-        AppRoutes.roleSelection,
+        AppRoutes.dashboard,
         (route) => false,
       );
-      return;
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error checking verification. Please try again'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
-
-    Navigator.pushNamedAndRemoveUntil(
-      context,
-      AppRoutes.dashboard,
-      (route) => false,
-    );
   }
 
   Future<void> _resend() async {
@@ -62,13 +71,16 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
       await _authService.resendEmailVerification();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Verification email sent again')),
+        const SnackBar(
+          content: Text('Verification email sent again. Check your inbox'),
+          backgroundColor: Colors.green,
+        ),
       );
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Failed to resend email'),
+          content: Text('Failed to resend email. Please try again later'),
           backgroundColor: Colors.red,
         ),
       );
@@ -88,7 +100,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
   @override
   Widget build(BuildContext context) {
     final email = FirebaseAuth.instance.currentUser?.email ?? '';
-
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -108,15 +119,39 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
         child: Column(
           children: [
             const SizedBox(height: 10),
+            const Icon(
+              Icons.email_outlined,
+              size: 80,
+              color: Color(0xFF6A11CB),
+            ),
+            const SizedBox(height: 24),
             const Text(
-              'Check your inbox and verify your email.',
+              'Verify Your Email',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'We sent a verification link to:',
               style: TextStyle(fontSize: 16),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             if (email.isNotEmpty)
-              Text(email, style: const TextStyle(color: Colors.black54)),
+              Text(
+                email,
+                style: const TextStyle(
+                  color: Color(0xFF6A11CB),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
+              ),
             const SizedBox(height: 24),
+            const Text(
+              'Click the link in the email to verify your account',
+              style: TextStyle(color: Colors.black54),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
             SizedBox(
               width: double.infinity,
               height: 52,
