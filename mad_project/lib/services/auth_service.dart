@@ -14,6 +14,7 @@ class AuthService {
     );
   }
 
+  // EMAIL SIGNUP → SAVE TO pending_users ONLY
   Future<UserCredential> signUp({
     required String name,
     required String email,
@@ -33,38 +34,44 @@ class AuthService {
       );
     }
 
-    await _db.collection('users').doc(user.uid).set({
+    await user.sendEmailVerification();
+
+    await _db.collection('pending_users').doc(user.uid).set({
       'id': user.uid,
       'name': name.trim(),
       'email': email.trim(),
       'role': role,
-      'avatarUrl': user.photoURL ?? '',
       'createdAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-
-    await user.sendEmailVerification();
+    });
 
     return cred;
   }
 
-  Future<void> resendEmailVerification() async {
+  // MOVE VERIFIED USER TO users COLLECTION
+  Future<void> finalizeVerifiedUser() async {
     final user = _auth.currentUser;
-    if (user == null) {
-      throw FirebaseAuthException(
-        code: 'no-current-user',
-        message: 'Not signed in',
-      );
-    }
-    await user.sendEmailVerification();
-  }
+    if (user == null) return;
 
-  Future<bool> refreshAndCheckEmailVerified() async {
-    final user = _auth.currentUser;
-    if (user == null) return false;
     await user.reload();
-    return _auth.currentUser?.emailVerified ?? false;
+    final verified = _auth.currentUser?.emailVerified ?? false;
+    if (!verified) return;
+
+    final pendingRef = _db.collection('pending_users').doc(user.uid);
+    final pendingSnap = await pendingRef.get();
+
+    if (!pendingSnap.exists) return;
+
+    final data = pendingSnap.data() ?? {};
+
+    await _db.collection('users').doc(user.uid).set({
+      ...data,
+      'verifiedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    await pendingRef.delete();
   }
 
+  // GOOGLE SIGN IN
   Future<UserCredential> signInWithGoogle() async {
     if (kIsWeb) {
       final provider = GoogleAuthProvider();
@@ -98,7 +105,7 @@ class AuthService {
       'name': (user.displayName ?? '').trim(),
       'email': (user.email ?? '').trim(),
       'avatarUrl': user.photoURL ?? '',
-      'updatedAt': FieldValue.serverTimestamp(),
+      'verifiedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }
 
@@ -109,21 +116,13 @@ class AuthService {
     final snap = await _db.collection('users').doc(user.uid).get();
     if (!snap.exists) return null;
 
-    final data = snap.data();
-    final role = (data?['role'] ?? '').toString().trim();
-    if (role.isEmpty) return null;
-
-    return role;
+    final role = (snap.data()?['role'] ?? '').toString();
+    return role.isEmpty ? null : role;
   }
 
   Future<void> setRoleForCurrentUser(String role) async {
     final user = _auth.currentUser;
-    if (user == null) {
-      throw FirebaseAuthException(
-        code: 'no-current-user',
-        message: 'Not signed in',
-      );
-    }
+    if (user == null) return;
 
     await _db.collection('users').doc(user.uid).set({
       'role': role,
@@ -131,6 +130,20 @@ class AuthService {
     }, SetOptions(merge: true));
   }
 
+  Future<void> resendEmailVerification() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    await user.sendEmailVerification();
+  }
+
+  Future<bool> refreshAndCheckEmailVerified() async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+    await user.reload();
+    return _auth.currentUser?.emailVerified ?? false;
+  }
+
+  // FORGOT PASSWORD
   Future<void> resetPassword(String email) {
     return _auth.sendPasswordResetEmail(email: email.trim());
   }
