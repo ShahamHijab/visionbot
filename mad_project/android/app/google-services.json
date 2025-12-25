@@ -12,7 +12,12 @@
           "package_name": "com.example.detectapp"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "747301058022-e3unrc70oto6o0ueg250pgjimjl74u3l.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDZj3_ulIE3orkZ-g1Kek2h_I_BpVZISo4"
@@ -20,7 +25,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "747301058022-e3unrc70oto6o0ueg250pgjimjl74u3l.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "747301058022-3k4oaiqnj6hcqd8t6km2ngflgv18ll7q.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.madProject"
+              }
+            }
+          ]
         }
       }
     },
@@ -31,7 +48,20 @@
           "package_name": "com.example.mad_project"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "747301058022-20nscnpqe07e17lq5uo1ac980978c8oo.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.mad_project",
+            "certificate_hash": "1fc3e211cb6737a708a7c4d31f82e22534508c66"
+          }
+        },
+        {
+          "client_id": "747301058022-e3unrc70oto6o0ueg250pgjimjl74u3l.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDZj3_ulIE3orkZ-g1Kek2h_I_BpVZISo4"
@@ -39,7 +69,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "747301058022-e3unrc70oto6o0ueg250pgjimjl74u3l.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "747301058022-3k4oaiqnj6hcqd8t6km2ngflgv18ll7q.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.madProject"
+              }
+            }
+          ]
         }
       }
     }
