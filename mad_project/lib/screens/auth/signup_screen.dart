@@ -72,9 +72,6 @@ class _SignupScreenState extends State<SignupScreen> {
     setState(() => _loading = true);
 
     try {
-      // Sign out any existing session first
-      await FirebaseAuth.instance.signOut();
-
       await _authService.signUp(
         name: name,
         email: email,
@@ -83,28 +80,26 @@ class _SignupScreenState extends State<SignupScreen> {
       );
 
       if (!mounted) return;
-      _goToVerify();
+
+      _showSuccess('Verification link sent to your email!');
+
+      await Future.delayed(const Duration(milliseconds: 800));
+
+      if (!mounted) return;
+
+      Navigator.pushNamed(
+        context,
+        AppRoutes.verifyEmail,
+        arguments: {'email': email.trim().toLowerCase()},
+      );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      _stopLoading();
-
-      if (e.code == 'email-already-in-use') {
-        // Try to sign in to check verification status
-        try {
-          await _authService.signIn(email, password);
-          if (!mounted) return;
-          _goToVerify();
-        } catch (_) {
-          _showError('Email already in use with different password');
-        }
-        return;
-      }
-
+      setState(() => _loading = false);
       _showError(_getAuthErrorMessage(e.code));
     } catch (e) {
       if (!mounted) return;
-      _stopLoading();
-      _showError('Signup failed. Please try again');
+      setState(() => _loading = false);
+      _showError('Signup failed. Please try again.');
     }
   }
 
@@ -137,8 +132,8 @@ class _SignupScreenState extends State<SignupScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      _stopLoading();
-      _showError('Google signup failed');
+      setState(() => _loading = false);
+      _showError('Google signup failed. Please try again.');
     }
   }
 
@@ -147,32 +142,36 @@ class _SignupScreenState extends State<SignupScreen> {
       case 'weak-password':
         return 'Password is too weak';
       case 'email-already-in-use':
-        return 'Email already registered';
+        return 'Email already registered. Please login instead.';
       case 'invalid-email':
         return 'Invalid email format';
-      case 'operation-not-allowed':
-        return 'Signup is currently disabled';
+      case 'network-request-failed':
+        return 'Network error. Please check your connection.';
+      case 'permission-denied':
+        return 'Permission error. Please check Firestore rules.';
       default:
         return 'Signup failed. Please try again';
     }
   }
 
-  void _goToVerify() {
-    Navigator.pushNamedAndRemoveUntil(
-      context,
-      AppRoutes.verifyEmail,
-      (route) => false,
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 4),
+      ),
     );
   }
 
-  void _stopLoading() {
-    if (mounted) setState(() => _loading = false);
-  }
-
-  void _showError(String msg) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
+  void _showSuccess(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   Widget _inputField({
@@ -225,6 +224,11 @@ class _SignupScreenState extends State<SignupScreen> {
                 "Join VisionBot",
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
               ),
+              const SizedBox(height: 6),
+              const Text(
+                "Create your account",
+                style: TextStyle(color: Colors.black54),
+              ),
               const SizedBox(height: 28),
               _inputField(
                 label: "Full name",
@@ -273,6 +277,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                 ),
               ),
+              const SizedBox(height: 12),
               Row(
                 children: [
                   Checkbox(
@@ -287,6 +292,31 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                 ],
               ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      color: Colors.blue.shade700,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        "You'll receive a verification link via email",
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
                 height: 52,
@@ -309,7 +339,21 @@ class _SignupScreenState extends State<SignupScreen> {
                         ),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(child: Divider(color: Colors.grey.shade300)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      'OR',
+                      style: TextStyle(color: Colors.grey.shade600),
+                    ),
+                  ),
+                  Expanded(child: Divider(color: Colors.grey.shade300)),
+                ],
+              ),
+              const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
                 height: 52,
@@ -325,6 +369,19 @@ class _SignupScreenState extends State<SignupScreen> {
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                 ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text("Already have an account?"),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pushNamed(context, AppRoutes.login);
+                    },
+                    child: const Text("Log in"),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
             ],

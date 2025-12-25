@@ -7,10 +7,7 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // Get current user
   User? get currentUser => _auth.currentUser;
-
-  // Auth state stream
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
   Future<UserCredential> signIn(String email, String password) async {
@@ -20,9 +17,22 @@ class AuthService {
         password: password,
       );
 
-      // Ensure user document exists
-      await _ensureUserDocument(cred.user);
+      final user = cred.user;
+      if (user == null) {
+        throw FirebaseAuthException(code: 'unknown', message: 'Login failed');
+      }
 
+      await user.reload();
+      final refreshed = _auth.currentUser;
+
+      if (refreshed != null && !refreshed.emailVerified) {
+        throw FirebaseAuthException(
+          code: 'email-not-verified',
+          message: 'Please verify your email before logging in.',
+        );
+      }
+
+      await _ensureUserDocument(refreshed);
       return cred;
     } on FirebaseAuthException {
       rethrow;
@@ -31,7 +41,6 @@ class AuthService {
     }
   }
 
-  // EMAIL SIGNUP → SAVE TO pending_users ONLY
   Future<UserCredential> signUp({
     required String name,
     required String email,
@@ -39,8 +48,10 @@ class AuthService {
     required String role,
   }) async {
     try {
+      final emailLower = email.trim().toLowerCase();
+
       final cred = await _auth.createUserWithEmailAndPassword(
-        email: email.trim(),
+        email: emailLower,
         password: password,
       );
 
@@ -48,21 +59,19 @@ class AuthService {
       if (user == null) {
         throw FirebaseAuthException(
           code: 'unknown',
-          message: 'User creation failed',
+          message: 'Account creation failed',
         );
       }
 
-      // Send email verification
-      await user.sendEmailVerification();
-
-      // Save to pending_users collection
-      await _db.collection('pending_users').doc(user.uid).set({
+      await _db.collection('users').doc(user.uid).set({
         'id': user.uid,
         'name': name.trim(),
-        'email': email.trim(),
+        'email': emailLower,
         'role': role.isEmpty ? '' : role,
         'createdAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
+
+      await user.sendEmailVerification();
 
       return cred;
     } on FirebaseAuthException {
@@ -72,7 +81,51 @@ class AuthService {
     }
   }
 
-  // Helper to ensure user document exists
+  Future<void> resendEmailVerificationLink() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        throw FirebaseAuthException(
+          code: 'no-current-user',
+          message: 'No user found. Please sign up again.',
+        );
+      }
+
+      await user.reload();
+      final refreshed = _auth.currentUser;
+
+      if (refreshed == null) {
+        throw FirebaseAuthException(
+          code: 'no-current-user',
+          message: 'No user found. Please sign up again.',
+        );
+      }
+
+      if (refreshed.emailVerified) {
+        return;
+      }
+
+      await refreshed.sendEmailVerification();
+    } on FirebaseAuthException {
+      rethrow;
+    } catch (e) {
+      throw FirebaseAuthException(code: 'unknown', message: e.toString());
+    }
+  }
+
+  Future<bool> refreshAndCheckEmailVerified() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return false;
+
+      await user.reload();
+      final refreshed = _auth.currentUser;
+      return refreshed?.emailVerified ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> _ensureUserDocument(User? user) async {
     if (user == null) return;
 
@@ -80,14 +133,6 @@ class AuthService {
       final userDoc = await _db.collection('users').doc(user.uid).get();
       if (userDoc.exists) return;
 
-      // Check pending_users
-      final pendingDoc = await _db
-          .collection('pending_users')
-          .doc(user.uid)
-          .get();
-      if (pendingDoc.exists) return; // Will be moved by finalizeVerifiedUser
-
-      // Create basic user document
       await _db.collection('users').doc(user.uid).set({
         'id': user.uid,
         'name': user.displayName ?? '',
@@ -100,54 +145,35 @@ class AuthService {
     }
   }
 
-  // MOVE VERIFIED USER TO users COLLECTION
   Future<void> finalizeVerifiedUser() async {
     try {
       final user = _auth.currentUser;
       if (user == null) return;
 
       await user.reload();
-      final refreshedUser = _auth.currentUser;
-      final verified = refreshedUser?.emailVerified ?? false;
+      final refreshed = _auth.currentUser;
+      if (refreshed == null) return;
 
-      if (!verified) return;
-
-      // Check if already in users collection
-      final userDoc = await _db.collection('users').doc(user.uid).get();
-      if (userDoc.exists) return;
-
-      final pendingRef = _db.collection('pending_users').doc(user.uid);
-      final pendingSnap = await pendingRef.get();
-
-      if (!pendingSnap.exists) {
-        // If no pending doc, create basic user doc
-        await _db.collection('users').doc(user.uid).set({
-          'id': user.uid,
-          'name': user.displayName ?? '',
-          'email': user.email ?? '',
-          'role': '',
-          'verifiedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-        return;
+      if (!refreshed.emailVerified) {
+        throw FirebaseAuthException(
+          code: 'email-not-verified',
+          message: 'Email is not verified yet.',
+        );
       }
 
-      final data = pendingSnap.data() ?? {};
-
-      // Move to users collection
-      await _db.collection('users').doc(user.uid).set({
-        ...data,
+      await _db.collection('users').doc(refreshed.uid).set({
+        'id': refreshed.uid,
+        'name': refreshed.displayName ?? '',
+        'email': refreshed.email ?? '',
         'verifiedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-
-      // Delete from pending_users
-      await pendingRef.delete();
+    } on FirebaseAuthException {
+      rethrow;
     } catch (e) {
       print('Error finalizing user: $e');
-      // Don't throw - allow flow to continue
     }
   }
 
-  // GOOGLE SIGN IN
   Future<UserCredential> signInWithGoogle() async {
     try {
       if (kIsWeb) {
@@ -235,36 +261,6 @@ class AuthService {
     }
   }
 
-  Future<void> resendEmailVerification() async {
-    try {
-      final user = _auth.currentUser;
-      if (user == null) {
-        throw FirebaseAuthException(
-          code: 'no-user',
-          message: 'No user logged in',
-        );
-      }
-      await user.sendEmailVerification();
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  Future<bool> refreshAndCheckEmailVerified() async {
-    try {
-      final user = _auth.currentUser;
-      if (user == null) return false;
-
-      await user.reload();
-      final refreshedUser = _auth.currentUser;
-      return refreshedUser?.emailVerified ?? false;
-    } catch (e) {
-      print('Error checking email verification: $e');
-      return false;
-    }
-  }
-
-  // FORGOT PASSWORD
   Future<void> resetPassword(String email) async {
     try {
       await _auth.sendPasswordResetEmail(email: email.trim());
@@ -288,5 +284,28 @@ class AuthService {
     } catch (e) {
       print('Sign out error: $e');
     }
+  }
+
+  Future<dynamic> verifyEmailAndCreateAccount(String s) async {
+    throw UnimplementedError('Not used in free plan email link flow');
+  }
+
+  Future<bool> hasPendingVerification(String email) async {
+    return false;
+  }
+
+  Future<void> resendVerificationCode(String email) async {
+    throw UnimplementedError('Not used in free plan email link flow');
+  }
+
+  Future<UserCredential> verifyWithCode({
+    required String email,
+    required String code,
+  }) async {
+    throw UnimplementedError('Not used in free plan email link flow');
+  }
+
+  Future<void> cleanupOldPendingUsers() async {
+    return;
   }
 }

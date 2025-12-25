@@ -20,6 +20,19 @@ class _LoginScreenState extends State<LoginScreen> {
   final AuthService _authService = AuthService();
 
   @override
+  void initState() {
+    super.initState();
+    // Check for verification link parameters
+    _checkVerificationLink();
+  }
+
+  Future<void> _checkVerificationLink() async {
+    // This would be called if opened from verification email link
+    // For now, just a placeholder - implement deep linking if needed
+    // Example: if (verificationId != null) { await _verifyEmail(verificationId); }
+  }
+
+  @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
@@ -40,19 +53,32 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _loading = true);
 
     try {
+      // Check if there's a pending verification for this email
+      final hasPending = await _authService.hasPendingVerification(email);
+
+      if (hasPending) {
+        if (!mounted) return;
+        setState(() => _loading = false);
+        _showWarning(
+          'Please verify your email first. Check your inbox for the verification link.',
+        );
+        return;
+      }
+
+      // Attempt login
       await _authService.signIn(email, password);
 
       if (!mounted) return;
       await _navigateAfterAuth();
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      _stopLoading();
+      setState(() => _loading = false);
 
       final msg = _getAuthErrorMessage(e.code);
       _showError(msg);
     } catch (e) {
       if (!mounted) return;
-      _stopLoading();
+      setState(() => _loading = false);
       _showError('Login failed. Please try again');
     }
   }
@@ -60,27 +86,14 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _navigateAfterAuth() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      _stopLoading();
+      setState(() => _loading = false);
       _showError('Login failed');
       return;
     }
 
-    await user.reload();
-    final refreshedUser = FirebaseAuth.instance.currentUser;
-    final verified = refreshedUser?.emailVerified ?? false;
-
-    if (!mounted) return;
-
-    if (!verified) {
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        AppRoutes.verifyEmail,
-        (route) => false,
-      );
-      return;
-    }
-
+    // Ensure user document exists
     await _authService.finalizeVerifiedUser();
+
     final role = await _authService.getCurrentUserRole();
 
     if (!mounted) return;
@@ -130,7 +143,7 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      _stopLoading();
+      setState(() => _loading = false);
 
       final msg = e.code == 'popup-blocked'
           ? 'Popup blocked. Please allow popups'
@@ -141,7 +154,7 @@ class _LoginScreenState extends State<LoginScreen> {
       _showError(msg);
     } catch (e) {
       if (!mounted) return;
-      _stopLoading();
+      setState(() => _loading = false);
       _showError('Google login failed');
     }
   }
@@ -149,7 +162,7 @@ class _LoginScreenState extends State<LoginScreen> {
   String _getAuthErrorMessage(String code) {
     switch (code) {
       case 'user-not-found':
-        return 'No account found with this email';
+        return 'No account found with this email. Please sign up first.';
       case 'wrong-password':
         return 'Incorrect password';
       case 'invalid-email':
@@ -165,14 +178,24 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _stopLoading() {
-    if (mounted) setState(() => _loading = false);
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 4),
+      ),
+    );
   }
 
-  void _showError(String msg) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
+  void _showWarning(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: Colors.orange,
+        duration: const Duration(seconds: 4),
+      ),
+    );
   }
 
   Widget _inputField({
@@ -307,7 +330,21 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(child: Divider(color: Colors.grey.shade300)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      'OR',
+                      style: TextStyle(color: Colors.grey.shade600),
+                    ),
+                  ),
+                  Expanded(child: Divider(color: Colors.grey.shade300)),
+                ],
+              ),
+              const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
                 height: 52,
