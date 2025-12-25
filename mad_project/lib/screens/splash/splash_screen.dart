@@ -1,6 +1,20 @@
 import 'package:flutter/material.dart';
 import '../auth/login_screen.dart';
 
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../routes/app_routes.dart';
+
+Future.delayed(const Duration(seconds: 2), () {
+  final user = FirebaseAuth.instance.currentUser;
+  if (!mounted) return;
+
+  if (user == null) {
+    Navigator.pushReplacementNamed(context, AppRoutes.login);
+  } else {
+    Navigator.pushReplacementNamed(context, AppRoutes.dashboard);
+  }
+});
+
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
