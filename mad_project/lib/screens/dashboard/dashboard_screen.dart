@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../routes/app_routes.dart';
+import '../../services/auth_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -10,18 +11,14 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
+  final AuthService _authService = AuthService();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(
         index: _selectedIndex,
-        children: const [
-          HomeTab(),
-          AlertsTab(),
-          GalleryTab(),
-          ProfileTab(),
-        ],
+        children: const [HomeTab(), AlertsTab(), GalleryTab(), ProfileTab()],
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
@@ -155,10 +152,7 @@ class HomeTab extends StatelessWidget {
               // Quick Actions
               const Text(
                 'Quick Actions',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 12),
               Row(
@@ -192,10 +186,7 @@ class HomeTab extends StatelessWidget {
                 children: [
                   const Text(
                     'Recent Alerts',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
                   ),
                   TextButton(
                     onPressed: () {
@@ -250,7 +241,11 @@ class HomeTab extends StatelessWidget {
   }
 
   Widget _buildStatCard(
-      String title, String value, IconData icon, Color color) {
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -278,18 +273,12 @@ class HomeTab extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             value,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
           Text(
             title,
-            style: const TextStyle(
-              color: Colors.black54,
-              fontSize: 13,
-            ),
+            style: const TextStyle(color: Colors.black54, fontSize: 13),
           ),
         ],
       ),
@@ -399,20 +388,14 @@ class HomeTab extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   location,
-                  style: const TextStyle(
-                    color: Colors.black54,
-                    fontSize: 14,
-                  ),
+                  style: const TextStyle(color: Colors.black54, fontSize: 14),
                 ),
               ],
             ),
           ),
           Text(
             time,
-            style: const TextStyle(
-              color: Colors.black38,
-              fontSize: 12,
-            ),
+            style: const TextStyle(color: Colors.black38, fontSize: 12),
           ),
         ],
       ),
@@ -449,9 +432,7 @@ class AlertsTab extends StatelessWidget {
             const SizedBox(height: 8),
             const Text(
               'All systems are running normally',
-              style: TextStyle(
-                color: Colors.black38,
-              ),
+              style: TextStyle(color: Colors.black38),
             ),
             const SizedBox(height: 24),
             ElevatedButton(
@@ -496,9 +477,7 @@ class GalleryTab extends StatelessWidget {
             const SizedBox(height: 8),
             const Text(
               'Images captured by robots will appear here',
-              style: TextStyle(
-                color: Colors.black38,
-              ),
+              style: TextStyle(color: Colors.black38),
             ),
             const SizedBox(height: 24),
             ElevatedButton(
@@ -557,25 +536,19 @@ class ProfileTab extends StatelessWidget {
                 const SizedBox(height: 16),
                 const Text(
                   'John Doe',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 4),
                 const Text(
                   'Security Officer',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.black54,
-                  ),
+                  style: TextStyle(fontSize: 16, color: Colors.black54),
                 ),
               ],
             ),
           ),
-          
+
           const SizedBox(height: 30),
-          
+
           // Menu Items
           _buildMenuItem(
             context,
@@ -607,15 +580,10 @@ class ProfileTab extends StatelessWidget {
             Icons.help_outline,
             AppRoutes.userGuide,
           ),
-          _buildMenuItem(
-            context,
-            'About',
-            Icons.info_outline,
-            AppRoutes.about,
-          ),
-          
+          _buildMenuItem(context, 'About', Icons.info_outline, AppRoutes.about),
+
           const SizedBox(height: 20),
-          
+
           // Logout Button
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -632,7 +600,9 @@ class ProfileTab extends StatelessWidget {
                         child: const Text('Cancel'),
                       ),
                       TextButton(
-                        onPressed: () {
+                        onPressed: () async {
+                          await _authService.signOut();
+                          if (!context.mounted) return;
                           Navigator.pushNamedAndRemoveUntil(
                             context,
                             AppRoutes.login,

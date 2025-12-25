@@ -13,10 +13,18 @@ class _SignupScreenState extends State<SignupScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-
   bool _agreeToTerms = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
 
   void _handleSignup() {
     if (!_agreeToTerms) {
@@ -59,15 +67,6 @@ class _SignupScreenState extends State<SignupScreen> {
       AppRoutes.roleSelection,
       arguments: {'name': name, 'email': email, 'password': password},
     );
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
-    super.dispose();
   }
 
   Widget _inputField({
@@ -114,56 +113,27 @@ class _SignupScreenState extends State<SignupScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
-        title: const Text(
-          'Create Account',
-          style: TextStyle(color: Colors.black),
-        ),
-      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 28),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const SizedBox(height: 10),
-              Container(
-                width: 70,
-                height: 70,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF6A11CB), Color(0xFF2575FC)],
-                  ),
-                ),
-                child: const Icon(
-                  Icons.person_add,
-                  size: 34,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 25),
+              Image.asset("assets/logobg.png", width: 95),
+              const SizedBox(height: 12),
               const Text(
                 "Join VisionBot",
-                style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
               ),
-              const SizedBox(height: 6),
-              const Text(
-                "Create your account to start monitoring",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.black54),
-              ),
-              const SizedBox(height: 22),
+              const SizedBox(height: 28),
               _inputField(
-                label: "Full Name",
+                label: "Full name",
                 hint: "Your name",
                 icon: Icons.person_outline,
                 controller: _nameController,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 18),
               _inputField(
                 label: "Email Address",
                 hint: "your.email@example.com",
@@ -171,7 +141,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 18),
               _inputField(
                 label: "Password",
                 hint: "Create a password",
@@ -189,7 +159,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 18),
               _inputField(
                 label: "Confirm Password",
                 hint: "Re-enter password",
@@ -228,7 +198,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 18),
               SizedBox(
                 width: double.infinity,
                 height: 52,
@@ -246,7 +216,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 18),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -259,7 +229,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 16),
             ],
           ),
         ),

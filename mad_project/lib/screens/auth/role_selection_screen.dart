@@ -12,7 +12,7 @@ class RoleSelectionScreen extends StatefulWidget {
 
 class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
   String? _selectedRole;
-  bool _isLoading = false;
+
   final AuthService _authService = AuthService();
 
   Future<void> _handleContinue() async {
@@ -41,10 +41,6 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
-
     try {
       await _authService.signUp(
         name: name,
@@ -66,6 +62,8 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
           ? 'Password is too weak'
           : e.code == 'invalid-email'
           ? 'Invalid email'
+          : e.code.startsWith('firestore-')
+          ? 'Profile save failed'
           : 'Signup failed';
 
       if (!mounted) return;
@@ -80,19 +78,13 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
           backgroundColor: Colors.red,
         ),
       );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
     }
   }
 
   Widget _buildRoleCard({
     required String role,
     required String title,
-    required String description,
+    required String subtitle,
     required IconData icon,
     required Color color,
   }) {
@@ -105,9 +97,9 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
         });
       },
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: isSelected ? color.withOpacity(0.1) : Colors.white,
+          color: isSelected ? color.withOpacity(0.08) : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isSelected ? color : Colors.grey.shade300,
@@ -116,8 +108,8 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.06),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+              blurRadius: 12,
+              offset: const Offset(0, 5),
             ),
           ],
         ),
@@ -140,19 +132,15 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                   Text(
                     title,
                     style: const TextStyle(
-                      fontSize: 18,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 6),
-                  Text(
-                    description,
-                    style: const TextStyle(color: Colors.black54),
-                  ),
+                  Text(subtitle, style: const TextStyle(color: Colors.black54)),
                 ],
               ),
             ),
-            const SizedBox(width: 10),
             if (isSelected)
               Icon(Icons.check_circle, color: color)
             else
@@ -168,10 +156,10 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+        title: const Text('Select Your Role'),
         backgroundColor: Colors.white,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
-        title: const Text('Select Role', style: TextStyle(color: Colors.black)),
+        foregroundColor: Colors.black,
       ),
       body: SafeArea(
         child: Padding(
@@ -179,30 +167,30 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const SizedBox(height: 20),
+              const SizedBox(height: 18),
               const Text(
                 "Choose your role",
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 10),
               const Text(
-                "This helps us tailor your dashboard access",
+                "This will decide your access level",
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: Colors.black54),
+                style: TextStyle(color: Colors.black54),
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 28),
               _buildRoleCard(
                 role: 'admin',
                 title: 'Administrator',
-                description: 'Full system access and management',
+                subtitle: 'Full access and management',
                 icon: Icons.admin_panel_settings,
-                color: const Color(0xFFB800FF),
+                color: const Color(0xFF6A11CB),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               _buildRoleCard(
                 role: 'officer',
                 title: 'Security Officer',
-                description: 'Monitor alerts and surveillance',
+                subtitle: 'Monitor alerts and activity',
                 icon: Icons.security,
                 color: const Color(0xFF2575FC),
               ),
@@ -211,29 +199,17 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: _isLoading ? null : _handleContinue,
+                  onPressed: _handleContinue,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF6A11CB),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
                   ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text(
-                          "Continue",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                  child: const Text(
+                    "Continue",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
                 ),
               ),
               const SizedBox(height: 20),

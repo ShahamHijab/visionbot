@@ -31,24 +31,22 @@ class AuthService {
       );
     }
 
-    await _db.collection('users').doc(uid).set({
-      'id': uid,
-      'name': name.trim(),
-      'email': email.trim(),
-      'role': role,
-      'phoneNumber': '',
-      'avatarUrl': '',
-      'createdAt': FieldValue.serverTimestamp(),
-      'notificationsEnabled': true,
-      'notificationPreferences': {
-        'fire': true,
-        'smoke': true,
-        'human': true,
-        'motion': true,
-        'restricted': true,
-      },
-      'fcmTokens': <String>[],
-    }, SetOptions(merge: true));
+    try {
+      await _db.collection('users').doc(uid).set({
+        'id': uid,
+        'name': name.trim(),
+        'email': email.trim(),
+        'role': role,
+        'phoneNumber': '',
+        'avatarUrl': '',
+        'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } on FirebaseException catch (e) {
+      throw FirebaseAuthException(
+        code: 'firestore-${e.code}',
+        message: e.message ?? 'Firestore error',
+      );
+    }
 
     return cred;
   }

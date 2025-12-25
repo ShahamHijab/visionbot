@@ -17,7 +17,6 @@ class _SplashScreenState extends State<SplashScreen> {
     Future.delayed(const Duration(seconds: 2), () {
       final user = FirebaseAuth.instance.currentUser;
       if (!mounted) return;
-
       Navigator.pushReplacementNamed(
         context,
         user == null ? AppRoutes.login : AppRoutes.dashboard,
@@ -28,35 +27,30 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF6A11CB), Color(0xFF2575FC)],
-          ),
-        ),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
-              Icon(Icons.visibility, size: 90, color: Colors.white),
-              SizedBox(height: 18),
-              Text(
-                'VisionBot',
-                style: TextStyle(
-                  fontSize: 34,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
+      backgroundColor: const Color(0xFF1A1A2E),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.asset("assets/logobg.png", width: 130),
+            const SizedBox(height: 16),
+            const Text(
+              "VisionBot",
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                letterSpacing: 1,
               ),
-              SizedBox(height: 10),
-              Text(
-                'A Smart Surveillance System',
-                style: TextStyle(fontSize: 16, color: Colors.white70),
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              "AI Surveillance and Tracking System",
+              style: TextStyle(fontSize: 14, color: Colors.white70),
+            ),
+            const SizedBox(height: 40),
+            const CircularProgressIndicator(color: Color(0xFF6A11CB)),
+          ],
         ),
       ),
     );
