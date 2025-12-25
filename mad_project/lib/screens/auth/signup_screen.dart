@@ -29,10 +29,6 @@ class _SignupScreenState extends State<SignupScreen> {
     super.dispose();
   }
 
-  bool _isValidEmail(String email) {
-    return RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email.trim());
-  }
-
   Future<void> _handleSignup() async {
     if (!_agreeToTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -94,6 +90,14 @@ class _SignupScreenState extends State<SignupScreen> {
       context,
       AppRoutes.roleSelection,
       arguments: {'name': name, 'email': email, 'password': password},
+    );
+  }
+
+  void _goToRoleForGoogle() {
+    Navigator.pushNamed(
+      context,
+      AppRoutes.roleSelection,
+      arguments: {'fromGoogle': true},
     );
   }
 
@@ -240,6 +244,23 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                   child: const Text(
                     "Continue",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: OutlinedButton(
+                  onPressed: _goToRoleForGoogle,
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: const Text(
+                    "Continue with Google",
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                 ),
