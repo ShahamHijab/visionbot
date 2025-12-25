@@ -14,6 +14,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+
   bool _rememberMe = false;
   bool _obscurePassword = true;
 
@@ -43,13 +44,31 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       await _authService.signIn(email, password);
 
-      await FirebaseAuth.instance.currentUser?.reload();
-      final verified =
-          FirebaseAuth.instance.currentUser?.emailVerified ?? false;
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Login failed. User session missing'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
 
-      if (!mounted) return;
+      await user.reload();
+      final refreshedUser = FirebaseAuth.instance.currentUser;
 
-      if (!verified) {
+      if (refreshedUser == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Login failed. Please try again'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      if (!refreshedUser.emailVerified) {
         Navigator.pushNamedAndRemoveUntil(
           context,
           AppRoutes.verifyEmail,
@@ -58,24 +77,37 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      Navigator.pushReplacementNamed(context, AppRoutes.dashboard);
+      final role = await _authService.getCurrentUserRole();
+
+      if (role == null) {
+        Navigator.pushNamed(
+          context,
+          AppRoutes.roleSelection,
+          arguments: {'fromEmailLogin': true},
+        );
+        return;
+      }
+
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        AppRoutes.dashboard,
+        (route) => false,
+      );
     } on FirebaseAuthException catch (e) {
       final msg = e.code == 'user-not-found'
-          ? 'No user found for this email'
+          ? 'No account found for this email'
           : e.code == 'wrong-password'
-          ? 'Wrong password'
+          ? 'Incorrect password'
           : e.code == 'invalid-email'
-          ? 'Invalid email'
-          : e.code == 'too-many-requests'
-          ? 'Try again later'
+          ? 'Invalid email format'
+          : e.code == 'user-disabled'
+          ? 'Account disabled'
           : 'Login failed';
 
-      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
     } catch (_) {
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Login failed'),
@@ -91,8 +123,6 @@ class _LoginScreenState extends State<LoginScreen> {
       await _authService.ensureGoogleUserDocBasic();
 
       final role = await _authService.getCurrentUserRole();
-
-      if (!mounted) return;
 
       if (role == null) {
         Navigator.pushNamed(
@@ -119,12 +149,10 @@ class _LoginScreenState extends State<LoginScreen> {
           ? 'Popup closed'
           : 'Google login failed';
 
-      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
     } catch (_) {
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Google login failed'),
