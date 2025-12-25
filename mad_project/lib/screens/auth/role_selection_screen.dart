@@ -41,12 +41,16 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
       return;
     }
 
+    final roleToSave = _selectedRole == 'officer'
+        ? 'securityOfficer'
+        : _selectedRole!;
+
     try {
       await _authService.signUp(
         name: name,
         email: email,
         password: password,
-        role: _selectedRole!,
+        role: roleToSave,
       );
 
       if (!mounted) return;

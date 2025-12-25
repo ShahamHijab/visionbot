@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../routes/app_routes.dart';
+import '../../services/auth_service.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -17,6 +18,8 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
+  final AuthService _authService = AuthService();
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -26,7 +29,11 @@ class _SignupScreenState extends State<SignupScreen> {
     super.dispose();
   }
 
-  void _handleSignup() {
+  bool _isValidEmail(String email) {
+    return RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email.trim());
+  }
+
+  Future<void> _handleSignup() async {
     if (!_agreeToTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -52,6 +59,26 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
+    if (!_isValidEmail(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Enter a valid email'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (password.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Password must be at least 6 characters'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     if (password != confirm) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -62,11 +89,34 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
-    Navigator.pushNamed(
-      context,
-      AppRoutes.roleSelection,
-      arguments: {'name': name, 'email': email, 'password': password},
-    );
+    try {
+      final available = await _authService.isEmailAvailable(email);
+      if (!available) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Email already in use'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      if (!mounted) return;
+      Navigator.pushNamed(
+        context,
+        AppRoutes.roleSelection,
+        arguments: {'name': name, 'email': email, 'password': password},
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to check email'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Widget _inputField({

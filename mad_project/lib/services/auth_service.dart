@@ -37,8 +37,6 @@ class AuthService {
         'name': name.trim(),
         'email': email.trim(),
         'role': role,
-        'phoneNumber': '',
-        'avatarUrl': '',
         'createdAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     } on FirebaseException catch (e) {

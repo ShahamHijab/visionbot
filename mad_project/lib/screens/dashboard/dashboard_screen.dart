@@ -11,7 +11,6 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
-  final AuthService _authService = AuthService();
 
   @override
   Widget build(BuildContext context) {
@@ -99,11 +98,8 @@ class HomeTab extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Welcome Card
               _buildWelcomeCard(),
               const SizedBox(height: 20),
-
-              // Stats Cards
               Row(
                 children: [
                   Expanded(
@@ -148,8 +144,6 @@ class HomeTab extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 24),
-
-              // Quick Actions
               const Text(
                 'Quick Actions',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
@@ -179,8 +173,6 @@ class HomeTab extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 24),
-
-              // Recent Alerts
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -499,6 +491,8 @@ class ProfileTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final AuthService authService = AuthService();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Profile'),
@@ -514,7 +508,6 @@ class ProfileTab extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          // Profile Header
           Center(
             child: Column(
               children: [
@@ -546,10 +539,7 @@ class ProfileTab extends StatelessWidget {
               ],
             ),
           ),
-
           const SizedBox(height: 30),
-
-          // Menu Items
           _buildMenuItem(
             context,
             'Edit Profile',
@@ -581,10 +571,7 @@ class ProfileTab extends StatelessWidget {
             AppRoutes.userGuide,
           ),
           _buildMenuItem(context, 'About', Icons.info_outline, AppRoutes.about),
-
           const SizedBox(height: 20),
-
-          // Logout Button
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: ElevatedButton(
@@ -601,7 +588,7 @@ class ProfileTab extends StatelessWidget {
                       ),
                       TextButton(
                         onPressed: () async {
-                          await _authService.signOut();
+                          await authService.signOut();
                           if (!context.mounted) return;
                           Navigator.pushNamedAndRemoveUntil(
                             context,
