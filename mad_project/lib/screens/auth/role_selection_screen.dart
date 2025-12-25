@@ -1,3 +1,4 @@
+// lib/screens/auth/role_selection_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../routes/app_routes.dart';
@@ -102,7 +103,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
       if (!mounted) return;
       Navigator.pushNamedAndRemoveUntil(
         context,
-        AppRoutes.dashboard,
+        AppRoutes.verifyEmail,
         (route) => false,
       );
     } on FirebaseAuthException catch (e) {

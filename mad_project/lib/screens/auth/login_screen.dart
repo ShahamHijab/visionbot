@@ -1,3 +1,4 @@
+// lib/screens/auth/login_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../routes/app_routes.dart';
@@ -42,7 +43,21 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       await _authService.signIn(email, password);
 
+      await FirebaseAuth.instance.currentUser?.reload();
+      final verified =
+          FirebaseAuth.instance.currentUser?.emailVerified ?? false;
+
       if (!mounted) return;
+
+      if (!verified) {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          AppRoutes.verifyEmail,
+          (route) => false,
+        );
+        return;
+      }
+
       Navigator.pushReplacementNamed(context, AppRoutes.dashboard);
     } on FirebaseAuthException catch (e) {
       final msg = e.code == 'user-not-found'
@@ -267,7 +282,7 @@ class _LoginScreenState extends State<LoginScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text("Don't have an account?"),
+                  const Text("Don’t have an account?"),
                   TextButton(
                     onPressed: () {
                       Navigator.pushNamed(context, AppRoutes.signup);

@@ -17,6 +17,7 @@ import '../screens/logs/logs_history_screen.dart';
 import '../screens/settings/settings_screen.dart';
 import '../screens/settings/about_screen.dart';
 import '../screens/settings/user_guide_screen.dart';
+import '../screens/auth/verify_email_screen.dart';
 
 class AppRoutes {
   // Auth Routes
@@ -25,6 +26,7 @@ class AppRoutes {
   static const String signup = '/signup';
   static const String forgotPassword = '/forgot-password';
   static const String roleSelection = '/role-selection';
+  static const String verifyEmail = '/verify-email';
 
   // Main Routes
   static const String dashboard = '/dashboard';
@@ -72,5 +74,6 @@ class AppRoutes {
     settings: (_) => const SettingsScreen(),
     about: (_) => const AboutScreen(),
     userGuide: (_) => const UserGuideScreen(),
+    verifyEmail: (_) => const VerifyEmailScreen(),
   };
 }

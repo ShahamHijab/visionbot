@@ -33,16 +33,36 @@ class AuthService {
       );
     }
 
-    await _upsertUserDoc(
-      uid: user.uid,
-      name: name.trim(),
-      email: email.trim(),
-      avatarUrl: user.photoURL ?? '',
-      role: role,
-      setRole: true,
-    );
+    await _db.collection('users').doc(user.uid).set({
+      'id': user.uid,
+      'name': name.trim(),
+      'email': email.trim(),
+      'role': role,
+      'avatarUrl': user.photoURL ?? '',
+      'createdAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    await user.sendEmailVerification();
 
     return cred;
+  }
+
+  Future<void> resendEmailVerification() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw FirebaseAuthException(
+        code: 'no-current-user',
+        message: 'Not signed in',
+      );
+    }
+    await user.sendEmailVerification();
+  }
+
+  Future<bool> refreshAndCheckEmailVerified() async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+    await user.reload();
+    return _auth.currentUser?.emailVerified ?? false;
   }
 
   Future<UserCredential> signInWithGoogle() async {
@@ -69,6 +89,19 @@ class AuthService {
     return _auth.signInWithCredential(credential);
   }
 
+  Future<void> ensureGoogleUserDocBasic() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    await _db.collection('users').doc(user.uid).set({
+      'id': user.uid,
+      'name': (user.displayName ?? '').trim(),
+      'email': (user.email ?? '').trim(),
+      'avatarUrl': user.photoURL ?? '',
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
   Future<String?> getCurrentUserRole() async {
     final user = _auth.currentUser;
     if (user == null) return null;
@@ -83,20 +116,6 @@ class AuthService {
     return role;
   }
 
-  Future<void> ensureGoogleUserDocBasic() async {
-    final user = _auth.currentUser;
-    if (user == null) return;
-
-    await _upsertUserDoc(
-      uid: user.uid,
-      name: (user.displayName ?? '').trim(),
-      email: (user.email ?? '').trim(),
-      avatarUrl: user.photoURL ?? '',
-      role: '',
-      setRole: false,
-    );
-  }
-
   Future<void> setRoleForCurrentUser(String role) async {
     final user = _auth.currentUser;
     if (user == null) {
@@ -106,41 +125,10 @@ class AuthService {
       );
     }
 
-    await _upsertUserDoc(
-      uid: user.uid,
-      name: (user.displayName ?? '').trim(),
-      email: (user.email ?? '').trim(),
-      avatarUrl: user.photoURL ?? '',
-      role: role,
-      setRole: true,
-    );
-  }
-
-  Future<void> _upsertUserDoc({
-    required String uid,
-    required String name,
-    required String email,
-    required String avatarUrl,
-    required String role,
-    required bool setRole,
-  }) async {
-    final payload = <String, dynamic>{
-      'id': uid,
-      'name': name,
-      'email': email,
-      'avatarUrl': avatarUrl,
+    await _db.collection('users').doc(user.uid).set({
+      'role': role,
       'updatedAt': FieldValue.serverTimestamp(),
-    };
-
-    if (setRole) {
-      payload['role'] = role;
-      payload['createdAt'] = FieldValue.serverTimestamp();
-    }
-
-    await _db
-        .collection('users')
-        .doc(uid)
-        .set(payload, SetOptions(merge: true));
+    }, SetOptions(merge: true));
   }
 
   Future<void> resetPassword(String email) {
