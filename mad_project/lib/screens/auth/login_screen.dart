@@ -72,22 +72,42 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _handleGoogleLogin() async {
     try {
-      await _authService.signInWithGoogle(role: 'unknown');
+      await _authService.signInWithGoogle();
+      await _authService.ensureGoogleUserDocBasic();
+
+      final role = await _authService.getCurrentUserRole();
 
       if (!mounted) return;
+
+      if (role == null) {
+        Navigator.pushNamed(
+          context,
+          AppRoutes.roleSelection,
+          arguments: {'fromGoogle': true, 'fromLogin': true},
+        );
+        return;
+      }
+
       Navigator.pushNamedAndRemoveUntil(
         context,
         AppRoutes.dashboard,
         (route) => false,
       );
-    } on FirebaseAuthException {
+    } on FirebaseAuthException catch (e) {
+      final msg = e.code == 'popup-blocked'
+          ? 'Popup blocked. Allow popups'
+          : e.code == 'unauthorized-domain'
+          ? 'Unauthorized domain. Add localhost in Firebase'
+          : e.code == 'operation-not-allowed'
+          ? 'Google sign in not enabled'
+          : e.code == 'popup-closed-by-user'
+          ? 'Popup closed'
+          : 'Google login failed';
+
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Google login failed'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

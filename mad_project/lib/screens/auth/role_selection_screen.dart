@@ -12,8 +12,12 @@ class RoleSelectionScreen extends StatefulWidget {
 
 class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
   String? _selectedRole;
-
   final AuthService _authService = AuthService();
+
+  String _mapRole(String role) {
+    if (role == 'officer') return 'securityOfficer';
+    return role;
+  }
 
   Future<void> _handleContinue() async {
     if (_selectedRole == null) {
@@ -27,6 +31,52 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
     }
 
     final args = ModalRoute.of(context)?.settings.arguments as Map?;
+    final fromGoogle = (args?['fromGoogle'] == true);
+
+    final roleToSave = _mapRole(_selectedRole!);
+
+    if (fromGoogle) {
+      try {
+        if (FirebaseAuth.instance.currentUser == null) {
+          await _authService.signInWithGoogle();
+          await _authService.ensureGoogleUserDocBasic();
+        }
+
+        await _authService.setRoleForCurrentUser(roleToSave);
+
+        if (!mounted) return;
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          AppRoutes.dashboard,
+          (route) => false,
+        );
+      } on FirebaseAuthException catch (e) {
+        final msg = e.code == 'popup-blocked'
+            ? 'Popup blocked. Allow popups'
+            : e.code == 'unauthorized-domain'
+            ? 'Unauthorized domain. Add localhost in Firebase'
+            : e.code == 'operation-not-allowed'
+            ? 'Google sign in not enabled'
+            : e.code == 'popup-closed-by-user'
+            ? 'Popup closed'
+            : 'Google failed';
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg), backgroundColor: Colors.red),
+        );
+      } catch (_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Google failed'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
     final name = (args?['name'] ?? '').toString();
     final email = (args?['email'] ?? '').toString();
     final password = (args?['password'] ?? '').toString();
@@ -40,10 +90,6 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
       );
       return;
     }
-
-    final roleToSave = _selectedRole == 'officer'
-        ? 'securityOfficer'
-        : _selectedRole!;
 
     try {
       await _authService.signUp(
@@ -68,8 +114,6 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
           ? 'Invalid email'
           : e.code == 'operation-not-allowed'
           ? 'Email/Password not enabled in Firebase'
-          : e.code.startsWith('firestore-')
-          ? 'Profile save failed'
           : 'Signup failed';
 
       if (!mounted) return;
