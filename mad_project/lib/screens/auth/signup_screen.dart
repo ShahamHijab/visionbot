@@ -59,7 +59,8 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
-    if (!_isValidEmail(email)) {
+    final emailOk = RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email);
+    if (!emailOk) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Enter a valid email'),
@@ -89,34 +90,11 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
-    try {
-      final available = await _authService.isEmailAvailable(email);
-      if (!available) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Email already in use'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
-
-      if (!mounted) return;
-      Navigator.pushNamed(
-        context,
-        AppRoutes.roleSelection,
-        arguments: {'name': name, 'email': email, 'password': password},
-      );
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to check email'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
+    Navigator.pushNamed(
+      context,
+      AppRoutes.roleSelection,
+      arguments: {'name': name, 'email': email, 'password': password},
+    );
   }
 
   Widget _inputField({

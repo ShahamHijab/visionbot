@@ -66,6 +66,8 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
           ? 'Password is too weak'
           : e.code == 'invalid-email'
           ? 'Invalid email'
+          : e.code == 'operation-not-allowed'
+          ? 'Email/Password not enabled in Firebase'
           : e.code.startsWith('firestore-')
           ? 'Profile save failed'
           : 'Signup failed';
