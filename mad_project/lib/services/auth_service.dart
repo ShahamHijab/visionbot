@@ -1,3 +1,4 @@
+// lib/services/auth_service.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -32,7 +33,8 @@ class AuthService {
         );
       }
 
-      await _ensureUserDocument(refreshed);
+      // Only verified users get a Firestore doc
+      await finalizeVerifiedUser();
       return cred;
     } on FirebaseAuthException {
       rethrow;
@@ -41,6 +43,8 @@ class AuthService {
     }
   }
 
+  // Signup creates Auth user and sends Firebase verification email.
+  // It does NOT create Firestore user doc until verified.
   Future<UserCredential> signUp({
     required String name,
     required String email,
@@ -63,13 +67,13 @@ class AuthService {
         );
       }
 
-      await _db.collection('users').doc(user.uid).set({
-        'id': user.uid,
-        'name': name.trim(),
-        'email': emailLower,
-        'role': role.isEmpty ? '' : role,
-        'createdAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      // Save name on Auth profile so we can write it to Firestore after verification
+      final trimmedName = name.trim();
+      if (trimmedName.isNotEmpty) {
+        try {
+          await user.updateDisplayName(trimmedName);
+        } catch (_) {}
+      }
 
       await user.sendEmailVerification();
 
@@ -101,9 +105,7 @@ class AuthService {
         );
       }
 
-      if (refreshed.emailVerified) {
-        return;
-      }
+      if (refreshed.emailVerified) return;
 
       await refreshed.sendEmailVerification();
     } on FirebaseAuthException {
@@ -126,52 +128,34 @@ class AuthService {
     }
   }
 
-  Future<void> _ensureUserDocument(User? user) async {
+  // Creates Firestore user doc ONLY if email is verified
+  Future<void> finalizeVerifiedUser() async {
+    final user = _auth.currentUser;
     if (user == null) return;
 
-    try {
-      final userDoc = await _db.collection('users').doc(user.uid).get();
-      if (userDoc.exists) return;
+    await user.reload();
+    final refreshed = _auth.currentUser;
+    if (refreshed == null) return;
 
-      await _db.collection('users').doc(user.uid).set({
-        'id': user.uid,
-        'name': user.displayName ?? '',
-        'email': user.email ?? '',
-        'role': '',
-        'createdAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-    } catch (e) {
-      print('Error ensuring user document: $e');
+    if (!refreshed.emailVerified) {
+      throw FirebaseAuthException(
+        code: 'email-not-verified',
+        message: 'Email is not verified yet.',
+      );
     }
-  }
 
-  Future<void> finalizeVerifiedUser() async {
-    try {
-      final user = _auth.currentUser;
-      if (user == null) return;
+    final docRef = _db.collection('users').doc(refreshed.uid);
+    final snap = await docRef.get();
+    if (snap.exists) return;
 
-      await user.reload();
-      final refreshed = _auth.currentUser;
-      if (refreshed == null) return;
-
-      if (!refreshed.emailVerified) {
-        throw FirebaseAuthException(
-          code: 'email-not-verified',
-          message: 'Email is not verified yet.',
-        );
-      }
-
-      await _db.collection('users').doc(refreshed.uid).set({
-        'id': refreshed.uid,
-        'name': refreshed.displayName ?? '',
-        'email': refreshed.email ?? '',
-        'verifiedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-    } on FirebaseAuthException {
-      rethrow;
-    } catch (e) {
-      print('Error finalizing user: $e');
-    }
+    await docRef.set({
+      'id': refreshed.uid,
+      'name': (refreshed.displayName ?? '').trim(),
+      'email': (refreshed.email ?? '').trim().toLowerCase(),
+      'role': '',
+      'createdAt': FieldValue.serverTimestamp(),
+      'verifiedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
   Future<UserCredential> signInWithGoogle() async {
@@ -208,6 +192,7 @@ class AuthService {
     }
   }
 
+  // Google is already verified, so create doc immediately
   Future<void> ensureGoogleUserDocBasic() async {
     try {
       final user = _auth.currentUser;
@@ -271,6 +256,28 @@ class AuthService {
     }
   }
 
+  Future<bool> hasPendingVerification(String email) async {
+    try {
+      final emailLower = email.trim().toLowerCase();
+
+      final u = _auth.currentUser;
+      if (u == null) return false;
+
+      await u.reload();
+      final refreshed = _auth.currentUser;
+      if (refreshed == null) return false;
+
+      final sameEmail =
+          (refreshed.email ?? '').trim().toLowerCase() == emailLower;
+
+      if (!sameEmail) return false;
+
+      return !refreshed.emailVerified;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> signOut() async {
     try {
       await _auth.signOut();
@@ -284,28 +291,5 @@ class AuthService {
     } catch (e) {
       print('Sign out error: $e');
     }
-  }
-
-  Future<dynamic> verifyEmailAndCreateAccount(String s) async {
-    throw UnimplementedError('Not used in free plan email link flow');
-  }
-
-  Future<bool> hasPendingVerification(String email) async {
-    return false;
-  }
-
-  Future<void> resendVerificationCode(String email) async {
-    throw UnimplementedError('Not used in free plan email link flow');
-  }
-
-  Future<UserCredential> verifyWithCode({
-    required String email,
-    required String code,
-  }) async {
-    throw UnimplementedError('Not used in free plan email link flow');
-  }
-
-  Future<void> cleanupOldPendingUsers() async {
-    return;
   }
 }

@@ -1,3 +1,4 @@
+// lib/screens/auth/signup_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../routes/app_routes.dart';
@@ -84,7 +85,6 @@ class _SignupScreenState extends State<SignupScreen> {
       _showSuccess('Verification link sent to your email!');
 
       await Future.delayed(const Duration(milliseconds: 800));
-
       if (!mounted) return;
 
       Navigator.pushNamed(
@@ -92,6 +92,8 @@ class _SignupScreenState extends State<SignupScreen> {
         AppRoutes.verifyEmail,
         arguments: {'email': email.trim().toLowerCase()},
       );
+
+      setState(() => _loading = false);
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);

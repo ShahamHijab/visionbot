@@ -1,3 +1,4 @@
+// lib/screens/auth/verify_email_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../routes/app_routes.dart';
@@ -48,6 +49,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
         return;
       }
 
+      // Now and only now, create Firestore user doc
       await _authService.finalizeVerifiedUser();
 
       final role = await _authService.getCurrentUserRole();
@@ -64,7 +66,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
       );
 
       await Future.delayed(const Duration(milliseconds: 500));
-
       if (!mounted) return;
 
       if (role == null || role.isEmpty) {
@@ -84,19 +85,21 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
-
       _showError(_getErrorMessage(e.code));
     } catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
-
       _showError('Verification check failed. Please try again.');
     }
   }
 
   Future<void> _resendLink() async {
-    if (_loading) return;
+    if (_email.isEmpty) {
+      _showError('Email not found. Please sign up again.');
+      return;
+    }
 
+    if (_loading) return;
     setState(() => _loading = true);
 
     try {
@@ -125,6 +128,8 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
 
   String _getErrorMessage(String code) {
     switch (code) {
+      case 'email-not-verified':
+        return 'Not verified yet. Open your email and click the link.';
       case 'no-current-user':
         return 'No user found. Please sign up again.';
       case 'too-many-requests':
