@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../routes/app_routes.dart';
+import '../../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -14,6 +16,53 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _rememberMe = false;
   bool _obscurePassword = true;
 
+  final AuthService _authService = AuthService();
+
+  Future<void> _handleLogin() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter email and password'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      await _authService.signIn(email, password);
+
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(context, AppRoutes.dashboard);
+    } on FirebaseAuthException catch (e) {
+      final msg = e.code == 'user-not-found'
+          ? 'No user found for this email'
+          : e.code == 'wrong-password'
+          ? 'Wrong password'
+          : e.code == 'invalid-email'
+          ? 'Invalid email'
+          : e.code == 'too-many-requests'
+          ? 'Try again later'
+          : 'Login failed';
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Login failed'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -21,10 +70,44 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _handleLogin() {
-    // For now, navigate directly to dashboard
-    // In a real app, you would validate credentials first
-    Navigator.pushReplacementNamed(context, AppRoutes.dashboard);
+  Widget _inputField({
+    required String label,
+    required String hint,
+    required IconData icon,
+    required TextEditingController controller,
+    bool obscure = false,
+    Widget? suffix,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          obscureText: obscure,
+          keyboardType: keyboardType,
+          decoration: InputDecoration(
+            hintText: hint,
+            prefixIcon: Icon(icon),
+            suffixIcon: suffix,
+            filled: true,
+            fillColor: const Color(0xFFF3F4F6),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide.none,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -38,74 +121,71 @@ class _LoginScreenState extends State<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const SizedBox(height: 25),
-
-              Image.asset("assets/logobg.png", width: 95),
-
-              const SizedBox(height: 12),
-
-              const Text(
-                "Welcome Back!",
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+              Container(
+                width: 80,
+                height: 80,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF6A11CB), Color(0xFF2575FC)],
+                  ),
+                ),
+                child: const Icon(
+                  Icons.visibility,
+                  size: 40,
+                  color: Colors.white,
+                ),
               ),
-
-              const SizedBox(height: 3),
-
+              const SizedBox(height: 18),
+              const Text(
+                "Welcome Back",
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 6),
               const Text(
                 "Sign in to access your surveillance dashboard",
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.black54),
               ),
-
               const SizedBox(height: 28),
-
-              // Email
               _inputField(
                 label: "Email Address",
                 hint: "your.email@example.com",
                 icon: Icons.email_outlined,
                 controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
               ),
-
-              const SizedBox(height: 16),
-
-              // Password
+              const SizedBox(height: 18),
               _inputField(
                 label: "Password",
-                hint: "Enter Your Password",
+                hint: "Enter your password",
                 icon: Icons.lock_outline,
                 controller: _passwordController,
                 obscure: _obscurePassword,
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                    color: Colors.black54,
-                  ),
+                suffix: IconButton(
                   onPressed: () {
                     setState(() {
                       _obscurePassword = !_obscurePassword;
                     });
                   },
+                  icon: Icon(
+                    _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                  ),
                 ),
               ),
-
-              const SizedBox(height: 10),
-
+              const SizedBox(height: 14),
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Checkbox(
-                        value: _rememberMe,
-                        onChanged: (v) {
-                          setState(() {
-                            _rememberMe = v ?? false;
-                          });
-                        },
-                      ),
-                      const Text("Remember Me"),
-                    ],
+                  Checkbox(
+                    value: _rememberMe,
+                    onChanged: (v) {
+                      setState(() {
+                        _rememberMe = v ?? false;
+                      });
+                    },
                   ),
+                  const Text("Remember me"),
+                  const Spacer(),
                   TextButton(
                     onPressed: () {
                       Navigator.pushNamed(context, AppRoutes.forgotPassword);
@@ -114,143 +194,39 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ],
               ),
-
-              const SizedBox(height: 10),
-
-              // Sign in button
-              _gradientButton(
-                text: "Sign In",
-                onTap: _handleLogin,
-              ),
-
-              const SizedBox(height: 24),
-
-              Row(
-                children: const [
-                  Expanded(child: Divider(thickness: 1, color: Colors.black12)),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 10),
-                    child: Text("or continue with"),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: _handleLogin,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6A11CB),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
-                  Expanded(child: Divider(thickness: 1, color: Colors.black12)),
+                  child: const Text(
+                    "Login",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text("Don’t have an account?"),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pushNamed(context, AppRoutes.signup);
+                    },
+                    child: const Text("Sign up"),
+                  ),
                 ],
               ),
-
-              const SizedBox(height: 14),
-
-              // Google button
-              InkWell(
-                onTap: () {
-                  // Handle Google Sign In
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Google Sign In - Coming Soon!'),
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.purple.shade200),
-                  ),
-                  child: Image.network(
-                    "https://upload.wikimedia.org/wikipedia/commons/0/09/IOS_Google_icon.png",
-                    width: 32,
-                    errorBuilder: (context, error, stackTrace) {
-                      return const Icon(Icons.g_mobiledata, size: 32);
-                    },
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 25),
-
-              GestureDetector(
-                onTap: () {
-                  Navigator.pushNamed(context, AppRoutes.signup);
-                },
-                child: const Text.rich(
-                  TextSpan(
-                    text: "Don't have an account? ",
-                    style: TextStyle(color: Colors.black87),
-                    children: [
-                      TextSpan(
-                        text: "Sign Up",
-                        style: TextStyle(
-                          color: Colors.blue,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      )
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _inputField({
-    required String label,
-    required String hint,
-    required IconData icon,
-    required TextEditingController controller,
-    bool obscure = false,
-    Widget? suffixIcon,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-        const SizedBox(height: 6),
-        Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.purple.shade300, width: 1.4),
-          ),
-          child: TextField(
-            controller: controller,
-            obscureText: obscure,
-            decoration: InputDecoration(
-              prefixIcon: Icon(icon, color: Colors.black54),
-              suffixIcon: suffixIcon,
-              hintText: hint,
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(vertical: 14),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _gradientButton({required String text, required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: const LinearGradient(
-            colors: [
-              Color(0xFFB800FF),
-              Color(0xFF7EE8FA),
-            ],
-          ),
-        ),
-        child: Center(
-          child: Text(
-            text,
-            style: const TextStyle(
-                color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
           ),
         ),
       ),

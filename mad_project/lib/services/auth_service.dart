@@ -5,14 +5,14 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  Future<void> signIn(String email, String password) async {
-    await _auth.signInWithEmailAndPassword(
+  Future<UserCredential> signIn(String email, String password) {
+    return _auth.signInWithEmailAndPassword(
       email: email.trim(),
       password: password,
     );
   }
 
-  Future<void> signUp({
+  Future<UserCredential> signUp({
     required String name,
     required String email,
     required String password,
@@ -23,22 +23,41 @@ class AuthService {
       password: password,
     );
 
-    final uid = cred.user!.uid;
+    final uid = cred.user?.uid;
+    if (uid == null) {
+      throw FirebaseAuthException(
+        code: 'unknown',
+        message: 'User creation failed',
+      );
+    }
 
     await _db.collection('users').doc(uid).set({
       'id': uid,
       'name': name.trim(),
       'email': email.trim(),
       'role': role,
+      'phoneNumber': '',
+      'avatarUrl': '',
       'createdAt': FieldValue.serverTimestamp(),
-    });
+      'notificationsEnabled': true,
+      'notificationPreferences': {
+        'fire': true,
+        'smoke': true,
+        'human': true,
+        'motion': true,
+        'restricted': true,
+      },
+      'fcmTokens': <String>[],
+    }, SetOptions(merge: true));
+
+    return cred;
   }
 
-  Future<void> resetPassword(String email) async {
-    await _auth.sendPasswordResetEmail(email: email.trim());
+  Future<void> resetPassword(String email) {
+    return _auth.sendPasswordResetEmail(email: email.trim());
   }
 
-  Future<void> signOut() async {
-    await _auth.signOut();
+  Future<void> signOut() {
+    return _auth.signOut();
   }
 }

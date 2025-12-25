@@ -1,19 +1,6 @@
 import 'package:flutter/material.dart';
-import '../auth/login_screen.dart';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../routes/app_routes.dart';
-
-Future.delayed(const Duration(seconds: 2), () {
-  final user = FirebaseAuth.instance.currentUser;
-  if (!mounted) return;
-
-  if (user == null) {
-    Navigator.pushReplacementNamed(context, AppRoutes.login);
-  } else {
-    Navigator.pushReplacementNamed(context, AppRoutes.dashboard);
-  }
-});
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -27,11 +14,13 @@ class _SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
 
-    // Navigate after delay
     Future.delayed(const Duration(seconds: 2), () {
-      Navigator.pushReplacement(
+      final user = FirebaseAuth.instance.currentUser;
+      if (!mounted) return;
+
+      Navigator.pushReplacementNamed(
         context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        user == null ? AppRoutes.login : AppRoutes.dashboard,
       );
     });
   }
@@ -42,42 +31,30 @@ class _SplashScreenState extends State<SplashScreen> {
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFCE77FF), // pink-purple
-              Color(0xFF8BB0FF),
-              Color(0xFF7EE8FA), // cyan
-            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF6A11CB), Color(0xFF2575FC)],
           ),
         ),
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Image.asset(
-                "assets/logobg.png",
-                width: 160,
-                height: 160,
-              ),
-              const SizedBox(height: 30),
-              const Text(
-                "Vision Bot",
+            children: const [
+              Icon(Icons.visibility, size: 90, color: Colors.white),
+              SizedBox(height: 18),
+              Text(
+                'VisionBot',
                 style: TextStyle(
-                  fontSize: 28,
-                  color: Colors.white,
+                  fontSize: 34,
                   fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                "A Smart Surveillance System",
-                style: TextStyle(
-                  fontSize: 16,
                   color: Colors.white,
                 ),
               ),
-              const SizedBox(height: 60),
+              SizedBox(height: 10),
+              Text(
+                'A Smart Surveillance System',
+                style: TextStyle(fontSize: 16, color: Colors.white70),
+              ),
             ],
           ),
         ),
