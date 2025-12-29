@@ -1,6 +1,8 @@
+// lib/screens/dashboard/dashboard_screen.dart
 import 'package:flutter/material.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_service.dart';
+import 'dart:math' as math;
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -9,8 +11,25 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen>
+    with SingleTickerProviderStateMixin {
   int _selectedIndex = 0;
+  late AnimationController _fabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _fabController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+  }
+
+  @override
+  void dispose() {
+    _fabController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,177 +38,45 @@ class _DashboardScreenState extends State<DashboardScreen> {
         index: _selectedIndex,
         children: const [HomeTab(), AlertsTab(), GalleryTab(), ProfileTab()],
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: (index) => setState(() => _selectedIndex = index),
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: const Color(0xFFB800FF),
-        unselectedItemColor: Colors.black54,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.notification_important_outlined),
-            activeIcon: Icon(Icons.notification_important),
-            label: 'Alerts',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.photo_library_outlined),
-            activeIcon: Icon(Icons.photo_library),
-            label: 'Gallery',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            activeIcon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// Home Tab Widget
-class HomeTab extends StatelessWidget {
-  const HomeTab({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('VisionBot'),
-        actions: [
-          IconButton(
-            icon: Stack(
-              children: [
-                const Icon(Icons.notifications_outlined),
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                    ),
-                    constraints: const BoxConstraints(
-                      minWidth: 8,
-                      minHeight: 8,
-                    ),
-                  ),
-                ),
-              ],
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 20,
+              offset: const Offset(0, -5),
             ),
-            onPressed: () {
-              Navigator.pushNamed(context, AppRoutes.notifications);
-            },
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(24),
+            topRight: Radius.circular(24),
           ),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          await Future.delayed(const Duration(seconds: 1));
-        },
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildWelcomeCard(),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildStatCard(
-                      'Active Alerts',
-                      '12',
-                      Icons.warning_amber_rounded,
-                      Colors.orange,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildStatCard(
-                      'Robots Online',
-                      '3/4',
-                      Icons.smart_toy_outlined,
-                      Colors.green,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildStatCard(
-                      'Today Images',
-                      '156',
-                      Icons.photo_library_outlined,
-                      Colors.blue,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildStatCard(
-                      'Area Covered',
-                      '2.4 km',
-                      Icons.map_outlined,
-                      Colors.purple,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Quick Actions',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildActionButton(
-                      context,
-                      'GPS Tracking',
-                      Icons.location_on_outlined,
-                      const Color(0xFF4CAF50),
-                      AppRoutes.tracking,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildActionButton(
-                      context,
-                      'View Logs',
-                      Icons.history,
-                      const Color(0xFF2196F3),
-                      AppRoutes.logs,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Recent Alerts',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pushNamed(context, AppRoutes.alerts);
-                    },
-                    child: const Text('View All'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              _buildAlertList(context),
+          child: BottomNavigationBar(
+            currentIndex: _selectedIndex,
+            onTap: (index) => setState(() => _selectedIndex = index),
+            type: BottomNavigationBarType.fixed,
+            backgroundColor: Colors.white,
+            selectedItemColor: const Color(0xFFEC4899),
+            unselectedItemColor: Colors.grey.shade400,
+            selectedLabelStyle: const TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+            ),
+            unselectedLabelStyle: const TextStyle(
+              fontWeight: FontWeight.w500,
+              fontSize: 11,
+            ),
+            elevation: 0,
+            items: [
+              _buildNavItem(Icons.home_rounded, Icons.home_outlined, 'Home', 0),
+              _buildNavItem(Icons.notification_important_rounded,
+                  Icons.notification_important_outlined, 'Alerts', 1),
+              _buildNavItem(Icons.photo_library_rounded,
+                  Icons.photo_library_outlined, 'Gallery', 2),
+              _buildNavItem(
+                  Icons.person_rounded, Icons.person_outline, 'Profile', 3),
             ],
           ),
         ),
@@ -197,34 +84,180 @@ class HomeTab extends StatelessWidget {
     );
   }
 
-  Widget _buildWelcomeCard() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: const LinearGradient(
-          colors: [Color(0xFFB800FF), Color(0xFF7EE8FA)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+  BottomNavigationBarItem _buildNavItem(
+      IconData activeIcon, IconData inactiveIcon, String label, int index) {
+    final isSelected = _selectedIndex == index;
+    return BottomNavigationBarItem(
+      icon: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          gradient: isSelected
+              ? const LinearGradient(
+                  colors: [
+                    Color(0xFFEC4899),
+                    Color(0xFF8B5CF6),
+                  ],
+                )
+              : null,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(
+          isSelected ? activeIcon : inactiveIcon,
+          color: isSelected ? Colors.white : Colors.grey.shade400,
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Welcome Back! 👋',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
+      label: label,
+    );
+  }
+}
+
+// Home Tab Widget with Enhanced Animations
+class HomeTab extends StatefulWidget {
+  const HomeTab({super.key});
+
+  @override
+  State<HomeTab> createState() => _HomeTabState();
+}
+
+class _HomeTabState extends State<HomeTab>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+
+    _fadeAnimation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    );
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.2),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOutCubic,
+    ));
+
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FA),
+      body: CustomScrollView(
+        slivers: [
+          // Animated App Bar
+          SliverAppBar(
+            expandedHeight: 120,
+            floating: false,
+            pinned: true,
+            backgroundColor: Colors.white,
+            elevation: 0,
+            flexibleSpace: FlexibleSpaceBar(
+              title: ShaderMask(
+                shaderCallback: (bounds) => const LinearGradient(
+                  colors: [
+                    Color(0xFFEC4899),
+                    Color(0xFF06B6D4),
+                  ],
+                ).createShader(bounds),
+                child: const Text(
+                  'VisionBot',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              centerTitle: false,
+              titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
             ),
+            actions: [
+              Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: Stack(
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [
+                            Color(0xFFEC4899),
+                            Color(0xFF8B5CF6),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.notifications_rounded,
+                            color: Colors.white),
+                        onPressed: () {
+                          Navigator.pushNamed(context, AppRoutes.notifications);
+                        },
+                      ),
+                    ),
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF06B6D4),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Text(
+                          '3',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            'System Status: All Clear',
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.9),
-              fontSize: 16,
+
+          // Content
+          SliverToBoxAdapter(
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: SlideTransition(
+                position: _slideAnimation,
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildWelcomeCard(),
+                      const SizedBox(height: 24),
+                      _buildStatsGrid(),
+                      const SizedBox(height: 28),
+                      _buildQuickActionsSection(context),
+                      const SizedBox(height: 28),
+                      _buildRecentAlertsSection(context),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
         ],
@@ -232,79 +265,109 @@ class HomeTab extends StatelessWidget {
     );
   }
 
-  Widget _buildStatCard(
-    String title,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+  Widget _buildWelcomeCard() {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 800),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) {
+        return Transform.scale(
+          scale: 0.9 + (0.1 * value),
+          child: Opacity(
+            opacity: value,
+            child: child,
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            style: const TextStyle(color: Colors.black54, fontSize: 13),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionButton(
-    BuildContext context,
-    String label,
-    IconData icon,
-    Color color,
-    String route,
-  ) {
-    return InkWell(
-      onTap: () => Navigator.pushNamed(context, route),
+        );
+      },
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.3)),
+          borderRadius: BorderRadius.circular(24),
+          gradient: const LinearGradient(
+            colors: [
+              Color(0xFFEC4899),
+              Color(0xFF8B5CF6),
+              Color(0xFF06B6D4),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFEC4899).withOpacity(0.4),
+              blurRadius: 30,
+              offset: const Offset(0, 15),
+              spreadRadius: 2,
+            ),
+          ],
         ),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: color, size: 32),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Welcome Back! 👋',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 26,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF06B6D4),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'All Systems Operational',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(
+                    Icons.security_rounded,
+                    color: Colors.white,
+                    size: 32,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -312,89 +375,415 @@ class HomeTab extends StatelessWidget {
     );
   }
 
-  Widget _buildAlertList(BuildContext context) {
-    return ListView.builder(
+  Widget _buildStatsGrid() {
+    final stats = [
+      {
+        'title': 'Active Alerts',
+        'value': '12',
+        'icon': Icons.warning_amber_rounded,
+        'color': const Color(0xFFFF6B6B),
+      },
+      {
+        'title': 'Robots Online',
+        'value': '3/4',
+        'icon': Icons.smart_toy_rounded,
+        'color': const Color(0xFF4ECDC4),
+      },
+      {
+        'title': 'Today Images',
+        'value': '156',
+        'icon': Icons.photo_library_rounded,
+        'color': const Color(0xFF45B7D1),
+      },
+      {
+        'title': 'Area Covered',
+        'value': '2.4 km',
+        'icon': Icons.map_rounded,
+        'color': const Color(0xFF8B5CF6),
+      },
+    ];
+
+    return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: 3,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        childAspectRatio: 1.3,
+      ),
+      itemCount: stats.length,
       itemBuilder: (context, index) {
-        return InkWell(
-          onTap: () {
-            Navigator.pushNamed(context, AppRoutes.alertDetail);
+        return TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0.0, end: 1.0),
+          duration: Duration(milliseconds: 600 + (index * 100)),
+          curve: Curves.easeOutCubic,
+          builder: (context, value, child) {
+            return Transform.translate(
+              offset: Offset(0, 30 * (1 - value)),
+              child: Opacity(
+                opacity: value,
+                child: child,
+              ),
+            );
           },
-          child: _buildAlertCard(
-            'Fire Detected',
-            'Building A - Floor 2',
-            '2 mins ago',
-            Colors.red,
-            Icons.local_fire_department,
+          child: _buildStatCard(
+            stats[index]['title'] as String,
+            stats[index]['value'] as String,
+            stats[index]['icon'] as IconData,
+            stats[index]['color'] as Color,
           ),
         );
       },
     );
   }
 
-  Widget _buildAlertCard(
-    String title,
-    String location,
-    String time,
-    Color color,
-    IconData icon,
-  ) {
+  Widget _buildStatCard(
+      String title, String value, IconData icon, Color color) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: color.withOpacity(0.15),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(icon, color: color, size: 24),
+            child: Icon(icon, color: color, size: 28),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  location,
-                  style: const TextStyle(color: Colors.black54, fontSize: 14),
-                ),
-              ],
-            ),
-          ),
+          const Spacer(),
           Text(
-            time,
-            style: const TextStyle(color: Colors.black38, fontSize: 12),
+            value,
+            style: const TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF1F2937),
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: TextStyle(
+              color: Colors.grey.shade600,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
     );
   }
+
+  Widget _buildQuickActionsSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ShaderMask(
+          shaderCallback: (bounds) => const LinearGradient(
+            colors: [
+              Color(0xFFEC4899),
+              Color(0xFF8B5CF6),
+            ],
+          ).createShader(bounds),
+          child: const Text(
+            'Quick Actions',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              letterSpacing: -0.5,
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildActionButton(
+                context,
+                'GPS Tracking',
+                Icons.location_on_rounded,
+                const Color(0xFF4ECDC4),
+                AppRoutes.tracking,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildActionButton(
+                context,
+                'View Logs',
+                Icons.history_rounded,
+                const Color(0xFF45B7D1),
+                AppRoutes.logs,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionButton(BuildContext context, String label, IconData icon,
+      Color color, String route) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 800),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) {
+        return Transform.scale(
+          scale: 0.9 + (0.1 * value),
+          child: Opacity(
+            opacity: value,
+            child: child,
+          ),
+        );
+      },
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => Navigator.pushNamed(context, route),
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: color.withOpacity(0.3),
+                width: 2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withOpacity(0.15),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        color,
+                        color.withOpacity(0.7),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(icon, color: Colors.white, size: 32),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecentAlertsSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                colors: [
+                  Color(0xFFEC4899),
+                  Color(0xFF8B5CF6),
+                ],
+              ).createShader(bounds),
+              child: const Text(
+                'Recent Alerts',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  letterSpacing: -0.5,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pushNamed(context, AppRoutes.alerts);
+              },
+              child: ShaderMask(
+                shaderCallback: (bounds) => const LinearGradient(
+                  colors: [
+                    Color(0xFFEC4899),
+                    Color(0xFF8B5CF6),
+                  ],
+                ).createShader(bounds),
+                child: const Text(
+                  'View All',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: 3,
+          itemBuilder: (context, index) {
+            return TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.0, end: 1.0),
+              duration: Duration(milliseconds: 600 + (index * 100)),
+              curve: Curves.easeOutCubic,
+              builder: (context, value, child) {
+                return Transform.translate(
+                  offset: Offset(30 * (1 - value), 0),
+                  child: Opacity(
+                    opacity: value,
+                    child: child,
+                  ),
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _buildAlertCard(
+                  'Fire Detected',
+                  'Building A - Floor 2',
+                  '2 mins ago',
+                  const Color(0xFFFF6B6B),
+                  Icons.local_fire_department_rounded,
+                  context,
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAlertCard(String title, String location, String time,
+      Color color, IconData icon, BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          Navigator.pushNamed(context, AppRoutes.alertDetail);
+        },
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.15),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      color,
+                      color.withOpacity(0.7),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(icon, color: Colors.white, size: 26),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                        color: Color(0xFF1F2937),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      location,
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    time,
+                    style: TextStyle(
+                      color: Colors.grey.shade400,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
+// Keep the other tabs (AlertsTab, GalleryTab, ProfileTab) as they were
 // Alerts Tab
 class AlertsTab extends StatelessWidget {
   const AlertsTab({super.key});
@@ -516,7 +905,7 @@ class ProfileTab extends StatelessWidget {
                   height: 100,
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [Color(0xFFB800FF), Color(0xFF7EE8FA)],
+                      colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
                     ),
                     shape: BoxShape.circle,
                   ),
