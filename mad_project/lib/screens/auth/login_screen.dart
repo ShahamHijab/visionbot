@@ -56,13 +56,13 @@ class _LoginScreenState extends State<LoginScreen>
       curve: Curves.easeInOut,
     );
 
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOutCubic,
-    ));
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
 
     _logoScaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
       CurvedAnimation(
@@ -79,10 +79,7 @@ class _LoginScreenState extends State<LoginScreen>
     );
 
     _pulseAnimation = Tween<double>(begin: 1.0, end: 1.15).animate(
-      CurvedAnimation(
-        parent: _pulseController,
-        curve: Curves.easeInOut,
-      ),
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
     _animationController.forward();
@@ -207,16 +204,23 @@ class _LoginScreenState extends State<LoginScreen>
       if (!mounted) return;
       setState(() => _loading = false);
 
+      debugPrint('GOOGLE AUTH ERROR CODE: ${e.code}');
+      debugPrint('GOOGLE AUTH ERROR MESSAGE: ${e.message}');
+
       final msg = e.code == 'popup-blocked'
           ? 'Popup blocked. Please allow popups'
           : e.code == 'popup-closed-by-user'
-              ? 'Sign-in cancelled'
-              : 'Google login failed';
+          ? 'Sign-in cancelled'
+          : e.code == 'account-exists-with-different-credential'
+          ? 'This email is already linked with another sign-in method'
+          : 'Google login failed';
 
       _showError(msg);
     } catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
+
+      debugPrint('GOOGLE LOGIN UNKNOWN ERROR: $e');
       _showError('Google login failed');
     }
   }
@@ -250,8 +254,10 @@ class _LoginScreenState extends State<LoginScreen>
             Expanded(
               child: Text(
                 msg,
-                style:
-                    const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ],
@@ -276,8 +282,10 @@ class _LoginScreenState extends State<LoginScreen>
             Expanded(
               child: Text(
                 msg,
-                style:
-                    const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ],
@@ -308,10 +316,7 @@ class _LoginScreenState extends State<LoginScreen>
           padding: const EdgeInsets.only(left: 4, bottom: 12),
           child: ShaderMask(
             shaderCallback: (bounds) => const LinearGradient(
-              colors: [
-                Color(0xFFEC4899),
-                Color(0xFF8B5CF6),
-              ],
+              colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
             ).createShader(bounds),
             child: Text(
               label,
@@ -331,10 +336,7 @@ class _LoginScreenState extends State<LoginScreen>
           builder: (context, value, child) {
             return Transform.translate(
               offset: Offset(0, 20 * (1 - value)),
-              child: Opacity(
-                opacity: value,
-                child: child,
-              ),
+              child: Opacity(opacity: value, child: child),
             );
           },
           child: Container(
@@ -367,10 +369,7 @@ class _LoginScreenState extends State<LoginScreen>
                   margin: const EdgeInsets.only(left: 12, right: 8),
                   child: ShaderMask(
                     shaderCallback: (bounds) => const LinearGradient(
-                      colors: [
-                        Color(0xFF06B6D4),
-                        Color(0xFF8B5CF6),
-                      ],
+                      colors: [Color(0xFF06B6D4), Color(0xFF8B5CF6)],
                     ).createShader(bounds),
                     child: Icon(icon, color: Colors.white, size: 24),
                   ),
@@ -388,10 +387,7 @@ class _LoginScreenState extends State<LoginScreen>
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20),
-                  borderSide: BorderSide(
-                    color: Colors.grey.shade100,
-                    width: 2,
-                  ),
+                  borderSide: BorderSide(color: Colors.grey.shade100, width: 2),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20),
@@ -461,15 +457,17 @@ class _LoginScreenState extends State<LoginScreen>
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: const Color(0xFF06B6D4)
-                                          .withOpacity(0.5),
+                                      color: const Color(
+                                        0xFF06B6D4,
+                                      ).withOpacity(0.5),
                                       blurRadius: 40,
                                       offset: const Offset(0, 15),
                                       spreadRadius: 5,
                                     ),
                                     BoxShadow(
-                                      color: const Color(0xFFEC4899)
-                                          .withOpacity(0.4),
+                                      color: const Color(
+                                        0xFFEC4899,
+                                      ).withOpacity(0.4),
                                       blurRadius: 50,
                                       offset: const Offset(-10, -10),
                                       spreadRadius: 3,
@@ -591,7 +589,7 @@ class _LoginScreenState extends State<LoginScreen>
                                         ? const LinearGradient(
                                             colors: [
                                               Color(0xFFEC4899),
-                                              Color(0xFF8B5CF6)
+                                              Color(0xFF8B5CF6),
                                             ],
                                           )
                                         : null,
@@ -621,7 +619,10 @@ class _LoginScreenState extends State<LoginScreen>
                       const Spacer(),
                       TextButton(
                         onPressed: () {
-                          Navigator.pushNamed(context, AppRoutes.forgotPassword);
+                          Navigator.pushNamed(
+                            context,
+                            AppRoutes.forgotPassword,
+                          );
                         },
                         style: TextButton.styleFrom(
                           foregroundColor: const Color(0xFF8B5CF6),
@@ -632,10 +633,7 @@ class _LoginScreenState extends State<LoginScreen>
                         ),
                         child: ShaderMask(
                           shaderCallback: (bounds) => const LinearGradient(
-                            colors: [
-                              Color(0xFFEC4899),
-                              Color(0xFF8B5CF6),
-                            ],
+                            colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
                           ).createShader(bounds),
                           child: const Text(
                             "Forgot Password?",
@@ -658,10 +656,7 @@ class _LoginScreenState extends State<LoginScreen>
                     builder: (context, value, child) {
                       return Transform.scale(
                         scale: 0.8 + (0.2 * value),
-                        child: Opacity(
-                          opacity: value,
-                          child: child,
-                        ),
+                        child: Opacity(opacity: value, child: child),
                       );
                     },
                     child: Container(
@@ -787,10 +782,7 @@ class _LoginScreenState extends State<LoginScreen>
                     builder: (context, value, child) {
                       return Transform.translate(
                         offset: Offset(0, 30 * (1 - value)),
-                        child: Opacity(
-                          opacity: value,
-                          child: child,
-                        ),
+                        child: Opacity(opacity: value, child: child),
                       );
                     },
                     child: Container(
@@ -871,10 +863,7 @@ class _LoginScreenState extends State<LoginScreen>
                         ),
                         child: ShaderMask(
                           shaderCallback: (bounds) => const LinearGradient(
-                            colors: [
-                              Color(0xFFEC4899),
-                              Color(0xFF8B5CF6),
-                            ],
+                            colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
                           ).createShader(bounds),
                           child: const Text(
                             "Sign up",
