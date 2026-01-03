@@ -1,3 +1,4 @@
+// lib/models/user_model.dart
 class UserModel {
   final String id;
   final String name;
@@ -8,6 +9,7 @@ class UserModel {
   final DateTime createdAt;
   final bool notificationsEnabled;
   final Map<String, bool> notificationPreferences;
+  final UserPermissions permissions;
 
   UserModel({
     required this.id,
@@ -19,23 +21,28 @@ class UserModel {
     required this.createdAt,
     this.notificationsEnabled = true,
     Map<String, bool>? notificationPreferences,
-  }) : notificationPreferences = notificationPreferences ?? {
-          'fire': true,
-          'smoke': true,
-          'human': true,
-          'motion': true,
-          'restricted': true,
-        };
+    UserPermissions? permissions,
+  })  : notificationPreferences = notificationPreferences ??
+            {
+              'fire': true,
+              'smoke': true,
+              'human': true,
+              'motion': true,
+              'restricted': true,
+            },
+        permissions = permissions ?? UserPermissions.fromRole(role);
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
+    final role = UserRole.values.firstWhere(
+      (e) => e.toString() == 'UserRole.${json['role']}',
+      orElse: () => UserRole.securityOfficer,
+    );
+
     return UserModel(
       id: json['id'] ?? '',
       name: json['name'] ?? '',
       email: json['email'] ?? '',
-      role: UserRole.values.firstWhere(
-        (e) => e.toString() == 'UserRole.${json['role']}',
-        orElse: () => UserRole.securityOfficer,
-      ),
+      role: role,
       phoneNumber: json['phoneNumber'],
       avatarUrl: json['avatarUrl'],
       createdAt: DateTime.parse(json['createdAt']),
@@ -43,6 +50,9 @@ class UserModel {
       notificationPreferences: json['notificationPreferences'] != null
           ? Map<String, bool>.from(json['notificationPreferences'])
           : null,
+      permissions: json['permissions'] != null
+          ? UserPermissions.fromJson(json['permissions'])
+          : UserPermissions.fromRole(role),
     );
   }
 
@@ -57,6 +67,7 @@ class UserModel {
       'createdAt': createdAt.toIso8601String(),
       'notificationsEnabled': notificationsEnabled,
       'notificationPreferences': notificationPreferences,
+      'permissions': permissions.toJson(),
     };
   }
 
@@ -70,6 +81,7 @@ class UserModel {
     DateTime? createdAt,
     bool? notificationsEnabled,
     Map<String, bool>? notificationPreferences,
+    UserPermissions? permissions,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -80,7 +92,9 @@ class UserModel {
       avatarUrl: avatarUrl ?? this.avatarUrl,
       createdAt: createdAt ?? this.createdAt,
       notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
-      notificationPreferences: notificationPreferences ?? this.notificationPreferences,
+      notificationPreferences:
+          notificationPreferences ?? this.notificationPreferences,
+      permissions: permissions ?? this.permissions,
     );
   }
 }
@@ -107,5 +121,81 @@ extension UserRoleExtension on UserRole {
       case UserRole.securityOfficer:
         return 'Monitor alerts and surveillance';
     }
+  }
+}
+
+class UserPermissions {
+  final bool canAccessDashboard;
+  final bool canViewLiveCameraFeed;
+  final bool canReceiveSmokeAlerts;
+  final bool canReceiveUnauthorizedPersonAlerts;
+  final bool canViewDetectedFaceImages;
+  final bool canPerformFaceVerification;
+  final bool canAccessGPSTracking;
+  final bool canViewAlertLogs;
+
+  UserPermissions({
+    required this.canAccessDashboard,
+    required this.canViewLiveCameraFeed,
+    required this.canReceiveSmokeAlerts,
+    required this.canReceiveUnauthorizedPersonAlerts,
+    required this.canViewDetectedFaceImages,
+    required this.canPerformFaceVerification,
+    required this.canAccessGPSTracking,
+    required this.canViewAlertLogs,
+  });
+
+  factory UserPermissions.fromRole(UserRole role) {
+    switch (role) {
+      case UserRole.admin:
+        return UserPermissions(
+          canAccessDashboard: true,
+          canViewLiveCameraFeed: true,
+          canReceiveSmokeAlerts: true,
+          canReceiveUnauthorizedPersonAlerts: true,
+          canViewDetectedFaceImages: true,
+          canPerformFaceVerification: true,
+          canAccessGPSTracking: true,
+          canViewAlertLogs: true,
+        );
+      case UserRole.securityOfficer:
+        return UserPermissions(
+          canAccessDashboard: true,
+          canViewLiveCameraFeed: false, // alerts only
+          canReceiveSmokeAlerts: true,
+          canReceiveUnauthorizedPersonAlerts: true,
+          canViewDetectedFaceImages: true,
+          canPerformFaceVerification: true,
+          canAccessGPSTracking: false,
+          canViewAlertLogs: true,
+        );
+    }
+  }
+
+  factory UserPermissions.fromJson(Map<String, dynamic> json) {
+    return UserPermissions(
+      canAccessDashboard: json['canAccessDashboard'] ?? true,
+      canViewLiveCameraFeed: json['canViewLiveCameraFeed'] ?? false,
+      canReceiveSmokeAlerts: json['canReceiveSmokeAlerts'] ?? true,
+      canReceiveUnauthorizedPersonAlerts:
+          json['canReceiveUnauthorizedPersonAlerts'] ?? true,
+      canViewDetectedFaceImages: json['canViewDetectedFaceImages'] ?? true,
+      canPerformFaceVerification: json['canPerformFaceVerification'] ?? true,
+      canAccessGPSTracking: json['canAccessGPSTracking'] ?? false,
+      canViewAlertLogs: json['canViewAlertLogs'] ?? true,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'canAccessDashboard': canAccessDashboard,
+      'canViewLiveCameraFeed': canViewLiveCameraFeed,
+      'canReceiveSmokeAlerts': canReceiveSmokeAlerts,
+      'canReceiveUnauthorizedPersonAlerts': canReceiveUnauthorizedPersonAlerts,
+      'canViewDetectedFaceImages': canViewDetectedFaceImages,
+      'canPerformFaceVerification': canPerformFaceVerification,
+      'canAccessGPSTracking': canAccessGPSTracking,
+      'canViewAlertLogs': canViewAlertLogs,
+    };
   }
 }
