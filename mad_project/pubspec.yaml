@@ -42,6 +42,7 @@ flutter:
     - assets/person.jfif
     - assets/fire.jfif
     - assets/group.jfif
+    - assets/google.png
 
 flutter_icons:
   android: true
