@@ -306,3 +306,17 @@ class AuthService {
     }
   }
 }
+
+Future<void> upsertUserProfile({
+  required String uid,
+  required String name,
+  required String email,
+  required String phone,
+}) async {
+  await FirebaseFirestore.instance.collection('users').doc(uid).set({
+    'name': name,
+    'email': email,
+    'phone': phone,
+    'updated_at': FieldValue.serverTimestamp(),
+  }, SetOptions(merge: true));
+}

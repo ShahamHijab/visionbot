@@ -1,6 +1,7 @@
 // lib/screens/profile/profile_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_service.dart';
 
@@ -11,15 +12,16 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProviderStateMixin {
+class _ProfileScreenState extends State<ProfileScreen>
+    with SingleTickerProviderStateMixin {
   final AuthService _authService = AuthService();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
-  
+
   bool _isEditing = false;
   bool _loading = false;
-  
+
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -27,7 +29,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
   @override
   void initState() {
     super.initState();
-    
+
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
@@ -38,13 +40,13 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
       curve: Curves.easeInOut,
     );
 
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.2),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOutCubic,
-    ));
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
 
     _animationController.forward();
     _loadUserData();
@@ -59,91 +61,108 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     super.dispose();
   }
 
+  void _showSnack(String message, {bool isError = false}) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              isError ? Icons.error_outline : Icons.check_circle_outline,
+              color: Colors.white,
+              size: 22,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: isError
+            ? const Color(0xFFEC4899)
+            : const Color(0xFF06B6D4),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        margin: const EdgeInsets.all(20),
+        duration: const Duration(seconds: 3),
+        elevation: 8,
+      ),
+    );
+  }
+
   Future<void> _loadUserData() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      setState(() {
-        _nameController.text = user.displayName ?? '';
-        _emailController.text = user.email ?? '';
-        _phoneController.text = user.phoneNumber ?? '';
-      });
-    }
+    if (user == null) return;
+
+    try {
+      await user.reload();
+    } catch (_) {}
+
+    final refreshedUser = FirebaseAuth.instance.currentUser;
+
+    if (!mounted) return;
+    setState(() {
+      _nameController.text = refreshedUser?.displayName ?? '';
+      _emailController.text = refreshedUser?.email ?? '';
+      _phoneController.text = refreshedUser?.phoneNumber ?? '';
+    });
   }
 
   Future<void> _saveProfile() async {
     if (_loading) return;
-    
+
+    final newName = _nameController.text.trim();
+    final newPhone = _phoneController.text.trim();
+
+    if (newName.isEmpty) {
+      _showSnack('Name cannot be empty', isError: true);
+      return;
+    }
+
     setState(() => _loading = true);
 
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        await user.updateDisplayName(_nameController.text);
-        
-        if (!mounted) return;
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle_outline, color: Colors.white, size: 22),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Text(
-                    'Profile updated successfully!',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: const Color(0xFF06B6D4),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            margin: const EdgeInsets.all(20),
-            duration: const Duration(seconds: 3),
-            elevation: 8,
-          ),
-        );
+      if (user == null) throw Exception('No user found');
 
-        setState(() {
-          _isEditing = false;
-          _loading = false;
-        });
-      }
-    } catch (e) {
+      await user.updateDisplayName(newName);
+
+      await user.reload();
+      final refreshedUser = FirebaseAuth.instance.currentUser;
+
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'name': newName,
+        'email': refreshedUser?.email ?? user.email ?? '',
+        'phone': newPhone,
+        'updated_at': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
       if (!mounted) return;
-      
+
+      setState(() {
+        _isEditing = false;
+        _loading = false;
+      });
+
+      _showSnack('Profile updated successfully!');
+    } catch (_) {
+      if (!mounted) return;
       setState(() => _loading = false);
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.error_outline, color: Colors.white, size: 22),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
-                  'Failed to update profile',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: const Color(0xFFEC4899),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          margin: const EdgeInsets.all(20),
-          duration: const Duration(seconds: 3),
-          elevation: 8,
-        ),
-      );
+      _showSnack('Failed to update profile', isError: true);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
-    
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
@@ -155,10 +174,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
           ).createShader(bounds),
           child: const Text(
             'My Profile',
-            style: TextStyle(
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-            ),
+            style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
           ),
         ),
         actions: [
@@ -188,7 +204,6 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
             padding: const EdgeInsets.all(20),
             child: Column(
               children: [
-                // Profile Picture
                 Stack(
                   children: [
                     Container(
@@ -262,8 +277,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                   ],
                 ),
                 const SizedBox(height: 24),
-                
-                // User Info
+
                 if (!_isEditing) ...[
                   Text(
                     user?.displayName ?? 'User',
@@ -275,7 +289,10 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                   ),
                   const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
@@ -299,7 +316,6 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                     ),
                   ),
                 ] else ...[
-                  // Edit Form
                   _buildInputField(
                     controller: _nameController,
                     label: 'Full Name',
@@ -322,10 +338,9 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                     hint: '+1 234 567 8900',
                   ),
                 ],
-                
+
                 const SizedBox(height: 32),
-                
-                // Stats Cards
+
                 Row(
                   children: [
                     Expanded(
@@ -347,10 +362,9 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                     ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 32),
-                
-                // Action Buttons
+
                 if (_isEditing) ...[
                   Container(
                     width: double.infinity,
@@ -407,10 +421,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: Colors.grey.shade300,
-                        width: 2,
-                      ),
+                      border: Border.all(color: Colors.grey.shade300, width: 2),
                     ),
                     child: Material(
                       color: Colors.transparent,
@@ -438,7 +449,8 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                   _buildMenuItem(
                     'Change Password',
                     Icons.lock_outline_rounded,
-                    () => Navigator.pushNamed(context, AppRoutes.changePassword),
+                    () =>
+                        Navigator.pushNamed(context, AppRoutes.changePassword),
                   ),
                   const SizedBox(height: 12),
                   _buildMenuItem(
@@ -514,7 +526,10 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
               ),
               filled: true,
               fillColor: enabled ? Colors.white : Colors.grey.shade100,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 20,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(20),
                 borderSide: BorderSide.none,
@@ -525,7 +540,10 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(20),
-                borderSide: const BorderSide(color: Color(0xFF06B6D4), width: 2.5),
+                borderSide: const BorderSide(
+                  color: Color(0xFF06B6D4),
+                  width: 2.5,
+                ),
               ),
             ),
           ),
@@ -534,7 +552,12 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     );
   }
 
-  Widget _buildStatCard(String value, String label, IconData icon, Color color) {
+  Widget _buildStatCard(
+    String value,
+    String label,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
