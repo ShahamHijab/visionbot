@@ -395,11 +395,16 @@ class _SettingsScreenState extends State<SettingsScreen>
                 (route) => false,
               );
             },
-            child: const Text(
-              'Logout',
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: Color(0xFFFF6B6B),
+            child: ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
+              ).createShader(bounds),
+              child: const Text(
+                'Logout',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
               ),
             ),
           ),
