@@ -15,7 +15,7 @@ import '../screens/tracking/gps_tracking_screen.dart';
 import '../screens/notifications/notifications_screen.dart';
 import '../screens/logs/logs_history_screen.dart';
 import '../screens/settings/settings_screen.dart';
-import '../screens/settings/about_screen.dart';
+import '../screens/settings/about_screen.dart' hide UserGuideScreen, ImageGalleryScreen, LogsHistoryScreen;
 import '../screens/settings/user_guide_screen.dart';
 import '../screens/auth/verify_email_screen.dart';
 

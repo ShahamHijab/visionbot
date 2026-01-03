@@ -6,6 +6,7 @@ import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/alert_service.dart';
 import '../../models/alert_model.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -1006,13 +1007,74 @@ class GalleryTab extends StatelessWidget {
 }
 
 // Profile Tab
-class ProfileTab extends StatelessWidget {
+class ProfileTab extends StatefulWidget {
   const ProfileTab({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final AuthService authService = AuthService();
+  State<ProfileTab> createState() => _ProfileTabState();
+}
 
+class _ProfileTabState extends State<ProfileTab> {
+  final AuthService authService = AuthService();
+  String _userName = 'Loading...';
+  String _userEmail = '';
+  String _userRole = 'User';
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+
+      if (user != null) {
+        // Get display name from Firebase Auth
+        String displayName = user.displayName ?? '';
+
+        // If no display name, try to get from Firestore
+        if (displayName.isEmpty) {
+          final userData = await authService.getCurrentUserData();
+          displayName = userData?.name ?? 'User';
+        }
+
+        // Get user role from Firestore
+        final role = await authService.getCurrentUserRole();
+
+        setState(() {
+          _userName = displayName.isEmpty ? 'User' : displayName;
+          _userEmail = user.email ?? '';
+          _userRole = role == 'admin'
+              ? 'Administrator'
+              : role == 'officer'
+              ? 'Security Officer'
+              : 'User';
+          _loading = false;
+        });
+      } else {
+        setState(() {
+          _userName = 'Guest';
+          _userEmail = '';
+          _userRole = 'Guest';
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading user data: $e');
+      setState(() {
+        _userName = 'User';
+        _userEmail = '';
+        _userRole = 'User';
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Profile'),
@@ -1025,119 +1087,161 @@ class ProfileTab extends StatelessWidget {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          Center(
-            child: Column(
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
+              padding: const EdgeInsets.all(20),
               children: [
-                Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
+                Center(
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
+                          ),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Text(
+                            _userName.isNotEmpty
+                                ? _userName[0].toUpperCase()
+                                : 'U',
+                            style: const TextStyle(
+                              fontSize: 40,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _userName,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _userRole,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: Colors.black54,
+                        ),
+                      ),
+                      if (_userEmail.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            _userEmail,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 30),
+                _buildMenuItem(
+                  context,
+                  'Edit Profile',
+                  Icons.person_outline,
+                  AppRoutes.profile,
+                ),
+                _buildMenuItem(
+                  context,
+                  'Change Password',
+                  Icons.lock_outline,
+                  AppRoutes.changePassword,
+                ),
+                _buildMenuItem(
+                  context,
+                  'Notifications',
+                  Icons.notifications_outlined,
+                  AppRoutes.notifications,
+                ),
+                _buildMenuItem(
+                  context,
+                  'Settings',
+                  Icons.settings_outlined,
+                  AppRoutes.settings,
+                ),
+                _buildMenuItem(
+                  context,
+                  'User Guide',
+                  Icons.help_outline,
+                  AppRoutes.userGuide,
+                ),
+                _buildMenuItem(
+                  context,
+                  'About',
+                  Icons.info_outline,
+                  AppRoutes.about,
+                ),
+                const SizedBox(height: 20),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: ElevatedButton(
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Logout'),
+                          content: const Text(
+                            'Are you sure you want to logout?',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Cancel'),
+                            ),
+                            TextButton(
+                              onPressed: () async {
+                                await authService.signOut();
+                                if (!context.mounted) return;
+                                Navigator.pushNamedAndRemoveUntil(
+                                  context,
+                                  AppRoutes.login,
+                                  (route) => false,
+                                );
+                              },
+                              child: const Text(
+                                'Logout',
+                                style: TextStyle(color: Colors.red),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    shape: BoxShape.circle,
+                    child: const Text('Logout'),
                   ),
-                  child: const Icon(
-                    Icons.person,
-                    size: 50,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'John Doe',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Security Officer',
-                  style: TextStyle(fontSize: 16, color: Colors.black54),
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 30),
-          _buildMenuItem(
-            context,
-            'Edit Profile',
-            Icons.person_outline,
-            AppRoutes.profile,
-          ),
-          _buildMenuItem(
-            context,
-            'Change Password',
-            Icons.lock_outline,
-            AppRoutes.changePassword,
-          ),
-          _buildMenuItem(
-            context,
-            'Notifications',
-            Icons.notifications_outlined,
-            AppRoutes.notifications,
-          ),
-          _buildMenuItem(
-            context,
-            'Settings',
-            Icons.settings_outlined,
-            AppRoutes.settings,
-          ),
-          _buildMenuItem(
-            context,
-            'User Guide',
-            Icons.help_outline,
-            AppRoutes.userGuide,
-          ),
-          _buildMenuItem(context, 'About', Icons.info_outline, AppRoutes.about),
-          const SizedBox(height: 20),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: ElevatedButton(
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Logout'),
-                    content: const Text('Are you sure you want to logout?'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Cancel'),
-                      ),
-                      TextButton(
-                        onPressed: () async {
-                          await authService.signOut();
-                          if (!context.mounted) return;
-                          Navigator.pushNamedAndRemoveUntil(
-                            context,
-                            AppRoutes.login,
-                            (route) => false,
-                          );
-                        },
-                        child: const Text(
-                          'Logout',
-                          style: TextStyle(color: Colors.red),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text('Logout'),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
