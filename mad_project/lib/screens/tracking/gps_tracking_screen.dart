@@ -38,6 +38,7 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
   
   bool _isSendingLocation = false;
   String? _selectedRobotId;
+  bool _isMapReady = false;
   
   final LatLng _initialPosition = const LatLng(31.4504, 73.1350);
 
@@ -94,7 +95,7 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
         });
         
         if (mounted) {
-          _showSuccess('Location sent: ${position.latitude}, ${position.longitude}');
+          _showSuccess('Location sent: ${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}');
         }
       } catch (e) {
         debugPrint('Error sending location: $e');
@@ -115,6 +116,8 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
         .collection('device_locations')
         .snapshots()
         .listen((snapshot) {
+      if (!mounted) return;
+      
       setState(() {
         _robots.clear();
         _markers.clear();
@@ -193,6 +196,7 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
   }
 
   void _showSuccess(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -218,6 +222,7 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
   }
 
   void _showError(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -243,7 +248,9 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
   }
 
   void _onMapCreated(GoogleMapController controller) {
+    if (!mounted) return;
     _mapController = controller;
+    setState(() => _isMapReady = true);
   }
 
   @override
@@ -327,6 +334,16 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
             myLocationEnabled: true,
             zoomControlsEnabled: false,
             mapToolbarEnabled: false,
+            compassEnabled: true,
+            rotateGesturesEnabled: true,
+            scrollGesturesEnabled: true,
+            tiltGesturesEnabled: true,
+            zoomGesturesEnabled: true,
+            buildingsEnabled: true,
+            indoorViewEnabled: true,
+            trafficEnabled: false,
+            mapType: MapType.normal,
+            minMaxZoomPreference: const MinMaxZoomPreference(10, 20),
           ),
           
           // Status Banner
