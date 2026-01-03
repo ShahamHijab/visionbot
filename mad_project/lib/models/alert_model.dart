@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AlertModel {
   final String id;
+
+  // Existing UI fields (used by alert_card, alert_detail, etc)
   final AlertType type;
   final AlertSeverity severity;
   final String title;
@@ -16,6 +18,12 @@ class AlertModel {
   final bool isResolved;
   final String? resolvedBy;
   final DateTime? resolvedAt;
+
+  // New fields that match your Firestore alerts document
+  final String lens; // "back"
+  final String note; // "Unknown face detected"
+  final double? threshold; // 0.45
+  final DateTime? createdAtLocal; // from created_at_local (string)
 
   AlertModel({
     required this.id,
@@ -33,130 +41,116 @@ class AlertModel {
     this.isResolved = false,
     this.resolvedBy,
     this.resolvedAt,
+    this.lens = '',
+    this.note = '',
+    this.threshold,
+    this.createdAtLocal,
   });
 
-  factory AlertModel.fromJson(Map<String, dynamic> json) {
-    return AlertModel(
-      id: json['id'] ?? '',
-      type: AlertType.values.firstWhere(
-        (e) => e.toString() == 'AlertType.${json['type']}',
-        orElse: () => AlertType.other,
-      ),
-      severity: AlertSeverity.values.firstWhere(
-        (e) => e.toString() == 'AlertSeverity.${json['severity']}',
-        orElse: () => AlertSeverity.info,
-      ),
-      title: json['title'] ?? 'Alert',
-      description: json['description'] ?? '',
-      imageUrl: json['imageUrl'] ?? '',
-      timestamp: DateTime.tryParse(json['timestamp'] ?? '') ?? DateTime.now(),
-      location: json['location'] ?? '',
-      latitude: json['latitude']?.toDouble(),
-      longitude: json['longitude']?.toDouble(),
-      robotId: json['robotId'] ?? '',
-      isRead: json['isRead'] ?? false,
-      isResolved: json['isResolved'] ?? false,
-      resolvedBy: json['resolvedBy'],
-      resolvedAt: json['resolvedAt'] != null
-          ? DateTime.tryParse(json['resolvedAt'])
-          : null,
+  // Backward compatible alias (your dashboard code uses alert.createdAt)
+  DateTime get createdAt => timestamp;
+
+  // Firestore parsing for your current schema:
+  // created_at, created_at_local, lens, note, threshold, type
+  factory AlertModel.fromFirestore(DocumentSnapshot doc) {
+    final data = (doc.data() as Map<String, dynamic>?) ?? {};
+
+    final rawType = (data['type'] ?? '').toString();
+    final parsedType = AlertTypeX.fromString(rawType);
+
+    final thresholdVal = _toDoubleOrNull(data['threshold']);
+
+    final createdAt =
+        _parseFirestoreDateTime(data['created_at']) ??
+        _parseIsoDateTime(data['created_at_local']) ??
+        _parseFirestoreDateTime(data['timestamp']) ??
+        DateTime.now();
+
+    final lens = (data['lens'] ?? '').toString();
+    final note = (data['note'] ?? '').toString();
+
+    final severity = AlertSeverityX.infer(
+      type: parsedType,
+      threshold: thresholdVal,
     );
-  }
 
-  factory AlertModel.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
-    final data = doc.data() ?? {};
+    final title =
+        data['title'] != null && (data['title'].toString().trim().isNotEmpty)
+        ? data['title'].toString()
+        : parsedType.displayName; // unknown_face -> Unknown person
 
-    AlertType parseType(dynamic v) {
-      final s = (v ?? 'other').toString().toLowerCase().trim();
-      for (final t in AlertType.values) {
-        if (t.name == s) return t;
-      }
-      return AlertType.other;
-    }
+    final description =
+        data['description'] != null &&
+            (data['description'].toString().trim().isNotEmpty)
+        ? data['description'].toString()
+        : note;
 
-    AlertSeverity parseSeverity(dynamic v) {
-      final s = (v ?? 'info').toString().toLowerCase().trim();
-      for (final sev in AlertSeverity.values) {
-        if (sev.name == s) return sev;
-      }
-      return AlertSeverity.info;
-    }
+    final imageUrl = (data['imageUrl'] ?? data['image_url'] ?? '').toString();
 
-    DateTime parseDate(dynamic v) {
-      if (v == null) return DateTime.now();
-      if (v is Timestamp) return v.toDate();
-      if (v is DateTime) return v;
-      if (v is int) return DateTime.fromMillisecondsSinceEpoch(v);
-      if (v is String) {
-        try {
-          return DateTime.parse(v);
-        } catch (_) {
-          return DateTime.now();
-        }
-      }
-      return DateTime.now();
-    }
+    final location =
+        data['location'] != null &&
+            (data['location'].toString().trim().isNotEmpty)
+        ? data['location'].toString()
+        : (lens.isEmpty ? '' : 'Lens: $lens');
 
-    DateTime? parseNullableDate(dynamic v) {
-      if (v == null) return null;
-      if (v is Timestamp) return v.toDate();
-      if (v is DateTime) return v;
-      if (v is int) return DateTime.fromMillisecondsSinceEpoch(v);
-      if (v is String) {
-        try {
-          return DateTime.parse(v);
-        } catch (_) {
-          return null;
-        }
-      }
-      return null;
-    }
-
-    double? parseDouble(dynamic v) {
-      if (v == null) return null;
-      if (v is double) return v;
-      if (v is int) return v.toDouble();
-      if (v is num) return v.toDouble();
-      if (v is String) return double.tryParse(v);
-      return null;
-    }
-
-    bool parseBool(dynamic v, bool fallback) {
-      if (v == null) return fallback;
-      if (v is bool) return v;
-      if (v is int) return v != 0;
-      if (v is String) {
-        final s = v.toLowerCase().trim();
-        if (s == 'true') return true;
-        if (s == 'false') return false;
-      }
-      return fallback;
-    }
+    final robotId = (data['robotId'] ?? data['robot_id'] ?? '').toString();
 
     return AlertModel(
       id: doc.id,
-      type: parseType(data['type']),
-      severity: parseSeverity(data['severity']),
-      title: (data['title'] ?? 'Alert').toString(),
-      description: (data['description'] ?? '').toString(),
-      imageUrl: (data['imageUrl'] ?? '').toString(),
-      timestamp: parseDate(data['timestamp']),
-      location: (data['location'] ?? '').toString(),
-      latitude: parseDouble(data['latitude']),
-      longitude: parseDouble(data['longitude']),
-      robotId: (data['robotId'] ?? '').toString(),
-      isRead: parseBool(data['isRead'], false),
-      isResolved: parseBool(data['isResolved'], false),
-      resolvedBy: data['resolvedBy']?.toString(),
-      resolvedAt: parseNullableDate(data['resolvedAt']),
+      type: parsedType,
+      severity: severity,
+      title: title,
+      description: description,
+      imageUrl: imageUrl,
+      timestamp: createdAt,
+      location: location,
+      latitude: _toDoubleOrNull(data['latitude']),
+      longitude: _toDoubleOrNull(data['longitude']),
+      robotId: robotId,
+      isRead: (data['isRead'] ?? data['is_read'] ?? false) == true,
+      isResolved: (data['isResolved'] ?? data['is_resolved'] ?? false) == true,
+      resolvedBy:
+          data['resolvedBy']?.toString() ?? data['resolved_by']?.toString(),
+      resolvedAt:
+          _parseFirestoreDateTime(data['resolvedAt']) ??
+          _parseFirestoreDateTime(data['resolved_at']),
+      lens: lens,
+      note: note,
+      threshold: thresholdVal,
+      createdAtLocal: _parseIsoDateTime(data['created_at_local']),
+    );
+  }
+
+  // Keep your old json factory working too
+  factory AlertModel.fromJson(Map<String, dynamic> json) {
+    return AlertModel(
+      id: (json['id'] ?? '').toString(),
+      type: AlertTypeX.fromString((json['type'] ?? '').toString()),
+      severity: AlertSeverityX.fromString((json['severity'] ?? '').toString()),
+      title: (json['title'] ?? '').toString(),
+      description: (json['description'] ?? '').toString(),
+      imageUrl: (json['imageUrl'] ?? '').toString(),
+      timestamp: _parseIsoDateTime(json['timestamp']) ?? DateTime.now(),
+      location: (json['location'] ?? '').toString(),
+      latitude: _toDoubleOrNull(json['latitude']),
+      longitude: _toDoubleOrNull(json['longitude']),
+      robotId: (json['robotId'] ?? '').toString(),
+      isRead: json['isRead'] == true,
+      isResolved: json['isResolved'] == true,
+      resolvedBy: json['resolvedBy']?.toString(),
+      resolvedAt: _parseIsoDateTime(json['resolvedAt']),
+      lens: (json['lens'] ?? '').toString(),
+      note: (json['note'] ?? '').toString(),
+      threshold: _toDoubleOrNull(json['threshold']),
+      createdAtLocal: _parseIsoDateTime(json['created_at_local']),
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'type': type.toString().split('.').last,
-      'severity': severity.toString().split('.').last,
+      'type': type.name,
+      'severity': severity.name,
       'title': title,
       'description': description,
       'imageUrl': imageUrl,
@@ -169,6 +163,10 @@ class AlertModel {
       'isResolved': isResolved,
       'resolvedBy': resolvedBy,
       'resolvedAt': resolvedAt?.toIso8601String(),
+      'lens': lens,
+      'note': note,
+      'threshold': threshold,
+      'created_at_local': createdAtLocal?.toIso8601String(),
     };
   }
 
@@ -188,6 +186,10 @@ class AlertModel {
     bool? isResolved,
     String? resolvedBy,
     DateTime? resolvedAt,
+    String? lens,
+    String? note,
+    double? threshold,
+    DateTime? createdAtLocal,
   }) {
     return AlertModel(
       id: id ?? this.id,
@@ -205,11 +207,48 @@ class AlertModel {
       isResolved: isResolved ?? this.isResolved,
       resolvedBy: resolvedBy ?? this.resolvedBy,
       resolvedAt: resolvedAt ?? this.resolvedAt,
+      lens: lens ?? this.lens,
+      note: note ?? this.note,
+      threshold: threshold ?? this.threshold,
+      createdAtLocal: createdAtLocal ?? this.createdAtLocal,
     );
+  }
+
+  static double? _toDoubleOrNull(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString());
+  }
+
+  static DateTime? _parseIsoDateTime(dynamic v) {
+    if (v == null) return null;
+    if (v is DateTime) return v;
+    final s = v.toString().trim();
+    if (s.isEmpty) return null;
+    return DateTime.tryParse(s);
+  }
+
+  static DateTime? _parseFirestoreDateTime(dynamic v) {
+    if (v == null) return null;
+    if (v is Timestamp) return v.toDate();
+    if (v is DateTime) return v;
+    return _parseIsoDateTime(v);
   }
 }
 
-enum AlertType { fire, smoke, human, motion, restricted, other }
+enum AlertType {
+  fire,
+  smoke,
+  human,
+  motion,
+  restricted,
+  other,
+
+  // New types for your schema
+  unknownFace,
+  knownFace,
+  intruder,
+}
 
 enum AlertSeverity { critical, warning, info }
 
@@ -217,17 +256,23 @@ extension AlertTypeExtension on AlertType {
   String get displayName {
     switch (this) {
       case AlertType.fire:
-        return 'Fire Detected';
+        return 'Fire detected';
       case AlertType.smoke:
-        return 'Smoke Detected';
+        return 'Smoke detected';
       case AlertType.human:
-        return 'Human Detected';
+        return 'Person detected';
       case AlertType.motion:
-        return 'Motion Detected';
+        return 'Motion detected';
       case AlertType.restricted:
-        return 'Restricted Area Entry';
+        return 'Restricted area entry';
+      case AlertType.unknownFace:
+        return 'Unknown person';
+      case AlertType.knownFace:
+        return 'Known person';
+      case AlertType.intruder:
+        return 'Intruder detected';
       case AlertType.other:
-        return 'Other Alert';
+        return 'Alert';
     }
   }
 
@@ -243,6 +288,12 @@ extension AlertTypeExtension on AlertType {
         return '🏃';
       case AlertType.restricted:
         return '🚫';
+      case AlertType.unknownFace:
+        return '❓';
+      case AlertType.knownFace:
+        return '✅';
+      case AlertType.intruder:
+        return '🛡️';
       case AlertType.other:
         return '⚠️';
     }
@@ -259,5 +310,53 @@ extension AlertSeverityExtension on AlertSeverity {
       case AlertSeverity.info:
         return 'Info';
     }
+  }
+}
+
+class AlertTypeX {
+  static AlertType fromString(String raw) {
+    final t = raw.toLowerCase().trim();
+
+    if (t == 'fire') return AlertType.fire;
+    if (t == 'smoke') return AlertType.smoke;
+    if (t == 'human') return AlertType.human;
+    if (t == 'motion') return AlertType.motion;
+    if (t == 'restricted') return AlertType.restricted;
+
+    // Your Firestore types
+    if (t == 'unknown_face') return AlertType.unknownFace;
+    if (t == 'known_face') return AlertType.knownFace;
+    if (t == 'intruder') return AlertType.intruder;
+
+    if (t == 'other') return AlertType.other;
+
+    return AlertType.other;
+  }
+}
+
+class AlertSeverityX {
+  static AlertSeverity fromString(String raw) {
+    final s = raw.toLowerCase().trim();
+    if (s == 'critical') return AlertSeverity.critical;
+    if (s == 'warning') return AlertSeverity.warning;
+    return AlertSeverity.info;
+  }
+
+  static AlertSeverity infer({required AlertType type, double? threshold}) {
+    if (type == AlertType.fire || type == AlertType.intruder) {
+      return AlertSeverity.critical;
+    }
+
+    if (type == AlertType.smoke || type == AlertType.unknownFace) {
+      return AlertSeverity.warning;
+    }
+
+    if (threshold != null &&
+        threshold <= 0.5 &&
+        type == AlertType.unknownFace) {
+      return AlertSeverity.warning;
+    }
+
+    return AlertSeverity.info;
   }
 }

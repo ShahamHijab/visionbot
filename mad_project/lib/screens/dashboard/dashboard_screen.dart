@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_service.dart';
 import 'dart:math' as math;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../services/alert_service.dart';
+import '../../models/alert_model.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -138,6 +141,8 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
 
+  final AlertService _alertService = AlertService();
+
   @override
   void initState() {
     super.initState();
@@ -167,6 +172,83 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
     _animationController.dispose();
     super.dispose();
   }
+
+  // ALERT PART ONLY
+  _AlertUI _mapAlertUI(AlertModel alert) {
+    final title = _titleFromType(alert.type);
+
+    final lensText = (alert.lens).isEmpty ? 'unknown lens' : alert.lens;
+    final noteText = (alert.note).isEmpty ? '' : alert.note;
+    final location = noteText.isEmpty
+        ? 'Lens: $lensText'
+        : 'Lens: $lensText. $noteText';
+
+    final dt = alert.createdAt;
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+
+    String timeText;
+    if (diff.inMinutes < 1) {
+      timeText = 'Just now';
+    } else if (diff.inMinutes < 60) {
+      timeText = '${diff.inMinutes} mins ago';
+    } else if (diff.inHours < 24) {
+      timeText = '${diff.inHours} hours ago';
+    } else {
+      timeText = '${diff.inDays} days ago';
+    }
+
+    final color = _colorFromType(alert.type);
+    final icon = _iconFromType(alert.type);
+
+    return _AlertUI(
+      title: title,
+      location: location,
+      timeText: timeText,
+      color: color,
+      icon: icon,
+    );
+  }
+
+  String _titleFromType(String type) {
+    final t = type.toLowerCase().trim();
+
+    if (t == 'unknown_face') return 'Unknown person';
+    if (t == 'known_face') return 'Known person';
+    if (t == 'motion') return 'Motion detected';
+    if (t == 'fire') return 'Fire detected';
+    if (t == 'smoke') return 'Smoke detected';
+    if (t == 'intruder') return 'Intruder detected';
+
+    if (t.isEmpty) return 'Alert';
+    final pretty = t.replaceAll('_', ' ');
+    return pretty[0].toUpperCase() + pretty.substring(1);
+  }
+
+  Color _colorFromType(String type) {
+    final t = type.toLowerCase().trim();
+
+    if (t == 'fire') return const Color(0xFFFF6B6B);
+    if (t == 'intruder') return const Color(0xFFFF6B6B);
+    if (t == 'smoke') return const Color(0xFFF59E0B);
+    if (t == 'unknown_face') return const Color(0xFFF59E0B);
+
+    return const Color(0xFF45B7D1);
+  }
+
+  IconData _iconFromType(String type) {
+    final t = type.toLowerCase().trim();
+
+    if (t == 'fire') return Icons.local_fire_department_rounded;
+    if (t == 'smoke') return Icons.cloud_rounded;
+    if (t == 'unknown_face') return Icons.person_off_rounded;
+    if (t == 'known_face') return Icons.person_rounded;
+    if (t == 'motion') return Icons.directions_run_rounded;
+    if (t == 'intruder') return Icons.security_rounded;
+
+    return Icons.warning_amber_rounded;
+  }
+  // ALERT PART ONLY
 
   @override
   Widget build(BuildContext context) {
@@ -644,35 +726,77 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
           ],
         ),
         const SizedBox(height: 16),
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: 3,
-          itemBuilder: (context, index) {
-            return TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0.0, end: 1.0),
-              duration: Duration(milliseconds: 600 + (index * 100)),
-              curve: Curves.easeOutCubic,
-              builder: (context, value, child) {
-                return Transform.translate(
-                  offset: Offset(30 * (1 - value), 0),
-                  child: Opacity(opacity: value, child: child),
+
+        // ALERT PART ONLY
+        StreamBuilder<List<AlertModel>>(
+          stream: _alertService.streamAlerts(
+            limit: 3,
+            collection: 'alerts',
+            orderField: 'created_at',
+          ),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const SizedBox(
+                height: 90,
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+
+            if (snapshot.hasError) {
+              return SizedBox(
+                height: 90,
+                child: Center(
+                  child: Text(
+                    'Failed to load alerts\n${snapshot.error}',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              );
+            }
+
+            final alerts = snapshot.data ?? [];
+            if (alerts.isEmpty) {
+              return const SizedBox(
+                height: 90,
+                child: Center(child: Text('No alerts found')),
+              );
+            }
+
+            return ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: alerts.length,
+              itemBuilder: (context, index) {
+                final alert = alerts[index];
+                final mapped = _mapAlertUI(alert);
+
+                return TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0.0, end: 1.0),
+                  duration: Duration(milliseconds: 600 + (index * 100)),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, value, child) {
+                    return Transform.translate(
+                      offset: Offset(30 * (1 - value), 0),
+                      child: Opacity(opacity: value, child: child),
+                    );
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _buildAlertCard(
+                      mapped.title,
+                      mapped.location,
+                      mapped.timeText,
+                      mapped.color,
+                      mapped.icon,
+                      context,
+                    ),
+                  ),
                 );
               },
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _buildAlertCard(
-                  'Fire Detected',
-                  'Building A - Floor 2',
-                  '2 mins ago',
-                  const Color(0xFFFF6B6B),
-                  Icons.local_fire_department_rounded,
-                  context,
-                ),
-              ),
             );
           },
         ),
+        // ALERT PART ONLY
       ],
     );
   }
@@ -771,6 +895,24 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
     );
   }
 }
+
+// ALERT PART ONLY
+class _AlertUI {
+  final String title;
+  final String location;
+  final String timeText;
+  final Color color;
+  final IconData icon;
+
+  _AlertUI({
+    required this.title,
+    required this.location,
+    required this.timeText,
+    required this.color,
+    required this.icon,
+  });
+}
+// ALERT PART ONLY
 
 // Keep the other tabs (AlertsTab, GalleryTab, ProfileTab) as they were
 // Alerts Tab
