@@ -7,6 +7,10 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       fontFamily: GoogleFonts.ubuntu().fontFamily,
+      // Default text style that applies to all text globally
+      textSelectionTheme: TextSelectionThemeData(
+        selectionColor: AppColors.gradientStart.withOpacity(0.3),
+      ),
       colorScheme: ColorScheme.light(
         primary: AppColors.gradientStart,
         secondary: AppColors.gradientEnd,
