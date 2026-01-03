@@ -1,3 +1,4 @@
+// lib/screens/alerts/alert_detail_screen.dart
 import 'package:flutter/material.dart';
 import '../../models/alert_model.dart';
 
@@ -6,137 +7,192 @@ class AlertDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final args = ModalRoute.of(context)?.settings.arguments;
-    final AlertModel? alert = args is AlertModel ? args : null;
+    final alert = ModalRoute.of(context)!.settings.arguments as AlertModel;
+
+    final typeText = alert.type.toString().displayName;
+    final severityText = alert.type.toString().severityDisplayName;
+
+    final lensText = alert.lens.isEmpty ? 'Unknown' : alert.lens;
+    final noteText = alert.note.isEmpty ? 'Unknown' : alert.note;
+    final timeText = _formatDateTime(alert.createdAt);
+
+    final thresholdText = (alert.threshold == null)
+        ? 'Unknown'
+        : '${alert.threshold}';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Alert Details')),
-      body: alert == null
-          ? const Center(child: Text('No alert data found'))
-          : ListView(
+      appBar: AppBar(title: const Text('Alert Detail')),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Container(
+              width: double.infinity,
               padding: const EdgeInsets.all(16),
-              children: [
-                _header(alert),
-                const SizedBox(height: 16),
-                _infoTile('Title', alert.title),
-                _infoTile('Type', alert.type.displayName),
-                _infoTile('Severity', alert.severity.displayName),
-                _infoTile(
-                  'Location',
-                  alert.location.isEmpty ? 'Unknown' : alert.location,
-                ),
-                _infoTile('Time', _formatDateTime(alert.timestamp)),
-                if (alert.description.isNotEmpty)
-                  _infoTile('Description', alert.description),
-                _infoTile('Read', alert.isRead ? 'Yes' : 'No'),
-                const SizedBox(height: 16),
-                if (alert.imageUrl.isNotEmpty) _imageBlock(alert.imageUrl),
-              ],
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 18,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.04),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      alert.type.icon,
+                      style: const TextStyle(fontSize: 24),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          typeText,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '$severityText  •  $timeText',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-    );
-  }
+            const SizedBox(height: 14),
 
-  Widget _header(AlertModel alert) {
-    return Row(
-      children: [
-        Container(
-          width: 52,
-          height: 52,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            color: Colors.black.withOpacity(0.06),
-          ),
-          child: Text(alert.type.icon, style: const TextStyle(fontSize: 24)),
+            _infoTile('Type', typeText),
+            _infoTile('Lens', lensText),
+            _infoTile('Note', noteText),
+            _infoTile('Threshold', thresholdText),
+            _infoTile('Time', timeText),
+          ],
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                alert.title,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${alert.severity.displayName}  •  ${_formatDateTime(alert.timestamp)}',
-                style: TextStyle(
-                  color: Colors.grey.shade700,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+      ),
     );
   }
 
   Widget _infoTile(String label, String value) {
     return Container(
+      width: double.infinity,
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.black.withOpacity(0.06)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 7),
+          ),
+        ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.grey.shade700,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
+          Expanded(
+            flex: 4,
+            child: Text(
+              label,
+              style: TextStyle(
+                color: Colors.grey.shade700,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+          Expanded(
+            flex: 6,
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _imageBlock(String url) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
-      child: AspectRatio(
-        aspectRatio: 16 / 9,
-        child: Image.network(
-          url,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) {
-            return Container(
-              color: Colors.black.withOpacity(0.06),
-              alignment: Alignment.center,
-              child: const Text('Image failed to load'),
-            );
-          },
-          loadingBuilder: (context, child, progress) {
-            if (progress == null) return child;
-            return Container(
-              color: Colors.black.withOpacity(0.06),
-              alignment: Alignment.center,
-              child: const CircularProgressIndicator(),
-            );
-          },
-        ),
-      ),
-    );
+  static String _formatDateTime(DateTime dt) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    final y = dt.year.toString();
+    final m = two(dt.month);
+    final d = two(dt.day);
+    final hh = two(dt.hour);
+    final mm = two(dt.minute);
+    return '$y-$m-$d $hh:$mm';
+  }
+}
+
+extension AlertTypeText on String {
+  String get displayName {
+    final t = toLowerCase().trim();
+
+    if (t == 'unknown_face' ||
+        t == 'unknownface' ||
+        t == 'alerttype.unknownface') {
+      return 'Unknown person';
+    }
+    if (t == 'known_face' || t == 'knownface') return 'Known person';
+    if (t == 'motion') return 'Motion detected';
+    if (t == 'fire') return 'Fire detected';
+    if (t == 'smoke') return 'Smoke detected';
+    if (t == 'intruder') return 'Intruder detected';
+
+    if (t.isEmpty) return 'Alert';
+    final pretty = t.replaceAll('_', ' ').replaceAll('alerttype.', '');
+    return pretty[0].toUpperCase() + pretty.substring(1);
   }
 
-  String _formatDateTime(DateTime dt) {
-    final two = (int n) => n.toString().padLeft(2, '0');
-    return '${dt.year}-${two(dt.month)}-${two(dt.day)} ${two(dt.hour)}:${two(dt.minute)}';
+  String get severityDisplayName {
+    final t = toLowerCase().trim();
+
+    if (t == 'fire' || t == 'intruder') return 'Critical';
+    if (t == 'smoke' ||
+        t == 'unknown_face' ||
+        t == 'unknownface' ||
+        t == 'alerttype.unknownface') {
+      return 'Warning';
+    }
+    return 'Info';
+  }
+
+  String get icon {
+    final t = toLowerCase().trim();
+
+    if (t == 'fire') return '🔥';
+    if (t == 'smoke') return '💨';
+    if (t == 'unknown_face' ||
+        t == 'unknownface' ||
+        t == 'alerttype.unknownface')
+      return '👤';
+    if (t == 'known_face' || t == 'knownface') return '🙂';
+    if (t == 'motion') return '🏃';
+    if (t == 'intruder') return '🛡️';
+    return '⚠️';
   }
 }
