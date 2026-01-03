@@ -950,7 +950,10 @@ class _ProfileTabState extends State<ProfileTab> {
         appBar: AppBar(
           title: ShaderMask(
             shaderCallback: (bounds) => const LinearGradient(
-              colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
+              colors: [
+                Color.fromRGBO(236, 72, 153, 1),
+                Color.fromRGBO(6, 182, 212, 1),
+              ],
             ).createShader(bounds),
             child: const Text(
               'Alert Details',
