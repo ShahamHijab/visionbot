@@ -380,7 +380,7 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
             right: 0,
             bottom: 0,
             child: Container(
-              height: 200,
+              height: 160,
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: const BorderRadius.only(
@@ -517,11 +517,11 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
       color: Colors.transparent,
       child: InkWell(
         onTap: () => _focusOnRobot(robot),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 300),
-          width: 160,
-          padding: const EdgeInsets.all(16),
+          width: 140,
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             gradient: isSelected
                 ? LinearGradient(
@@ -536,17 +536,17 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
                       statusColor.withOpacity(0.05),
                     ],
                   ),
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: statusColor.withOpacity(isSelected ? 0.5 : 0.3),
-              width: isSelected ? 3 : 2,
+              width: isSelected ? 2.5 : 2,
             ),
             boxShadow: isSelected
                 ? [
                     BoxShadow(
                       color: statusColor.withOpacity(0.3),
-                      blurRadius: 15,
-                      offset: const Offset(0, 5),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
                     ),
                   ]
                 : null,
@@ -558,17 +558,17 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
                       color: statusColor,
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
                       robot.id == 'current_device'
                           ? Icons.phone_android_rounded
                           : Icons.smart_toy_rounded,
                       color: Colors.white,
-                      size: 20,
+                      size: 16,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -576,7 +576,7 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
                     child: Text(
                       robot.name,
                       style: const TextStyle(
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: FontWeight.w800,
                         color: Color(0xFF1F2937),
                       ),
@@ -586,22 +586,26 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               Row(
                 children: [
-                  Icon(statusIcon, color: statusColor, size: 16),
-                  const SizedBox(width: 6),
-                  Text(
-                    robot.status.name.toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: statusColor,
+                  Icon(statusIcon, color: statusColor, size: 14),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      robot.status.name.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: statusColor,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Row(
                 children: [
                   Icon(
@@ -609,13 +613,13 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
                     color: robot.battery < 20
                         ? const Color(0xFFFF6B6B)
                         : Colors.grey.shade600,
-                    size: 16,
+                    size: 14,
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 4),
                   Text(
                     '${robot.battery}%',
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: Colors.grey.shade600,
                     ),
