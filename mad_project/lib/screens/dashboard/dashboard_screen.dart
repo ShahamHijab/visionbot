@@ -5,7 +5,7 @@ import '../../services/auth_service.dart';
 import '../../services/alert_service.dart';
 import '../../models/alert_model.dart';
 
-// IMPORTANT: adjust this import path if your AlertsDashboard file is elsewhere
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../alerts/alerts_dashboard.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -223,12 +223,12 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
   String _titleFromType(String typeNorm) {
     if (typeNorm == 'unknown_face') return 'Unknown person';
     if (typeNorm == 'unknownface') return 'Unknown person';
-    if (typeNorm == 'known_face') return 'Known person';
-    if (typeNorm == 'knownface') return 'Known person';
+    // if (typeNorm == 'known_face') return 'Known person';
+    // if (typeNorm == 'knownface') return 'Known person';
     if (typeNorm == 'motion') return 'Motion detected';
     if (typeNorm == 'fire') return 'Fire detected';
     if (typeNorm == 'smoke') return 'Smoke detected';
-    if (typeNorm == 'intruder') return 'Intruder detected';
+    // if (typeNorm == 'intruder') return 'Intruder detected';
 
     if (typeNorm.isEmpty) return 'Alert';
 
@@ -238,7 +238,7 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
 
   Color _colorFromType(String typeNorm) {
     if (typeNorm == 'fire') return const Color(0xFFFF6B6B);
-    if (typeNorm == 'intruder') return const Color(0xFFFF6B6B);
+    // if (typeNorm == 'intruder') return const Color(0xFFFF6B6B);
     if (typeNorm == 'smoke') return const Color(0xFFF59E0B);
     if (typeNorm == 'unknown_face') return const Color(0xFFF59E0B);
     if (typeNorm == 'unknownface') return const Color(0xFFF59E0B);
@@ -965,138 +965,229 @@ class GalleryTab extends StatelessWidget {
   }
 }
 
-class ProfileTab extends StatelessWidget {
+// Profile Tab
+class ProfileTab extends StatefulWidget {
   const ProfileTab({super.key});
 
+  @override
+  State<ProfileTab> createState() => _ProfileTabState();
+}
+
+class _ProfileTabState extends State<ProfileTab> {
   @override
   Widget build(BuildContext context) {
     final AuthService authService = AuthService();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Profile'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {
-              Navigator.pushNamed(context, AppRoutes.settings);
-            },
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          Center(
-            child: Column(
-              children: [
-                Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
-                    ),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.person,
-                    size: 50,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'John Doe',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Security Officer',
-                  style: TextStyle(fontSize: 16, color: Colors.black54),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 30),
-          _buildMenuItem(
-            context,
-            'Edit Profile',
-            Icons.person_outline,
-            AppRoutes.profile,
-          ),
-          _buildMenuItem(
-            context,
-            'Change Password',
-            Icons.lock_outline,
-            AppRoutes.changePassword,
-          ),
-          _buildMenuItem(
-            context,
-            'Notifications',
-            Icons.notifications_outlined,
-            AppRoutes.notifications,
-          ),
-          _buildMenuItem(
-            context,
-            'Settings',
-            Icons.settings_outlined,
-            AppRoutes.settings,
-          ),
-          _buildMenuItem(
-            context,
-            'User Guide',
-            Icons.help_outline,
-            AppRoutes.userGuide,
-          ),
-          _buildMenuItem(context, 'About', Icons.info_outline, AppRoutes.about),
-          const SizedBox(height: 20),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: ElevatedButton(
+    final user = authService.currentUser;
+    if (user == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Profile'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.settings),
               onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Logout'),
-                    content: const Text('Are you sure you want to logout?'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Cancel'),
+                Navigator.pushNamed(context, AppRoutes.settings);
+              },
+            ),
+          ],
+        ),
+        body: const Center(child: Text('Not logged in')),
+      );
+    }
+
+    final uid = user.uid;
+
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        final data = snapshot.data?.data();
+
+        final firstName = (data?['first_name'] ?? '').toString().trim();
+        final lastName = (data?['last_name'] ?? '').toString().trim();
+
+        String fullName = [
+          firstName,
+          lastName,
+        ].where((e) => e.isNotEmpty).join(' ');
+        if (fullName.isEmpty) {
+          fullName = (data?['name'] ?? '').toString().trim();
+        }
+        if (fullName.isEmpty) {
+          fullName = user.displayName?.trim() ?? '';
+        }
+        if (fullName.isEmpty) {
+          fullName = 'User';
+        }
+
+        String role = (data?['role'] ?? '').toString().trim();
+        if (role.isEmpty) role = 'Member';
+
+        final email = (data?['email'] ?? user.email ?? '').toString().trim();
+        final photoUrl = (data?['photoUrl'] ?? user.photoURL ?? '')
+            .toString()
+            .trim();
+
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Profile'),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.settings),
+                onPressed: () {
+                  Navigator.pushNamed(context, AppRoutes.settings);
+                },
+              ),
+            ],
+          ),
+          body: ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              Center(
+                child: Column(
+                  children: [
+                    Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
+                        ),
+                        shape: BoxShape.circle,
+                        image: photoUrl.isNotEmpty
+                            ? DecorationImage(
+                                image: NetworkImage(photoUrl),
+                                fit: BoxFit.cover,
+                                onError: (error, stackTrace) {},
+                              )
+                            : null,
                       ),
-                      TextButton(
-                        onPressed: () async {
-                          await authService.signOut();
-                          if (!context.mounted) return;
-                          Navigator.pushNamedAndRemoveUntil(
-                            context,
-                            AppRoutes.login,
-                            (route) => false,
-                          );
-                        },
-                        child: const Text(
-                          'Logout',
-                          style: TextStyle(color: Colors.red),
+                      child: photoUrl.isEmpty
+                          ? const Icon(
+                              Icons.person,
+                              size: 50,
+                              color: Colors.white,
+                            )
+                          : null,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      fullName,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      role,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: Colors.black54,
+                      ),
+                    ),
+                    if (email.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        email,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.black45,
                         ),
                       ),
                     ],
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  ],
                 ),
               ),
-              child: const Text('Logout'),
-            ),
+              const SizedBox(height: 30),
+              _buildMenuItem(
+                context,
+                'Edit Profile',
+                Icons.person_outline,
+                AppRoutes.profile,
+              ),
+              _buildMenuItem(
+                context,
+                'Change Password',
+                Icons.lock_outline,
+                AppRoutes.changePassword,
+              ),
+              _buildMenuItem(
+                context,
+                'Notifications',
+                Icons.notifications_outlined,
+                AppRoutes.notifications,
+              ),
+              _buildMenuItem(
+                context,
+                'Settings',
+                Icons.settings_outlined,
+                AppRoutes.settings,
+              ),
+              _buildMenuItem(
+                context,
+                'User Guide',
+                Icons.help_outline,
+                AppRoutes.userGuide,
+              ),
+              _buildMenuItem(
+                context,
+                'About',
+                Icons.info_outline,
+                AppRoutes.about,
+              ),
+              const SizedBox(height: 20),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: ElevatedButton(
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Logout'),
+                        content: const Text('Are you sure you want to logout?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () async {
+                              await authService.signOut();
+                              if (!context.mounted) return;
+                              Navigator.pushNamedAndRemoveUntil(
+                                context,
+                                AppRoutes.login,
+                                (route) => false,
+                              );
+                            },
+                            child: const Text(
+                              'Logout',
+                              style: TextStyle(color: Colors.red),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text('Logout'),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -1115,4 +1206,20 @@ class ProfileTab extends StatelessWidget {
       },
     );
   }
+}
+
+Widget _buildMenuItem(
+  BuildContext context,
+  String title,
+  IconData icon,
+  String route,
+) {
+  return ListTile(
+    leading: Icon(icon),
+    title: Text(title),
+    trailing: const Icon(Icons.chevron_right),
+    onTap: () {
+      Navigator.pushNamed(context, route);
+    },
+  );
 }
