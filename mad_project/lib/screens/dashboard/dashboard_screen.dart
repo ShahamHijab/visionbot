@@ -175,7 +175,7 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
 
   // ALERT PART ONLY
   _AlertUI _mapAlertUI(AlertModel alert) {
-    final title = _titleFromType(alert.type);
+    final title = _titleFromType(alert.type.toString());
 
     final lensText = (alert.lens).isEmpty ? 'unknown lens' : alert.lens;
     final noteText = (alert.note).isEmpty ? '' : alert.note;
@@ -198,8 +198,8 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
       timeText = '${diff.inDays} days ago';
     }
 
-    final color = _colorFromType(alert.type);
-    final icon = _iconFromType(alert.type);
+    final color = _colorFromType(alert.type.toString());
+    final icon = _iconFromType(alert.type.toString());
 
     return _AlertUI(
       title: title,
