@@ -505,7 +505,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen>
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              "Didn't receive the email?",
+                              "Didn't receive the email? Check you spam folder or resend",
                               style: TextStyle(
                                 color: Colors.grey.shade700,
                                 fontSize: 15,
