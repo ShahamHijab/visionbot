@@ -1,6 +1,11 @@
 // lib/screens/notifications/notifications_screen.dart
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:timeago/timeago.dart' as timeago;
+
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -13,49 +18,21 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
-  
-  final List<NotificationItem> _notifications = [
-    NotificationItem(
-      title: 'Fire Alert',
-      message: 'Fire detected in Building A - Floor 2',
-      time: DateTime.now().subtract(const Duration(minutes: 5)),
-      type: NotificationType.critical,
-      isRead: false,
-    ),
-    NotificationItem(
-      title: 'Motion Detected',
-      message: 'Unauthorized movement in restricted area',
-      time: DateTime.now().subtract(const Duration(hours: 1)),
-      type: NotificationType.warning,
-      isRead: false,
-    ),
-    NotificationItem(
-      title: 'System Update',
-      message: 'Robot 3 completed maintenance check',
-      time: DateTime.now().subtract(const Duration(hours: 2)),
-      type: NotificationType.info,
-      isRead: true,
-    ),
-    NotificationItem(
-      title: 'Smoke Alert',
-      message: 'Smoke detected in parking area',
-      time: DateTime.now().subtract(const Duration(hours: 4)),
-      type: NotificationType.warning,
-      isRead: true,
-    ),
-    NotificationItem(
-      title: 'All Clear',
-      message: 'All systems operational',
-      time: DateTime.now().subtract(const Duration(days: 1)),
-      type: NotificationType.info,
-      isRead: true,
-    ),
-  ];
+
+  final List<NotificationItem> _notifications = [];
+
+  late final FirebaseMessaging _messaging;
+  late final FirebaseFirestore _db;
+
+  StreamSubscription<RemoteMessage>? _onMessageSub;
+  StreamSubscription<RemoteMessage>? _onOpenSub;
+
+  static const int _maxItems = 2;
 
   @override
   void initState() {
     super.initState();
-    
+
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
@@ -67,12 +44,119 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     );
 
     _animationController.forward();
+
+    _messaging = FirebaseMessaging.instance;
+    _db = FirebaseFirestore.instance;
+
+    _setupPushAndToken();
+    _listenPushMessages();
+    _checkInitialMessage();
   }
 
   @override
   void dispose() {
+    _onMessageSub?.cancel();
+    _onOpenSub?.cancel();
     _animationController.dispose();
     super.dispose();
+  }
+
+  Future<void> _setupPushAndToken() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final perm = await _messaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    if (perm.authorizationStatus == AuthorizationStatus.denied) return;
+
+    final token = await _messaging.getToken();
+    if (token != null) {
+      await _db.collection('users').doc(user.uid).set({
+        'fcm_token': token,
+        'fcm_updated_at': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
+
+    _messaging.onTokenRefresh.listen((newToken) async {
+      await _db.collection('users').doc(user.uid).set({
+        'fcm_token': newToken,
+        'fcm_updated_at': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    });
+  }
+
+  void _listenPushMessages() {
+    _onMessageSub = FirebaseMessaging.onMessage.listen((message) {
+      _addIncoming(message);
+    });
+
+    _onOpenSub = FirebaseMessaging.onMessageOpenedApp.listen((message) {
+      _addIncoming(message);
+    });
+  }
+
+  Future<void> _checkInitialMessage() async {
+    final message = await _messaging.getInitialMessage();
+    if (message != null) {
+      _addIncoming(message);
+    }
+  }
+
+  void _addIncoming(RemoteMessage message) {
+    final item = _notificationFromRemoteMessage(message);
+
+    if (!mounted) return;
+    setState(() {
+      _notifications.insert(0, item);
+      if (_notifications.length > _maxItems) {
+        _notifications.removeRange(_maxItems, _notifications.length);
+      }
+    });
+  }
+
+  NotificationItem _notificationFromRemoteMessage(RemoteMessage message) {
+    final data = message.data;
+
+    final title =
+        message.notification?.title ??
+        (data['title']?.toString().trim().isNotEmpty == true
+            ? data['title'].toString()
+            : 'Alert');
+
+    final body =
+        message.notification?.body ??
+        (data['message']?.toString().trim().isNotEmpty == true
+            ? data['message'].toString()
+            : (data['note']?.toString() ?? ''));
+
+    final rawType = (data['severity'] ?? data['type'] ?? '')
+        .toString()
+        .toLowerCase();
+
+    NotificationType t = NotificationType.info;
+
+    if (rawType.contains('critical') ||
+        rawType.contains('fire') ||
+        rawType.contains('intruder')) {
+      t = NotificationType.critical;
+    } else if (rawType.contains('warning') ||
+        rawType.contains('smoke') ||
+        rawType.contains('motion') ||
+        rawType.contains('unknown')) {
+      t = NotificationType.warning;
+    }
+
+    return NotificationItem(
+      title: title,
+      message: body,
+      time: DateTime.now(),
+      type: t,
+      isRead: false,
+    );
   }
 
   void _markAllAsRead() {
@@ -92,7 +176,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   @override
   Widget build(BuildContext context) {
     final unreadCount = _notifications.where((n) => !n.isRead).length;
-    
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
@@ -112,7 +196,10 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             ],
           ),
           child: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF1F2937)),
+            icon: const Icon(
+              Icons.arrow_back_rounded,
+              color: Color(0xFF1F2937),
+            ),
             onPressed: () => Navigator.pop(context),
           ),
         ),
@@ -122,16 +209,16 @@ class _NotificationsScreenState extends State<NotificationsScreen>
           ).createShader(bounds),
           child: const Text(
             'Notifications',
-            style: TextStyle(
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-            ),
+            style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
           ),
         ),
         actions: [
           if (_notifications.isNotEmpty)
             PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert_rounded, color: Color(0xFF1F2937)),
+              icon: const Icon(
+                Icons.more_vert_rounded,
+                color: Color(0xFF1F2937),
+              ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
@@ -282,7 +369,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w500,
-              color: Colors.grey.shade600,
+              color: Colors.grey,
             ),
           ),
         ],
@@ -293,7 +380,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   Widget _buildNotificationCard(NotificationItem notification) {
     Color typeColor;
     IconData typeIcon;
-    
+
     switch (notification.type) {
       case NotificationType.critical:
         typeColor = const Color(0xFFFF6B6B);
@@ -321,7 +408,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: notification.isRead ? Colors.white : typeColor.withOpacity(0.05),
+            color: notification.isRead
+                ? Colors.white
+                : typeColor.withOpacity(0.05),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: notification.isRead
@@ -424,8 +513,4 @@ class NotificationItem {
   });
 }
 
-enum NotificationType {
-  critical,
-  warning,
-  info,
-}
+enum NotificationType { critical, warning, info }
