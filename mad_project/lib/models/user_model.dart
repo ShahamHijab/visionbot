@@ -119,19 +119,34 @@ extension UserRoleExtension on UserRole {
       case UserRole.admin:
         return 'Full system access and management';
       case UserRole.securityOfficer:
-        return 'Monitor alerts and surveillance';
+        return 'Monitor alerts and respond to incidents';
     }
   }
 }
 
 class UserPermissions {
+  // Login & Dashboard
   final bool canAccessDashboard;
+  
+  // Live Camera Feed
   final bool canViewLiveCameraFeed;
+  
+  // Smoke Detection Alerts
   final bool canReceiveSmokeAlerts;
+  
+  // Unauthorized Person Alerts
   final bool canReceiveUnauthorizedPersonAlerts;
+  
+  // View Detected Face Images
   final bool canViewDetectedFaceImages;
+  
+  // Face Verification Review
   final bool canPerformFaceVerification;
+  
+  // GPS Location Tracking
   final bool canAccessGPSTracking;
+  
+  // Alert & Event Logs
   final bool canViewAlertLogs;
 
   UserPermissions({
@@ -161,7 +176,7 @@ class UserPermissions {
       case UserRole.securityOfficer:
         return UserPermissions(
           canAccessDashboard: true,
-          canViewLiveCameraFeed: false, // alerts only
+          canViewLiveCameraFeed: false, // Alerts only
           canReceiveSmokeAlerts: true,
           canReceiveUnauthorizedPersonAlerts: true,
           canViewDetectedFaceImages: true,
