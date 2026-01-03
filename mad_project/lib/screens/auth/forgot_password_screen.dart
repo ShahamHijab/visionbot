@@ -534,7 +534,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                                         ),
                                       )
                                     : const Text(
-                                        "Send reset email",
+                                        "Send Reset Email",
                                         style: TextStyle(
                                           fontSize: 18,
                                           fontWeight: FontWeight.w800,
@@ -557,11 +557,17 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                               vertical: 12,
                             ),
                           ),
-                          child: const Text(
-                            "Back to login",
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 16,
+                          child: ShaderMask(
+                            shaderCallback: (bounds) => const LinearGradient(
+                              colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
+                            ).createShader(bounds),
+                            child: const Text(
+                              "Back to login",
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                         ),

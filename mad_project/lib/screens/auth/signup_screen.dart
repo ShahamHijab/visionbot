@@ -760,11 +760,17 @@ class _SignupScreenState extends State<SignupScreen>
                           foregroundColor: const Color(0xFFEC4899),
                           padding: const EdgeInsets.symmetric(horizontal: 4),
                         ),
-                        child: const Text(
-                          "Log In",
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 15,
+                        child: ShaderMask(
+                          shaderCallback: (bounds) => const LinearGradient(
+                            colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
+                          ).createShader(bounds),
+                          child: const Text(
+                            "Log In",
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 15,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ),
