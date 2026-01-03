@@ -89,10 +89,12 @@ class _SignupScreenState extends State<SignupScreen>
     // Check for at least one capital letter and one number
     final hasUppercase = password.contains(RegExp(r'[A-Z]'));
     final hasNumber = password.contains(RegExp(r'[0-9]'));
-    if (!hasUppercase || !hasNumber) {
-      _showError(
-        'Password must contain at least one capital letter and one number',
-      );
+    if (!hasUppercase) {
+      _showError('Password must contain at least one capital letter');
+      return;
+    }
+    if (!hasNumber) {
+      _showError('Password must contain at least one number');
       return;
     }
 
