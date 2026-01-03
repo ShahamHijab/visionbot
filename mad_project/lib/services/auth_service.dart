@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import '../models/user_model.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -33,7 +34,6 @@ class AuthService {
         );
       }
 
-      // Only verified users get a Firestore doc
       await finalizeVerifiedUser();
       return cred;
     } on FirebaseAuthException {
@@ -43,8 +43,6 @@ class AuthService {
     }
   }
 
-  // Signup creates Auth user and sends Firebase verification email.
-  // It does NOT create Firestore user doc until verified.
   Future<UserCredential> signUp({
     required String name,
     required String email,
@@ -67,7 +65,6 @@ class AuthService {
         );
       }
 
-      // Save name on Auth profile so we can write it to Firestore after verification
       final trimmedName = name.trim();
       if (trimmedName.isNotEmpty) {
         try {
@@ -128,7 +125,6 @@ class AuthService {
     }
   }
 
-  // Creates Firestore user doc ONLY if email is verified
   Future<void> finalizeVerifiedUser() async {
     final user = _auth.currentUser;
     if (user == null) return;
@@ -192,7 +188,6 @@ class AuthService {
     }
   }
 
-  // Google is already verified, so create doc immediately
   Future<void> ensureGoogleUserDocBasic() async {
     try {
       final user = _auth.currentUser;
@@ -227,6 +222,24 @@ class AuthService {
       return role.isEmpty ? null : role;
     } catch (e) {
       print('Error getting user role: $e');
+      return null;
+    }
+  }
+
+  Future<UserModel?> getCurrentUserData() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return null;
+
+      final snap = await _db.collection('users').doc(user.uid).get();
+      if (!snap.exists) return null;
+
+      final data = snap.data();
+      if (data == null) return null;
+
+      return UserModel.fromJson(data);
+    } catch (e) {
+      print('Error getting user data: $e');
       return null;
     }
   }
