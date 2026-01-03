@@ -1,4 +1,6 @@
 // lib/models/user_model.dart
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class UserModel {
   final String id;
   final String name;
@@ -38,6 +40,23 @@ class UserModel {
       orElse: () => UserRole.securityOfficer,
     );
 
+    // Handle createdAt which could be a Timestamp or String
+    DateTime createdAt;
+    try {
+      final createdAtValue = json['createdAt'];
+      if (createdAtValue == null) {
+        createdAt = DateTime.now();
+      } else if (createdAtValue is Timestamp) {
+        createdAt = createdAtValue.toDate();
+      } else if (createdAtValue is String) {
+        createdAt = DateTime.parse(createdAtValue);
+      } else {
+        createdAt = DateTime.now();
+      }
+    } catch (e) {
+      createdAt = DateTime.now();
+    }
+
     return UserModel(
       id: json['id'] ?? '',
       name: json['name'] ?? '',
@@ -45,7 +64,7 @@ class UserModel {
       role: role,
       phoneNumber: json['phoneNumber'],
       avatarUrl: json['avatarUrl'],
-      createdAt: DateTime.parse(json['createdAt']),
+      createdAt: createdAt,
       notificationsEnabled: json['notificationsEnabled'] ?? true,
       notificationPreferences: json['notificationPreferences'] != null
           ? Map<String, bool>.from(json['notificationPreferences'])
@@ -181,7 +200,7 @@ class UserPermissions {
           canReceiveUnauthorizedPersonAlerts: true,
           canViewDetectedFaceImages: true,
           canPerformFaceVerification: true,
-          canAccessGPSTracking: false,
+          canAccessGPSTracking: true, // Changed to true
           canViewAlertLogs: true,
         );
     }
@@ -196,7 +215,7 @@ class UserPermissions {
           json['canReceiveUnauthorizedPersonAlerts'] ?? true,
       canViewDetectedFaceImages: json['canViewDetectedFaceImages'] ?? true,
       canPerformFaceVerification: json['canPerformFaceVerification'] ?? true,
-      canAccessGPSTracking: json['canAccessGPSTracking'] ?? false,
+      canAccessGPSTracking: json['canAccessGPSTracking'] ?? true, // Default to true
       canViewAlertLogs: json['canViewAlertLogs'] ?? true,
     );
   }
