@@ -956,7 +956,7 @@ class _ProfileTabState extends State<ProfileTab> {
               ],
             ).createShader(bounds),
             child: const Text(
-              'Alert Details',
+              'Profile',
               style: TextStyle(
                 fontWeight: FontWeight.w900,
                 color: Colors.white,
@@ -984,30 +984,83 @@ class _ProfileTabState extends State<ProfileTab> {
           .doc(uid)
           .snapshots(),
       builder: (context, snapshot) {
+        // Show loading while fetching data
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Scaffold(
+            appBar: AppBar(
+              title: ShaderMask(
+                shaderCallback: (bounds) => const LinearGradient(
+                  colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
+                ).createShader(bounds),
+                child: const Text(
+                  'Profile',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.settings),
+                  onPressed: () {
+                    Navigator.pushNamed(context, AppRoutes.settings);
+                  },
+                ),
+              ],
+            ),
+            body: const Center(child: CircularProgressIndicator()),
+          );
+        }
+
         final data = snapshot.data?.data();
 
+        // Get name from multiple possible sources
+        String fullName = '';
+        
+        // Try to get from Firestore first_name and last_name
         final firstName = (data?['first_name'] ?? '').toString().trim();
         final lastName = (data?['last_name'] ?? '').toString().trim();
-
-        String fullName = [
-          firstName,
-          lastName,
-        ].where((e) => e.isNotEmpty).join(' ');
+        
+        if (firstName.isNotEmpty || lastName.isNotEmpty) {
+          fullName = [firstName, lastName]
+              .where((e) => e.isNotEmpty)
+              .join(' ');
+        }
+        
+        // Fallback to 'name' field in Firestore
         if (fullName.isEmpty) {
           fullName = (data?['name'] ?? '').toString().trim();
         }
+        
+        // Fallback to Firebase Auth displayName
         if (fullName.isEmpty) {
           fullName = user.displayName?.trim() ?? '';
         }
+        
+        // Ultimate fallback
         if (fullName.isEmpty) {
           fullName = 'User';
         }
 
+        // Get role
         String role = (data?['role'] ?? '').toString().trim();
-        if (role.isEmpty) role = 'Member';
+        if (role.isEmpty) {
+          role = 'Member';
+        } else {
+          // Capitalize first letter
+          role = role[0].toUpperCase() + role.substring(1);
+        }
 
+        // Get email
         final email = (data?['email'] ?? user.email ?? '').toString().trim();
-        final photoUrl = (data?['photoUrl'] ?? user.photoURL ?? '')
+        
+        // Get photo URL
+        final photoUrl = (data?['photoUrl'] ?? 
+                         data?['avatarUrl'] ?? 
+                         data?['photo_url'] ?? 
+                         data?['avatar_url'] ?? 
+                         user.photoURL ?? '')
             .toString()
             .trim();
 
@@ -1040,6 +1093,7 @@ class _ProfileTabState extends State<ProfileTab> {
               Center(
                 child: Column(
                   children: [
+                    // Profile Picture
                     Container(
                       width: 100,
                       height: 100,
@@ -1052,7 +1106,9 @@ class _ProfileTabState extends State<ProfileTab> {
                             ? DecorationImage(
                                 image: NetworkImage(photoUrl),
                                 fit: BoxFit.cover,
-                                onError: (error, stackTrace) {},
+                                onError: (error, stackTrace) {
+                                  // Handle image load error silently
+                                },
                               )
                             : null,
                       ),
@@ -1065,6 +1121,8 @@ class _ProfileTabState extends State<ProfileTab> {
                           : null,
                     ),
                     const SizedBox(height: 16),
+                    
+                    // User Name
                     ShaderMask(
                       shaderCallback: (bounds) => const LinearGradient(
                         colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
@@ -1079,6 +1137,8 @@ class _ProfileTabState extends State<ProfileTab> {
                       ),
                     ),
                     const SizedBox(height: 4),
+                    
+                    // Role
                     ShaderMask(
                       shaderCallback: (bounds) => const LinearGradient(
                         colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
@@ -1091,6 +1151,8 @@ class _ProfileTabState extends State<ProfileTab> {
                         ),
                       ),
                     ),
+                    
+                    // Email
                     if (email.isNotEmpty) ...[
                       const SizedBox(height: 6),
                       Text(
@@ -1105,6 +1167,8 @@ class _ProfileTabState extends State<ProfileTab> {
                 ),
               ),
               const SizedBox(height: 30),
+              
+              // Menu Items
               _buildMenuItem(
                 context,
                 'Edit Profile',
@@ -1142,6 +1206,8 @@ class _ProfileTabState extends State<ProfileTab> {
                 AppRoutes.about,
               ),
               const SizedBox(height: 20),
+              
+              // Logout Button
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: ElevatedButton(
@@ -1208,20 +1274,4 @@ class _ProfileTabState extends State<ProfileTab> {
       },
     );
   }
-}
-
-Widget _buildMenuItem(
-  BuildContext context,
-  String title,
-  IconData icon,
-  String route,
-) {
-  return ListTile(
-    leading: Icon(icon),
-    title: Text(title),
-    trailing: const Icon(Icons.chevron_right),
-    onTap: () {
-      Navigator.pushNamed(context, route);
-    },
-  );
 }
