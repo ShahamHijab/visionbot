@@ -1,15 +1,28 @@
-// lib/screens/tracking/gps_tracking_screen.dart
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import '../../widgets/protected_route.dart';
 
-class GPSTrackingScreen extends StatefulWidget {
+class GPSTrackingScreen extends StatelessWidget {
   const GPSTrackingScreen({super.key});
 
   @override
-  State<GPSTrackingScreen> createState() => _GPSTrackingScreenState();
+  Widget build(BuildContext context) {
+    return const ProtectedRoute(
+      permissionKey: 'gps_tracking',
+      accessDeniedMessage: 'Only administrators can access GPS tracking.',
+      child: _GPSTrackingContent(),
+    );
+  }
 }
 
-class _GPSTrackingScreenState extends State<GPSTrackingScreen> {
+class _GPSTrackingContent extends StatefulWidget {
+  const _GPSTrackingContent();
+
+  @override
+  State<_GPSTrackingContent> createState() => _GPSTrackingContentState();
+}
+
+class _GPSTrackingContentState extends State<_GPSTrackingContent> {
   GoogleMapController? _mapController;
   
   final LatLng _initialPosition = const LatLng(31.4504, 73.1350); // Faisalabad
@@ -129,7 +142,6 @@ class _GPSTrackingScreenState extends State<GPSTrackingScreen> {
       ),
       body: Stack(
         children: [
-          // Map
           GoogleMap(
             onMapCreated: _onMapCreated,
             initialCameraPosition: CameraPosition(
@@ -142,7 +154,6 @@ class _GPSTrackingScreenState extends State<GPSTrackingScreen> {
             mapToolbarEnabled: false,
           ),
           
-          // Robot List
           Positioned(
             left: 0,
             right: 0,
@@ -292,7 +303,7 @@ class _GPSTrackingScreenState extends State<GPSTrackingScreen> {
                       color: statusColor,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Icon(
+                    child: const Icon(
                       Icons.smart_toy_rounded,
                       color: Colors.white,
                       size: 20,
