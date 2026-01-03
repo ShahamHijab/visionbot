@@ -33,19 +33,16 @@ class _LoginScreenState extends State<LoginScreen>
   void initState() {
     super.initState();
 
-    // Main animation controller
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
     );
 
-    // Logo animation controller
     _logoAnimationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2000),
     );
 
-    // Pulse animation controller
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2000),
@@ -84,11 +81,6 @@ class _LoginScreenState extends State<LoginScreen>
 
     _animationController.forward();
     _logoAnimationController.forward();
-    _checkVerificationLink();
-  }
-
-  Future<void> _checkVerificationLink() async {
-    // Placeholder for verification link checking
   }
 
   @override
@@ -133,10 +125,8 @@ class _LoginScreenState extends State<LoginScreen>
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
-
-      final msg = _getAuthErrorMessage(e.code);
-      _showError(msg);
-    } catch (e) {
+      _showError(_getAuthErrorMessage(e.code));
+    } catch (_) {
       if (!mounted) return;
       setState(() => _loading = false);
       _showError('Login failed. Please try again');
@@ -152,10 +142,11 @@ class _LoginScreenState extends State<LoginScreen>
     }
 
     await _authService.finalizeVerifiedUser();
-
     final role = await _authService.getCurrentUserRole();
 
     if (!mounted) return;
+
+    setState(() => _loading = false);
 
     if (role == null || role.isEmpty) {
       Navigator.pushNamedAndRemoveUntil(
@@ -186,6 +177,8 @@ class _LoginScreenState extends State<LoginScreen>
 
       if (!mounted) return;
 
+      setState(() => _loading = false);
+
       if (role == null || role.isEmpty) {
         Navigator.pushNamedAndRemoveUntil(
           context,
@@ -204,9 +197,6 @@ class _LoginScreenState extends State<LoginScreen>
       if (!mounted) return;
       setState(() => _loading = false);
 
-      debugPrint('GOOGLE AUTH ERROR CODE: ${e.code}');
-      debugPrint('GOOGLE AUTH ERROR MESSAGE: ${e.message}');
-
       final msg = e.code == 'popup-blocked'
           ? 'Popup blocked. Please allow popups'
           : e.code == 'popup-closed-by-user'
@@ -219,8 +209,6 @@ class _LoginScreenState extends State<LoginScreen>
     } catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
-
-      debugPrint('GOOGLE LOGIN UNKNOWN ERROR: $e');
       _showError('Google login failed');
     }
   }
@@ -245,6 +233,8 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   void _showError(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -273,6 +263,8 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   void _showWarning(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -429,7 +421,6 @@ class _LoginScreenState extends State<LoginScreen>
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   const SizedBox(height: 50),
-                  // Animated Logo
                   Hero(
                     tag: 'app_logo',
                     child: AnimatedBuilder(
@@ -489,7 +480,6 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
                   ),
                   const SizedBox(height: 32),
-                  // Welcome Text with Gradient
                   SlideTransition(
                     position: _slideAnimation,
                     child: ShaderMask(
@@ -525,7 +515,6 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
                   ),
                   const SizedBox(height: 48),
-                  // Email Field
                   _inputField(
                     label: "Email Address",
                     hint: "your.email@example.com",
@@ -534,7 +523,6 @@ class _LoginScreenState extends State<LoginScreen>
                     keyboardType: TextInputType.emailAddress,
                   ),
                   const SizedBox(height: 24),
-                  // Password Field
                   _inputField(
                     label: "Password",
                     hint: "Enter your password",
@@ -542,11 +530,8 @@ class _LoginScreenState extends State<LoginScreen>
                     controller: _passwordController,
                     obscure: _obscurePassword,
                     suffix: IconButton(
-                      onPressed: () {
-                        setState(() {
-                          _obscurePassword = !_obscurePassword;
-                        });
-                      },
+                      onPressed: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
                       icon: Icon(
                         _obscurePassword
                             ? Icons.visibility_off_rounded
@@ -557,17 +542,14 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
                   ),
                   const SizedBox(height: 20),
-                  // Remember Me & Forgot Password
                   Row(
                     children: [
                       const Spacer(),
                       TextButton(
-                        onPressed: () {
-                          Navigator.pushNamed(
-                            context,
-                            AppRoutes.forgotPassword,
-                          );
-                        },
+                        onPressed: () => Navigator.pushNamed(
+                          context,
+                          AppRoutes.forgotPassword,
+                        ),
                         style: TextButton.styleFrom(
                           foregroundColor: const Color(0xFF8B5CF6),
                           padding: const EdgeInsets.symmetric(
@@ -592,7 +574,6 @@ class _LoginScreenState extends State<LoginScreen>
                     ],
                   ),
                   const SizedBox(height: 32),
-                  // Login Button with Shimmer Effect
                   TweenAnimationBuilder<double>(
                     tween: Tween(begin: 0.0, end: 1.0),
                     duration: const Duration(milliseconds: 800),
@@ -662,7 +643,6 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
                   ),
                   const SizedBox(height: 32),
-                  // Animated Divider
                   Row(
                     children: [
                       Expanded(
@@ -718,7 +698,6 @@ class _LoginScreenState extends State<LoginScreen>
                     ],
                   ),
                   const SizedBox(height: 32),
-                  // Google Sign In Button
                   TweenAnimationBuilder<double>(
                     tween: Tween(begin: 0.0, end: 1.0),
                     duration: const Duration(milliseconds: 1000),
@@ -785,7 +764,6 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
                   ),
                   const SizedBox(height: 40),
-                  // Sign Up Link
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -798,9 +776,8 @@ class _LoginScreenState extends State<LoginScreen>
                         ),
                       ),
                       TextButton(
-                        onPressed: () {
-                          Navigator.pushNamed(context, AppRoutes.signup);
-                        },
+                        onPressed: () =>
+                            Navigator.pushNamed(context, AppRoutes.signup),
                         style: TextButton.styleFrom(
                           foregroundColor: const Color(0xFFEC4899),
                           padding: const EdgeInsets.symmetric(horizontal: 4),
