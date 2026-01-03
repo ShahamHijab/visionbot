@@ -1,12 +1,13 @@
 // lib/screens/dashboard/dashboard_screen.dart
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'package:mad_project/theme/app_colors.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_service.dart';
 import '../../services/alert_service.dart';
 import '../../models/alert_model.dart';
 import '../gallery/image_gallery_screen.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../alerts/alerts_dashboard.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -224,12 +225,9 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
   String _titleFromType(String typeNorm) {
     if (typeNorm == 'unknown_face') return 'Unknown person';
     if (typeNorm == 'unknownface') return 'Unknown person';
-    // if (typeNorm == 'known_face') return 'Known person';
-    // if (typeNorm == 'knownface') return 'Known person';
     if (typeNorm == 'motion') return 'Motion detected';
     if (typeNorm == 'fire') return 'Fire detected';
     if (typeNorm == 'smoke') return 'Smoke detected';
-    // if (typeNorm == 'intruder') return 'Intruder detected';
 
     if (typeNorm.isEmpty) return 'Alert';
 
@@ -239,7 +237,6 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
 
   Color _colorFromType(String typeNorm) {
     if (typeNorm == 'fire') return const Color(0xFFFF6B6B);
-    // if (typeNorm == 'intruder') return const Color(0xFFFF6B6B);
     if (typeNorm == 'smoke') return const Color(0xFFF59E0B);
     if (typeNorm == 'unknown_face') return const Color(0xFFF59E0B);
     if (typeNorm == 'unknownface') return const Color(0xFFF59E0B);
@@ -258,6 +255,22 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
     if (typeNorm == 'intruder') return Icons.security_rounded;
 
     return Icons.warning_amber_rounded;
+  }
+
+  Stream<int> _alertsCountStream() {
+    // If you have unread support, use this instead:
+    // return FirebaseFirestore.instance
+    //     .collection('alerts')
+    //     .where('is_read', isEqualTo: false)
+    //     .snapshots()
+    //     .map((s) => s.size);
+
+    // Default: count recent alerts (works with your current data)
+    return FirebaseFirestore.instance
+        .collection('alerts')
+        .limit(200)
+        .snapshots()
+        .map((s) => s.size);
   }
 
   @override
@@ -313,20 +326,31 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
                     Positioned(
                       right: 8,
                       top: 8,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF06B6D4),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Text(
-                          '3',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
+                      child: StreamBuilder<int>(
+                        stream: _alertsCountStream(),
+                        builder: (context, snapshot) {
+                          final count = snapshot.data ?? 0;
+
+                          if (count <= 0) return const SizedBox.shrink();
+
+                          final text = count > 99 ? '99+' : count.toString();
+
+                          return Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF06B6D4),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              text,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ),
                   ],
@@ -335,25 +359,25 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
             ],
           ),
           SliverToBoxAdapter(
-          child: FadeTransition(
-            opacity: _fadeAnimation,
-            child: SlideTransition(
-              position: _slideAnimation,
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1100),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildWelcomeCard(),
-                      const SizedBox(height: 24),
-                      _buildStatsGrid(),
-                      const SizedBox(height: 28),
-                      _buildQuickActionsSection(context),
-                      const SizedBox(height: 28),
-                      _buildRecentAlertsSection(context),
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: SlideTransition(
+                position: _slideAnimation,
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1100),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildWelcomeCard(),
+                          const SizedBox(height: 24),
+                          _buildStatsGrid(),
+                          const SizedBox(height: 28),
+                          _buildQuickActionsSection(context),
+                          const SizedBox(height: 28),
+                          _buildRecentAlertsSection(context),
                         ],
                       ),
                     ),
@@ -485,7 +509,7 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
       },
       {
         'title': 'Today Images',
-        'value': '156',
+        'value': '7',
         'icon': Icons.photo_library_rounded,
         'color': const Color(0xFF45B7D1),
       },
@@ -500,7 +524,7 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
         maxCrossAxisExtent: 260,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
@@ -939,11 +963,10 @@ class GalleryTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ImageGalleryScreen();
+    return const ImageGalleryScreen();
   }
 }
 
-// Profile Tab
 class ProfileTab extends StatefulWidget {
   const ProfileTab({super.key});
 
@@ -996,7 +1019,6 @@ class _ProfileTabState extends State<ProfileTab> {
           .doc(uid)
           .snapshots(),
       builder: (context, snapshot) {
-        // Show loading while fetching data
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Scaffold(
             appBar: AppBar(
@@ -1027,54 +1049,45 @@ class _ProfileTabState extends State<ProfileTab> {
 
         final data = snapshot.data?.data();
 
-        // Get name from multiple possible sources
         String fullName = '';
-        
-        // Try to get from Firestore first_name and last_name
+
         final firstName = (data?['first_name'] ?? '').toString().trim();
         final lastName = (data?['last_name'] ?? '').toString().trim();
-        
+
         if (firstName.isNotEmpty || lastName.isNotEmpty) {
-          fullName = [firstName, lastName]
-              .where((e) => e.isNotEmpty)
-              .join(' ');
+          fullName = [firstName, lastName].where((e) => e.isNotEmpty).join(' ');
         }
-        
-        // Fallback to 'name' field in Firestore
+
         if (fullName.isEmpty) {
           fullName = (data?['name'] ?? '').toString().trim();
         }
-        
-        // Fallback to Firebase Auth displayName
+
         if (fullName.isEmpty) {
           fullName = user.displayName?.trim() ?? '';
         }
-        
-        // Ultimate fallback
+
         if (fullName.isEmpty) {
           fullName = 'User';
         }
 
-        // Get role
         String role = (data?['role'] ?? '').toString().trim();
         if (role.isEmpty) {
           role = 'Member';
         } else {
-          // Capitalize first letter
           role = role[0].toUpperCase() + role.substring(1);
         }
 
-        // Get email
         final email = (data?['email'] ?? user.email ?? '').toString().trim();
-        
-        // Get photo URL
-        final photoUrl = (data?['photoUrl'] ?? 
-                         data?['avatarUrl'] ?? 
-                         data?['photo_url'] ?? 
-                         data?['avatar_url'] ?? 
-                         user.photoURL ?? '')
-            .toString()
-            .trim();
+
+        final photoUrl =
+            (data?['photoUrl'] ??
+                    data?['avatarUrl'] ??
+                    data?['photo_url'] ??
+                    data?['avatar_url'] ??
+                    user.photoURL ??
+                    '')
+                .toString()
+                .trim();
 
         return Scaffold(
           appBar: AppBar(
@@ -1105,7 +1118,6 @@ class _ProfileTabState extends State<ProfileTab> {
               Center(
                 child: Column(
                   children: [
-                    // Profile Picture
                     Container(
                       width: 100,
                       height: 100,
@@ -1118,9 +1130,6 @@ class _ProfileTabState extends State<ProfileTab> {
                             ? DecorationImage(
                                 image: NetworkImage(photoUrl),
                                 fit: BoxFit.cover,
-                                onError: (error, stackTrace) {
-                                  // Handle image load error silently
-                                },
                               )
                             : null,
                       ),
@@ -1133,8 +1142,6 @@ class _ProfileTabState extends State<ProfileTab> {
                           : null,
                     ),
                     const SizedBox(height: 16),
-                    
-                    // User Name
                     ShaderMask(
                       shaderCallback: (bounds) => const LinearGradient(
                         colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
@@ -1149,8 +1156,6 @@ class _ProfileTabState extends State<ProfileTab> {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    
-                    // Role
                     ShaderMask(
                       shaderCallback: (bounds) => const LinearGradient(
                         colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
@@ -1163,8 +1168,6 @@ class _ProfileTabState extends State<ProfileTab> {
                         ),
                       ),
                     ),
-                    
-                    // Email
                     if (email.isNotEmpty) ...[
                       const SizedBox(height: 6),
                       Text(
@@ -1179,8 +1182,6 @@ class _ProfileTabState extends State<ProfileTab> {
                 ),
               ),
               const SizedBox(height: 30),
-              
-              // Menu Items
               _buildMenuItem(
                 context,
                 'Edit Profile',
@@ -1218,8 +1219,6 @@ class _ProfileTabState extends State<ProfileTab> {
                 AppRoutes.about,
               ),
               const SizedBox(height: 20),
-              
-              // Logout Button
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: ElevatedButton(

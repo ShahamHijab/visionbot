@@ -45,6 +45,36 @@ class ImageGalleryScreen extends StatelessWidget {
       'confidence': '78%',
       'description': 'Multiple people detected near entrance',
     },
+    {
+      'title': 'Person',
+      'time': '15 mins ago',
+      'asset': 'assets/person.jfif',
+      'type': 'Human Detection',
+      'camera': 'Camera 3',
+      'location': 'Restricted Zone',
+      'confidence': '87%',
+      'description': 'Unknown person detected in restricted area',
+    },
+    {
+      'title': 'Group',
+      'time': 'Yesterday',
+      'asset': 'assets/group.jfif',
+      'type': 'Crowd Detection',
+      'camera': 'Camera 4',
+      'location': 'Main Entrance',
+      'confidence': '78%',
+      'description': 'Multiple people detected near entrance',
+    },
+    {
+      'title': 'Fire',
+      'time': '2 mins ago',
+      'asset': 'assets/fire.jfif',
+      'type': 'Fire Detection',
+      'camera': 'Camera 1',
+      'location': 'Building A, Floor 2',
+      'confidence': '92%',
+      'description': 'Fire detected near electrical panel',
+    },
   ];
 
   @override
