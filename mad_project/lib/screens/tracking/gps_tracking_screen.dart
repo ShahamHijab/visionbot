@@ -1,4 +1,8 @@
+// lib/screens/tracking/gps_tracking_screen.dart
 import 'package:flutter/material.dart';
+import 'dart:async';
+import 'package:geolocator/geolocator.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../widgets/protected_route.dart';
 
@@ -24,71 +28,156 @@ class _GPSTrackingContent extends StatefulWidget {
 
 class _GPSTrackingContentState extends State<_GPSTrackingContent> {
   GoogleMapController? _mapController;
-  
-  final LatLng _initialPosition = const LatLng(31.4504, 73.1350); // Faisalabad
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
   
   final Set<Marker> _markers = {};
-  final List<RobotLocation> _robots = [
-    RobotLocation(
-      id: 'robot_1',
-      name: 'Robot 1',
-      position: const LatLng(31.4504, 73.1350),
-      status: RobotStatus.active,
-      battery: 85,
-    ),
-    RobotLocation(
-      id: 'robot_2',
-      name: 'Robot 2',
-      position: const LatLng(31.4520, 73.1360),
-      status: RobotStatus.active,
-      battery: 92,
-    ),
-    RobotLocation(
-      id: 'robot_3',
-      name: 'Robot 3',
-      position: const LatLng(31.4490, 73.1340),
-      status: RobotStatus.charging,
-      battery: 45,
-    ),
-    RobotLocation(
-      id: 'robot_4',
-      name: 'Robot 4',
-      position: const LatLng(31.4510, 73.1370),
-      status: RobotStatus.inactive,
-      battery: 12,
-    ),
-  ];
+  final Map<String, RobotLocation> _robots = {};
+  
+  Timer? _locationTimer;
+  StreamSubscription<QuerySnapshot>? _locationSubscription;
+  
+  bool _isSendingLocation = false;
+  String? _selectedRobotId;
+  
+  final LatLng _initialPosition = const LatLng(31.4504, 73.1350);
 
   @override
   void initState() {
     super.initState();
-    _createMarkers();
+    _startListeningToLocations();
   }
 
-  void _createMarkers() {
-    for (var robot in _robots) {
-      _markers.add(
-        Marker(
-          markerId: MarkerId(robot.id),
-          position: robot.position,
-          infoWindow: InfoWindow(
-            title: robot.name,
-            snippet: '${robot.status.name} - ${robot.battery}%',
-          ),
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-            robot.status == RobotStatus.active
-                ? BitmapDescriptor.hueGreen
-                : robot.status == RobotStatus.charging
-                    ? BitmapDescriptor.hueYellow
-                    : BitmapDescriptor.hueRed,
-          ),
-        ),
-      );
+  @override
+  void dispose() {
+    _locationTimer?.cancel();
+    _locationSubscription?.cancel();
+    _mapController?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _checkPermissions() async {
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        if (!mounted) return;
+        _showError('Location permissions are denied');
+        return;
+      }
+    }
+    
+    if (permission == LocationPermission.deniedForever) {
+      if (!mounted) return;
+      _showError('Location permissions are permanently denied');
+      return;
     }
   }
 
-  void _onMapCreated(GoogleMapController controller) {
-    _mapController = controller;
+  Future<void> _startSendingLocation() async {
+    await _checkPermissions();
+    
+    setState(() => _isSendingLocation = true);
+    
+    _locationTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+      try {
+        Position position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+        );
+        
+        await _db.collection('device_locations').doc('current_device').set({
+          'device_id': 'current_device',
+          'lat': position.latitude,
+          'lng': position.longitude,
+          'battery': 85,
+          'status': 'active',
+          'updated_at': FieldValue.serverTimestamp(),
+        });
+        
+        if (mounted) {
+          _showSuccess('Location sent: ${position.latitude}, ${position.longitude}');
+        }
+      } catch (e) {
+        debugPrint('Error sending location: $e');
+      }
+    });
+    
+    _showSuccess('Started sending location every 5 seconds');
+  }
+
+  void _stopSendingLocation() {
+    _locationTimer?.cancel();
+    setState(() => _isSendingLocation = false);
+    _showSuccess('Stopped sending location');
+  }
+
+  void _startListeningToLocations() {
+    _locationSubscription = _db
+        .collection('device_locations')
+        .snapshots()
+        .listen((snapshot) {
+      setState(() {
+        _robots.clear();
+        _markers.clear();
+        
+        for (var doc in snapshot.docs) {
+          final data = doc.data();
+          final deviceId = data['device_id'] ?? doc.id;
+          final lat = (data['lat'] ?? 0).toDouble();
+          final lng = (data['lng'] ?? 0).toDouble();
+          final battery = (data['battery'] ?? 0).toInt();
+          final status = data['status'] ?? 'inactive';
+          
+          if (lat == 0 && lng == 0) continue;
+          
+          final robot = RobotLocation(
+            id: deviceId,
+            name: _getDeviceName(deviceId),
+            position: LatLng(lat, lng),
+            status: _parseStatus(status),
+            battery: battery,
+          );
+          
+          _robots[deviceId] = robot;
+          
+          _markers.add(
+            Marker(
+              markerId: MarkerId(deviceId),
+              position: LatLng(lat, lng),
+              infoWindow: InfoWindow(
+                title: robot.name,
+                snippet: '${robot.status.name} - $battery%',
+              ),
+              icon: BitmapDescriptor.defaultMarkerWithHue(
+                robot.status == RobotStatus.active
+                    ? BitmapDescriptor.hueGreen
+                    : robot.status == RobotStatus.charging
+                        ? BitmapDescriptor.hueYellow
+                        : BitmapDescriptor.hueRed,
+              ),
+            ),
+          );
+        }
+      });
+    });
+  }
+
+  String _getDeviceName(String deviceId) {
+    if (deviceId == 'current_device') return 'My Device';
+    if (deviceId.startsWith('robot')) {
+      return 'Robot ${deviceId.replaceAll('robot', '')}';
+    }
+    return deviceId;
+  }
+
+  RobotStatus _parseStatus(String status) {
+    switch (status.toLowerCase()) {
+      case 'active':
+        return RobotStatus.active;
+      case 'charging':
+        return RobotStatus.charging;
+      default:
+        return RobotStatus.inactive;
+    }
   }
 
   void _focusOnRobot(RobotLocation robot) {
@@ -96,10 +185,65 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
       CameraUpdate.newCameraPosition(
         CameraPosition(
           target: robot.position,
-          zoom: 15,
+          zoom: 16,
         ),
       ),
     );
+    setState(() => _selectedRobotId = robot.id);
+  }
+
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle_outline, color: Colors.white, size: 22),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFF06B6D4),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        margin: const EdgeInsets.all(20),
+        duration: const Duration(seconds: 2),
+        elevation: 8,
+      ),
+    );
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.white, size: 22),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFFEC4899),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        margin: const EdgeInsets.all(20),
+        duration: const Duration(seconds: 3),
+        elevation: 8,
+      ),
+    );
+  }
+
+  void _onMapCreated(GoogleMapController controller) {
+    _mapController = controller;
   }
 
   @override
@@ -139,9 +283,39 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
             ),
           ),
         ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: _isSendingLocation
+                      ? const [Color(0xFFFF6B6B), Color(0xFFEC4899)]
+                      : const [Color(0xFF06B6D4), Color(0xFF8B5CF6)],
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: IconButton(
+                icon: Icon(
+                  _isSendingLocation ? Icons.stop_rounded : Icons.play_arrow_rounded,
+                  color: Colors.white,
+                ),
+                onPressed: () {
+                  if (_isSendingLocation) {
+                    _stopSendingLocation();
+                  } else {
+                    _startSendingLocation();
+                  }
+                },
+                tooltip: _isSendingLocation ? 'Stop Sending' : 'Start Sending',
+              ),
+            ),
+          ),
+        ],
       ),
       body: Stack(
         children: [
+          // Google Map
           GoogleMap(
             onMapCreated: _onMapCreated,
             initialCameraPosition: CameraPosition(
@@ -149,11 +323,58 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
               zoom: 13,
             ),
             markers: _markers,
-            myLocationButtonEnabled: false,
+            myLocationButtonEnabled: true,
+            myLocationEnabled: true,
             zoomControlsEnabled: false,
             mapToolbarEnabled: false,
           ),
           
+          // Status Banner
+          if (_isSendingLocation)
+            Positioned(
+              top: 16,
+              left: 20,
+              right: 20,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF06B6D4), Color(0xFF8B5CF6)],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF06B6D4).withOpacity(0.4),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Sending location every 5 seconds',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          
+          // Bottom Device List
           Positioned(
             left: 0,
             right: 0,
@@ -196,7 +417,7 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
                             colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
                           ).createShader(bounds),
                           child: const Text(
-                            'Active Robots',
+                            'Tracked Devices',
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w900,
@@ -216,7 +437,7 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
-                            '${_robots.where((r) => r.status == RobotStatus.active).length}/${_robots.length}',
+                            '${_robots.values.where((r) => r.status == RobotStatus.active).length}/${_robots.length}',
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w700,
@@ -229,15 +450,37 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
                   ),
                   const SizedBox(height: 16),
                   Expanded(
-                    child: ListView.separated(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _robots.length,
-                      separatorBuilder: (_, __) => const SizedBox(width: 12),
-                      itemBuilder: (context, index) {
-                        return _buildRobotCard(_robots[index]);
-                      },
-                    ),
+                    child: _robots.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.location_off_rounded,
+                                  size: 48,
+                                  color: Colors.grey.shade400,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'No devices tracked yet',
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _robots.length,
+                            separatorBuilder: (_, __) => const SizedBox(width: 12),
+                            itemBuilder: (context, index) {
+                              final robot = _robots.values.elementAt(index);
+                              return _buildRobotCard(robot);
+                            },
+                          ),
                   ),
                   const SizedBox(height: 20),
                 ],
@@ -268,28 +511,45 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
         break;
     }
 
+    final isSelected = _selectedRobotId == robot.id;
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: () => _focusOnRobot(robot),
         borderRadius: BorderRadius.circular(20),
-        child: Container(
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
           width: 160,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                statusColor.withOpacity(0.1),
-                statusColor.withOpacity(0.05),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            gradient: isSelected
+                ? LinearGradient(
+                    colors: [
+                      statusColor.withOpacity(0.2),
+                      statusColor.withOpacity(0.1),
+                    ],
+                  )
+                : LinearGradient(
+                    colors: [
+                      statusColor.withOpacity(0.1),
+                      statusColor.withOpacity(0.05),
+                    ],
+                  ),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: statusColor.withOpacity(0.3),
-              width: 2,
+              color: statusColor.withOpacity(isSelected ? 0.5 : 0.3),
+              width: isSelected ? 3 : 2,
             ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: statusColor.withOpacity(0.3),
+                      blurRadius: 15,
+                      offset: const Offset(0, 5),
+                    ),
+                  ]
+                : null,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -303,8 +563,10 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
                       color: statusColor,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(
-                      Icons.smart_toy_rounded,
+                    child: Icon(
+                      robot.id == 'current_device'
+                          ? Icons.phone_android_rounded
+                          : Icons.smart_toy_rounded,
                       color: Colors.white,
                       size: 20,
                     ),
@@ -318,6 +580,8 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
                         fontWeight: FontWeight.w800,
                         color: Color(0xFF1F2937),
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
