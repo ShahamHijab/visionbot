@@ -11,7 +11,8 @@ class SignupScreen extends StatefulWidget {
   State<SignupScreen> createState() => _SignupScreenState();
 }
 
-class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderStateMixin {
+class _SignupScreenState extends State<SignupScreen>
+    with SingleTickerProviderStateMixin {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -77,13 +78,21 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
       return;
     }
 
-    if (password.length < 6) {
-      _showError('Password must be at least 6 characters');
-      return;
-    }
-
     if (password != confirm) {
       _showError('Passwords do not match');
+      return;
+    }
+    if (password.length < 6) {
+      _showError('Password must be at least 6 characters long');
+      return;
+    }
+    // Check for at least one capital letter and one number
+    final hasUppercase = password.contains(RegExp(r'[A-Z]'));
+    final hasNumber = password.contains(RegExp(r'[0-9]'));
+    if (!hasUppercase || !hasNumber) {
+      _showError(
+        'Password must contain at least one capital letter and one number',
+      );
       return;
     }
 
@@ -183,7 +192,10 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
             Expanded(
               child: Text(
                 msg,
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ],
@@ -203,12 +215,19 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
       SnackBar(
         content: Row(
           children: [
-            const Icon(Icons.check_circle_outline, color: Colors.white, size: 22),
+            const Icon(
+              Icons.check_circle_outline,
+              color: Colors.white,
+              size: 22,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
                 msg,
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ],
@@ -280,7 +299,10 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
               suffixIcon: suffix,
               filled: true,
               fillColor: Colors.white,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 20,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(20),
                 borderSide: BorderSide.none,
@@ -291,7 +313,10 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(20),
-                borderSide: const BorderSide(color: Color(0xFF06B6D4), width: 2.5),
+                borderSide: const BorderSide(
+                  color: Color(0xFF06B6D4),
+                  width: 2.5,
+                ),
               ),
             ),
           ),
@@ -447,7 +472,8 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                         size: 22,
                       ),
                       onPressed: () => setState(
-                        () => _obscureConfirmPassword = !_obscureConfirmPassword,
+                        () =>
+                            _obscureConfirmPassword = !_obscureConfirmPassword,
                       ),
                     ),
                   ),
@@ -479,7 +505,10 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                                 ),
                                 gradient: _agreeToTerms
                                     ? const LinearGradient(
-                                        colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
+                                        colors: [
+                                          Color(0xFFEC4899),
+                                          Color(0xFF8B5CF6),
+                                        ],
                                       )
                                     : null,
                               ),
@@ -662,10 +691,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: Colors.grey.shade300,
-                        width: 2,
-                      ),
+                      border: Border.all(color: Colors.grey.shade300, width: 2),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.05),

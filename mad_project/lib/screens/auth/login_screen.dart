@@ -103,6 +103,17 @@ class _LoginScreenState extends State<LoginScreen>
       _showError('Please enter email and password');
       return;
     }
+    if (password.length < 6) {
+      _showError('Password must be at least 6 characters long');
+      return;
+    }
+    // Check for at least one capital letter and one number
+    final hasUppercase = password.contains(RegExp(r'[A-Z]'));
+    final hasNumber = password.contains(RegExp(r'[0-9]'));
+    if (!hasUppercase || !hasNumber) {
+      _showError('Password must contain at least one capital letter and one number');
+      return;
+    }
 
     setState(() => _loading = true);
 

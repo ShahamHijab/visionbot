@@ -14,19 +14,19 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen>
   final _currentPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  
+
   bool _obscureCurrentPassword = true;
   bool _obscureNewPassword = true;
   bool _obscureConfirmPassword = true;
   bool _loading = false;
-  
+
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
-    
+
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
@@ -51,12 +51,14 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen>
 
   Future<void> _changePassword() async {
     if (_loading) return;
-    
+
     final currentPassword = _currentPasswordController.text;
     final newPassword = _newPasswordController.text;
     final confirmPassword = _confirmPasswordController.text;
 
-    if (currentPassword.isEmpty || newPassword.isEmpty || confirmPassword.isEmpty) {
+    if (currentPassword.isEmpty ||
+        newPassword.isEmpty ||
+        confirmPassword.isEmpty) {
       _showError('Please fill all fields');
       return;
     }
@@ -65,11 +67,20 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen>
       _showError('New password must be at least 6 characters');
       return;
     }
-
+    final hasUppercase = newPassword.contains(RegExp(r'[A-Z]'));
+    final hasNumber = newPassword.contains(RegExp(r'[0-9]'));
+    if (!hasUppercase || !hasNumber) {
+      _showError(
+        'Password must contain at least one capital letter and one number',
+      );
+      return;
+    }
     if (newPassword != confirmPassword) {
       _showError('New passwords do not match');
       return;
     }
+
+    // Check for at least one capital letter and one number
 
     setState(() => _loading = true);
 
@@ -84,19 +95,23 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen>
         email: user.email!,
         password: currentPassword,
       );
-      
+
       await user.reauthenticateWithCredential(credential);
-      
+
       // Update password
       await user.updatePassword(newPassword);
 
       if (!mounted) return;
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
             children: [
-              const Icon(Icons.check_circle_outline, color: Colors.white, size: 22),
+              const Icon(
+                Icons.check_circle_outline,
+                color: Colors.white,
+                size: 22,
+              ),
               const SizedBox(width: 12),
               const Expanded(
                 child: Text(
@@ -108,7 +123,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen>
           ),
           backgroundColor: const Color(0xFF06B6D4),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           margin: const EdgeInsets.all(20),
           duration: const Duration(seconds: 3),
           elevation: 8,
@@ -118,7 +135,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen>
       Navigator.pop(context);
     } on FirebaseAuthException catch (e) {
       setState(() => _loading = false);
-      
+
       String message;
       if (e.code == 'wrong-password') {
         message = 'Current password is incorrect';
@@ -127,7 +144,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen>
       } else {
         message = 'Failed to change password';
       }
-      
+
       _showError(message);
     } catch (e) {
       setState(() => _loading = false);
@@ -145,7 +162,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen>
             Expanded(
               child: Text(
                 message,
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ],
@@ -181,7 +201,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen>
             ],
           ),
           child: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF1F2937)),
+            icon: const Icon(
+              Icons.arrow_back_rounded,
+              color: Color(0xFF1F2937),
+            ),
             onPressed: () => Navigator.pop(context),
           ),
         ),
@@ -191,10 +214,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen>
           ).createShader(bounds),
           child: const Text(
             'Change Password',
-            style: TextStyle(
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-            ),
+            style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
           ),
         ),
       ),
@@ -240,37 +260,42 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen>
                 ),
               ),
               const SizedBox(height: 32),
-              
+
               // Current Password
               _buildPasswordField(
                 controller: _currentPasswordController,
                 label: 'Current Password',
                 hint: 'Enter current password',
                 obscure: _obscureCurrentPassword,
-                onToggle: () => setState(() => _obscureCurrentPassword = !_obscureCurrentPassword),
+                onToggle: () => setState(
+                  () => _obscureCurrentPassword = !_obscureCurrentPassword,
+                ),
               ),
               const SizedBox(height: 20),
-              
+
               // New Password
               _buildPasswordField(
                 controller: _newPasswordController,
                 label: 'New Password',
                 hint: 'Enter new password',
                 obscure: _obscureNewPassword,
-                onToggle: () => setState(() => _obscureNewPassword = !_obscureNewPassword),
+                onToggle: () =>
+                    setState(() => _obscureNewPassword = !_obscureNewPassword),
               ),
               const SizedBox(height: 20),
-              
+
               // Confirm Password
               _buildPasswordField(
                 controller: _confirmPasswordController,
                 label: 'Confirm New Password',
                 hint: 'Re-enter new password',
                 obscure: _obscureConfirmPassword,
-                onToggle: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                onToggle: () => setState(
+                  () => _obscureConfirmPassword = !_obscureConfirmPassword,
+                ),
               ),
               const SizedBox(height: 32),
-              
+
               // Password Requirements
               Container(
                 padding: const EdgeInsets.all(20),
@@ -323,7 +348,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen>
                 ),
               ),
               const SizedBox(height: 32),
-              
+
               // Change Password Button
               Container(
                 width: double.infinity,
@@ -436,7 +461,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen>
               ),
               suffixIcon: IconButton(
                 icon: Icon(
-                  obscure ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                  obscure
+                      ? Icons.visibility_off_rounded
+                      : Icons.visibility_rounded,
                   color: const Color(0xFF06B6D4),
                   size: 22,
                 ),
@@ -444,7 +471,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen>
               ),
               filled: true,
               fillColor: Colors.white,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 20,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(20),
                 borderSide: BorderSide.none,
@@ -455,7 +485,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen>
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(20),
-                borderSide: const BorderSide(color: Color(0xFF06B6D4), width: 2.5),
+                borderSide: const BorderSide(
+                  color: Color(0xFF06B6D4),
+                  width: 2.5,
+                ),
               ),
             ),
           ),
