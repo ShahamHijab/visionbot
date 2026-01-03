@@ -1,12 +1,12 @@
 // lib/screens/dashboard/dashboard_screen.dart
 import 'package:flutter/material.dart';
-import 'package:mad_project/screens/alerts/alerts_dashboard.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_service.dart';
-import 'dart:math' as math;
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/alert_service.dart';
 import '../../models/alert_model.dart';
+
+// IMPORTANT: adjust this import path if your AlertsDashboard file is elsewhere
+import '../alerts/alerts_dashboard.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -129,7 +129,6 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 }
 
-// Home Tab Widget with Enhanced Animations
 class HomeTab extends StatefulWidget {
   const HomeTab({super.key});
 
@@ -174,12 +173,22 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
     super.dispose();
   }
 
-  // ALERT PART ONLY
-  _AlertUI _mapAlertUI(AlertModel alert) {
-    final title = _titleFromType(alert.type.toString());
+  String _normalizeType(String raw) {
+    var t = raw.trim().toLowerCase();
+    if (t.contains('.')) {
+      t = t.split('.').last;
+    }
+    t = t.replaceAll(' ', '');
+    t = t.replaceAll('-', '');
+    return t;
+  }
 
-    final lensText = (alert.lens).isEmpty ? 'unknown lens' : alert.lens;
-    final noteText = (alert.note).isEmpty ? '' : alert.note;
+  _AlertUI _mapAlertUI(AlertModel alert) {
+    final typeNorm = _normalizeType(alert.type.toString());
+    final title = _titleFromType(typeNorm);
+
+    final lensText = alert.lens.isEmpty ? 'unknown lens' : alert.lens;
+    final noteText = alert.note.isEmpty ? '' : alert.note;
     final location = noteText.isEmpty
         ? 'Lens: $lensText'
         : 'Lens: $lensText. $noteText';
@@ -199,8 +208,8 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
       timeText = '${diff.inDays} days ago';
     }
 
-    final color = _colorFromType(alert.type.toString());
-    final icon = _iconFromType(alert.type.toString());
+    final color = _colorFromType(typeNorm);
+    final icon = _iconFromType(typeNorm);
 
     return _AlertUI(
       title: title,
@@ -211,45 +220,44 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
     );
   }
 
-  String _titleFromType(String type) {
-    final t = type.toLowerCase().trim();
+  String _titleFromType(String typeNorm) {
+    if (typeNorm == 'unknown_face') return 'Unknown person';
+    if (typeNorm == 'unknownface') return 'Unknown person';
+    if (typeNorm == 'known_face') return 'Known person';
+    if (typeNorm == 'knownface') return 'Known person';
+    if (typeNorm == 'motion') return 'Motion detected';
+    if (typeNorm == 'fire') return 'Fire detected';
+    if (typeNorm == 'smoke') return 'Smoke detected';
+    if (typeNorm == 'intruder') return 'Intruder detected';
 
-    if (t == 'unknown_face') return 'Unknown person';
-    if (t == 'known_face') return 'Known person';
-    if (t == 'motion') return 'Motion detected';
-    if (t == 'fire') return 'Fire detected';
-    if (t == 'smoke') return 'Smoke detected';
-    if (t == 'intruder') return 'Intruder detected';
+    if (typeNorm.isEmpty) return 'Alert';
 
-    if (t.isEmpty) return 'Alert';
-    final pretty = t.replaceAll('_', ' ');
+    final pretty = typeNorm.replaceAll('_', ' ');
     return pretty[0].toUpperCase() + pretty.substring(1);
   }
 
-  Color _colorFromType(String type) {
-    final t = type.toLowerCase().trim();
-
-    if (t == 'fire') return const Color(0xFFFF6B6B);
-    if (t == 'intruder') return const Color(0xFFFF6B6B);
-    if (t == 'smoke') return const Color(0xFFF59E0B);
-    if (t == 'unknown_face') return const Color(0xFFF59E0B);
+  Color _colorFromType(String typeNorm) {
+    if (typeNorm == 'fire') return const Color(0xFFFF6B6B);
+    if (typeNorm == 'intruder') return const Color(0xFFFF6B6B);
+    if (typeNorm == 'smoke') return const Color(0xFFF59E0B);
+    if (typeNorm == 'unknown_face') return const Color(0xFFF59E0B);
+    if (typeNorm == 'unknownface') return const Color(0xFFF59E0B);
 
     return const Color(0xFF45B7D1);
   }
 
-  IconData _iconFromType(String type) {
-    final t = type.toLowerCase().trim();
-
-    if (t == 'fire') return Icons.local_fire_department_rounded;
-    if (t == 'smoke') return Icons.cloud_rounded;
-    if (t == 'unknown_face') return Icons.person_off_rounded;
-    if (t == 'known_face') return Icons.person_rounded;
-    if (t == 'motion') return Icons.directions_run_rounded;
-    if (t == 'intruder') return Icons.security_rounded;
+  IconData _iconFromType(String typeNorm) {
+    if (typeNorm == 'fire') return Icons.local_fire_department_rounded;
+    if (typeNorm == 'smoke') return Icons.cloud_rounded;
+    if (typeNorm == 'unknown_face') return Icons.person_off_rounded;
+    if (typeNorm == 'unknownface') return Icons.person_off_rounded;
+    if (typeNorm == 'known_face') return Icons.person_rounded;
+    if (typeNorm == 'knownface') return Icons.person_rounded;
+    if (typeNorm == 'motion') return Icons.directions_run_rounded;
+    if (typeNorm == 'intruder') return Icons.security_rounded;
 
     return Icons.warning_amber_rounded;
   }
-  // ALERT PART ONLY
 
   @override
   Widget build(BuildContext context) {
@@ -257,7 +265,6 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
       backgroundColor: const Color(0xFFF8F9FA),
       body: CustomScrollView(
         slivers: [
-          // Animated App Bar
           SliverAppBar(
             expandedHeight: 120,
             floating: false,
@@ -326,8 +333,6 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
               ),
             ],
           ),
-
-          // Content
           SliverToBoxAdapter(
             child: FadeTransition(
               opacity: _fadeAnimation,
@@ -385,73 +390,68 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
             ),
           ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Welcome Back! 👋',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 26,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFF06B6D4),
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            const Text(
-                              'All Systems Operational',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Welcome Back! 👋',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.5,
+                    ),
                   ),
-                ),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(16),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF06B6D4),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'All Systems Operational',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  child: const Icon(
-                    Icons.security_rounded,
-                    color: Colors.white,
-                    size: 32,
-                  ),
-                ),
-              ],
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Icon(
+                Icons.security_rounded,
+                color: Colors.white,
+                size: 32,
+              ),
             ),
           ],
         ),
@@ -727,8 +727,6 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
           ],
         ),
         const SizedBox(height: 16),
-
-        // ALERT PART ONLY
         StreamBuilder<List<AlertModel>>(
           stream: _alertService.streamAlerts(
             limit: 3,
@@ -798,7 +796,6 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
             );
           },
         ),
-        // ALERT PART ONLY
       ],
     );
   }
@@ -899,7 +896,6 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
   }
 }
 
-// ALERT PART ONLY
 class _AlertUI {
   final String title;
   final String location;
@@ -915,34 +911,9 @@ class _AlertUI {
     required this.icon,
   });
 }
-// ALERT PART ONLY
 
-// Keep the other tabs (AlertsTab, GalleryTab, ProfileTab) as they were
-// Alerts Tab
-// Replace ONLY AlertsTab in: lib/screens/dashboard/dashboard_screen.dart
-
-class AlertsTab extends StatefulWidget {
+class AlertsTab extends StatelessWidget {
   const AlertsTab({super.key});
-
-  @override
-  State<AlertsTab> createState() => _AlertsTabState();
-}
-
-class _AlertsTabState extends State<AlertsTab> {
-  bool _navigated = false;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-
-    if (_navigated) return;
-    _navigated = true;
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      Navigator.pushNamed(context, AppRoutes.alerts);
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -950,7 +921,6 @@ class _AlertsTabState extends State<AlertsTab> {
   }
 }
 
-// Gallery Tab
 class GalleryTab extends StatelessWidget {
   const GalleryTab({super.key});
 
@@ -995,7 +965,6 @@ class GalleryTab extends StatelessWidget {
   }
 }
 
-// Profile Tab
 class ProfileTab extends StatelessWidget {
   const ProfileTab({super.key});
 
