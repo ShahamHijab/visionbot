@@ -72,38 +72,27 @@ class _SplashScreenState extends State<SplashScreen>
     );
 
     // Slide animation
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.5),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _mainController,
-        curve: const Interval(0.3, 1.0, curve: Curves.easeOut),
-      ),
-    );
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.5), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _mainController,
+            curve: const Interval(0.3, 1.0, curve: Curves.easeOut),
+          ),
+        );
 
     // Logo rotation
     _logoRotation = Tween<double>(begin: 0, end: 2 * math.pi).animate(
-      CurvedAnimation(
-        parent: _logoController,
-        curve: Curves.easeInOut,
-      ),
+      CurvedAnimation(parent: _logoController, curve: Curves.easeInOut),
     );
 
     // Logo scale
     _logoScale = Tween<double>(begin: 0.3, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _logoController,
-        curve: Curves.elasticOut,
-      ),
+      CurvedAnimation(parent: _logoController, curve: Curves.elasticOut),
     );
 
     // Pulse animation
     _pulseAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(
-      CurvedAnimation(
-        parent: _pulseController,
-        curve: Curves.easeInOut,
-      ),
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
     _mainController.forward();
@@ -233,15 +222,17 @@ class _SplashScreenState extends State<SplashScreen>
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: const Color(0xFF06B6D4)
-                                          .withOpacity(0.5),
+                                      color: const Color(
+                                        0xFF06B6D4,
+                                      ).withOpacity(0.5),
                                       blurRadius: 50,
                                       offset: const Offset(0, 20),
                                       spreadRadius: 10,
                                     ),
                                     BoxShadow(
-                                      color: const Color(0xFFEC4899)
-                                          .withOpacity(0.4),
+                                      color: const Color(
+                                        0xFFEC4899,
+                                      ).withOpacity(0.4),
                                       blurRadius: 60,
                                       offset: const Offset(-15, -15),
                                       spreadRadius: 5,
@@ -339,10 +330,7 @@ class _SplashScreenState extends State<SplashScreen>
                       position: _slideAnimation,
                       child: ShaderMask(
                         shaderCallback: (bounds) => const LinearGradient(
-                          colors: [
-                            Color(0xFFEC4899),
-                            Color(0xFF8B5CF6),
-                          ],
+                          colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
                         ).createShader(bounds),
                         child: const Text(
                           'Initializing...',
@@ -377,17 +365,14 @@ class _SplashScreenState extends State<SplashScreen>
                           height: 8,
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
-                              colors: [
-                                Color(0xFFEC4899),
-                                Color(0xFF8B5CF6),
-                              ],
+                              colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
                             ),
                             shape: BoxShape.circle,
                           ),
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          'Powered by AI',
+                          'Powered by VisionBot',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey.shade600,
@@ -425,14 +410,15 @@ class ParticlesPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..style = PaintingStyle.fill;
+    final paint = Paint()..style = PaintingStyle.fill;
 
     // Create multiple particles with different properties
     final particles = List.generate(20, (index) {
-      final double x = (size.width * (index % 5) / 5) +
+      final double x =
+          (size.width * (index % 5) / 5) +
           math.sin(animationValue * 2 * math.pi + index) * 30;
-      final double y = (size.height * (index ~/ 5) / 4) +
+      final double y =
+          (size.height * (index ~/ 5) / 4) +
           math.cos(animationValue * 2 * math.pi + index) * 30;
       final double radius =
           5 + math.sin(animationValue * 2 * math.pi + index) * 3;

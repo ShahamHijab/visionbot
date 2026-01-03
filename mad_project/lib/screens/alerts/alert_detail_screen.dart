@@ -55,7 +55,17 @@ class AlertDetailScreen extends StatelessWidget {
     final thresholdText = _formatThreshold(alert.threshold);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Alert Detail')),
+      appBar: AppBar(
+        title: ShaderMask(
+          shaderCallback: (bounds) => const LinearGradient(
+            colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
+          ).createShader(bounds),
+          child: const Text(
+            'Alert Details',
+            style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
+          ),
+        ),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [

@@ -12,7 +12,17 @@ class AlertsDashboard extends StatelessWidget {
     final AlertService alertService = AlertService();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Alerts Dashboard')),
+      appBar: AppBar(
+        title: ShaderMask(
+          shaderCallback: (bounds) => const LinearGradient(
+            colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
+          ).createShader(bounds),
+          child: const Text(
+            'Alert Dashboard',
+            style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
+          ),
+        ),
+      ),
       body: StreamBuilder<List<AlertModel>>(
         stream: alertService.streamAlerts(limit: 100),
         builder: (context, snapshot) {

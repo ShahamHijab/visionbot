@@ -38,10 +38,7 @@ class _EmailVerificationHandlerState extends State<EmailVerificationHandler>
     );
 
     _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.elasticOut,
-      ),
+      CurvedAnimation(parent: _animationController, curve: Curves.elasticOut),
     );
 
     _animationController.forward();
@@ -146,14 +143,14 @@ class _EmailVerificationHandlerState extends State<EmailVerificationHandler>
                               (_loading
                                       ? const Color(0xFF06B6D4)
                                       : _success
-                                          ? const Color(0xFF06B6D4)
-                                          : const Color(0xFFEC4899))
+                                      ? const Color(0xFF06B6D4)
+                                      : const Color(0xFFEC4899))
                                   .withOpacity(0.15),
                               (_loading
                                       ? const Color(0xFF8B5CF6)
                                       : _success
-                                          ? const Color(0xFF8B5CF6)
-                                          : const Color(0xFFEC4899))
+                                      ? const Color(0xFF8B5CF6)
+                                      : const Color(0xFFEC4899))
                                   .withOpacity(0.15),
                             ],
                             begin: Alignment.topLeft,
@@ -161,12 +158,13 @@ class _EmailVerificationHandlerState extends State<EmailVerificationHandler>
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: (_loading
-                                      ? const Color(0xFF06B6D4)
-                                      : _success
+                              color:
+                                  (_loading
+                                          ? const Color(0xFF06B6D4)
+                                          : _success
                                           ? const Color(0xFF06B6D4)
                                           : const Color(0xFFEC4899))
-                                  .withOpacity(0.3),
+                                      .withOpacity(0.3),
                               blurRadius: 30,
                               offset: const Offset(0, 10),
                             ),
@@ -178,19 +176,13 @@ class _EmailVerificationHandlerState extends State<EmailVerificationHandler>
                             shape: BoxShape.circle,
                             gradient: LinearGradient(
                               colors: _loading
-                                  ? const [
-                                      Color(0xFF06B6D4),
-                                      Color(0xFF8B5CF6),
-                                    ]
+                                  ? const [Color(0xFF06B6D4), Color(0xFF8B5CF6)]
                                   : _success
-                                      ? const [
-                                          Color(0xFF06B6D4),
-                                          Color(0xFF8B5CF6),
-                                        ]
-                                      : const [
-                                          Color(0xFFEC4899),
-                                          Color(0xFFEC4899),
-                                        ],
+                                  ? const [Color(0xFF06B6D4), Color(0xFF8B5CF6)]
+                                  : const [
+                                      Color(0xFFEC4899),
+                                      Color(0xFFEC4899),
+                                    ],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
@@ -219,19 +211,10 @@ class _EmailVerificationHandlerState extends State<EmailVerificationHandler>
                     ShaderMask(
                       shaderCallback: (bounds) => LinearGradient(
                         colors: _loading
-                            ? const [
-                                Color(0xFF06B6D4),
-                                Color(0xFF8B5CF6),
-                              ]
+                            ? const [Color(0xFF06B6D4), Color(0xFF8B5CF6)]
                             : _success
-                                ? const [
-                                    Color(0xFF06B6D4),
-                                    Color(0xFF8B5CF6),
-                                  ]
-                                : const [
-                                    Color(0xFFEC4899),
-                                    Color(0xFFEC4899),
-                                  ],
+                            ? const [Color(0xFF06B6D4), Color(0xFF8B5CF6)]
+                            : const [Color(0xFFEC4899), Color(0xFFEC4899)],
                       ).createShader(bounds),
                       child: Text(
                         _status,
@@ -244,7 +227,7 @@ class _EmailVerificationHandlerState extends State<EmailVerificationHandler>
                         textAlign: TextAlign.center,
                       ),
                     ),
-                    
+
                     // Action Buttons (only show when not loading and not success)
                     if (!_loading && !_success) ...[
                       const SizedBox(height: 48),
@@ -339,11 +322,11 @@ class _EmailVerificationHandlerState extends State<EmailVerificationHandler>
                               child: ShaderMask(
                                 shaderCallback: (bounds) =>
                                     const LinearGradient(
-                                  colors: [
-                                    Color(0xFFEC4899),
-                                    Color(0xFF8B5CF6),
-                                  ],
-                                ).createShader(bounds),
+                                      colors: [
+                                        Color(0xFFEC4899),
+                                        Color(0xFF8B5CF6),
+                                      ],
+                                    ).createShader(bounds),
                                 child: const Text(
                                   'Sign Up Again',
                                   style: TextStyle(

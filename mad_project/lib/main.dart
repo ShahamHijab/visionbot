@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'services/push_service.dart';
 
 final FlutterLocalNotificationsPlugin _local =
     FlutterLocalNotificationsPlugin();
@@ -19,6 +20,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 Future<void> _initLocalNotifications() async {
   const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
   const iosInit = DarwinInitializationSettings();
+
   const initSettings = InitializationSettings(
     android: androidInit,
     iOS: iosInit,
@@ -71,8 +73,10 @@ Future<void> main() async {
 
   await _initLocalNotifications();
 
-  FirebaseMessaging.onMessage.listen((message) {
-    _showLocal(message);
+  await PushService().init();
+
+  FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+    await _showLocal(message);
   });
 
   runApp(const VisionBotApp());

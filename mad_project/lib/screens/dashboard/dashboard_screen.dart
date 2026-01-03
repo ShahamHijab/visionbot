@@ -1,10 +1,11 @@
 // lib/screens/dashboard/dashboard_screen.dart
 import 'package:flutter/material.dart';
+import 'package:mad_project/theme/app_colors.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_service.dart';
 import '../../services/alert_service.dart';
 import '../../models/alert_model.dart';
-
+import '../gallery/image_gallery_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../alerts/alerts_dashboard.dart';
 
@@ -926,42 +927,7 @@ class GalleryTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Gallery')),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.photo_library_outlined,
-              size: 80,
-              color: Colors.grey,
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'No images yet',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Colors.black54,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Images captured by robots will appear here',
-              style: TextStyle(color: Colors.black38),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pushNamed(context, AppRoutes.gallery);
-              },
-              child: const Text('View Gallery'),
-            ),
-          ],
-        ),
-      ),
-    );
+    return ImageGalleryScreen();
   }
 }
 
@@ -982,7 +948,18 @@ class _ProfileTabState extends State<ProfileTab> {
     if (user == null) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Profile'),
+          title: ShaderMask(
+            shaderCallback: (bounds) => const LinearGradient(
+              colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
+            ).createShader(bounds),
+            child: const Text(
+              'Alert Details',
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+              ),
+            ),
+          ),
           actions: [
             IconButton(
               icon: const Icon(Icons.settings),
@@ -1033,7 +1010,18 @@ class _ProfileTabState extends State<ProfileTab> {
 
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Profile'),
+            title: ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
+              ).createShader(bounds),
+              child: const Text(
+                'Profile',
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                ),
+              ),
+            ),
             actions: [
               IconButton(
                 icon: const Icon(Icons.settings),
@@ -1074,19 +1062,30 @@ class _ProfileTabState extends State<ProfileTab> {
                           : null,
                     ),
                     const SizedBox(height: 16),
-                    Text(
-                      fullName,
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
+                    ShaderMask(
+                      shaderCallback: (bounds) => const LinearGradient(
+                        colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
+                      ).createShader(bounds),
+                      child: Text(
+                        fullName,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      role,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        color: Colors.black54,
+                    ShaderMask(
+                      shaderCallback: (bounds) => const LinearGradient(
+                        colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
+                      ).createShader(bounds),
+                      child: Text(
+                        role,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                     if (email.isNotEmpty) ...[

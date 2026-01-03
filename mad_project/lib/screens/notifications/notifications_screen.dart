@@ -1,11 +1,8 @@
-// lib/screens/notifications/notifications_screen.dart
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
-import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../models/alert_model.dart';
+import '../../services/alert_service.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -19,15 +16,45 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
-  final List<NotificationItem> _notifications = [];
+  final AlertService _alertService = AlertService();
 
-  late final FirebaseMessaging _messaging;
-  late final FirebaseFirestore _db;
-
-  StreamSubscription<RemoteMessage>? _onMessageSub;
-  StreamSubscription<RemoteMessage>? _onOpenSub;
-
-  static const int _maxItems = 2;
+  final List<NotificationItem> _synthetic = [
+    NotificationItem(
+      title: 'Fire Alert',
+      message: 'Fire detected in Building A. Floor 2',
+      time: DateTime.now().subtract(const Duration(minutes: 5)),
+      type: NotificationType.critical,
+      isRead: false,
+    ),
+    NotificationItem(
+      title: 'Motion Detected',
+      message: 'Unauthorized movement in restricted area',
+      time: DateTime.now().subtract(const Duration(hours: 1)),
+      type: NotificationType.warning,
+      isRead: false,
+    ),
+    NotificationItem(
+      title: 'System Update',
+      message: 'Robot 3 completed maintenance check',
+      time: DateTime.now().subtract(const Duration(hours: 2)),
+      type: NotificationType.info,
+      isRead: true,
+    ),
+    NotificationItem(
+      title: 'Smoke Alert',
+      message: 'Smoke detected in parking area',
+      time: DateTime.now().subtract(const Duration(hours: 4)),
+      type: NotificationType.warning,
+      isRead: true,
+    ),
+    NotificationItem(
+      title: 'All Clear',
+      message: 'All systems operational',
+      time: DateTime.now().subtract(const Duration(days: 1)),
+      type: NotificationType.info,
+      isRead: true,
+    ),
+  ];
 
   @override
   void initState() {
@@ -44,282 +71,231 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     );
 
     _animationController.forward();
-
-    _messaging = FirebaseMessaging.instance;
-    _db = FirebaseFirestore.instance;
-
-    _setupPushAndToken();
-    _listenPushMessages();
-    _checkInitialMessage();
   }
 
   @override
   void dispose() {
-    _onMessageSub?.cancel();
-    _onOpenSub?.cancel();
     _animationController.dispose();
     super.dispose();
   }
 
-  Future<void> _setupPushAndToken() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+  String _prettyType(String raw) {
+    final t = raw.toLowerCase().trim();
+    if (t == 'unknown_face') return 'Unknown person';
+    if (t == 'known_face') return 'Known person';
+    if (t == 'motion') return 'Motion detected';
+    if (t == 'fire') return 'Fire detected';
+    if (t == 'smoke') return 'Smoke detected';
+    if (t == 'intruder') return 'Intruder detected';
 
-    final perm = await _messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
-
-    if (perm.authorizationStatus == AuthorizationStatus.denied) return;
-
-    final token = await _messaging.getToken();
-    if (token != null) {
-      await _db.collection('users').doc(user.uid).set({
-        'fcm_token': token,
-        'fcm_updated_at': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-    }
-
-    _messaging.onTokenRefresh.listen((newToken) async {
-      await _db.collection('users').doc(user.uid).set({
-        'fcm_token': newToken,
-        'fcm_updated_at': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-    });
+    if (t.isEmpty) return 'Alert';
+    final pretty = t.replaceAll('_', ' ');
+    return pretty[0].toUpperCase() + pretty.substring(1);
   }
 
-  void _listenPushMessages() {
-    _onMessageSub = FirebaseMessaging.onMessage.listen((message) {
-      _addIncoming(message);
-    });
-
-    _onOpenSub = FirebaseMessaging.onMessageOpenedApp.listen((message) {
-      _addIncoming(message);
-    });
+  NotificationType _mapNotifType(String raw) {
+    final t = raw.toLowerCase().trim();
+    if (t == 'fire' || t == 'intruder') return NotificationType.critical;
+    if (t == 'smoke' || t == 'unknown_face') return NotificationType.warning;
+    return NotificationType.info;
   }
 
-  Future<void> _checkInitialMessage() async {
-    final message = await _messaging.getInitialMessage();
-    if (message != null) {
-      _addIncoming(message);
-    }
-  }
+  NotificationItem _fromAlert(AlertModel alert) {
+    final title = _prettyType(alert.type.toString());
 
-  void _addIncoming(RemoteMessage message) {
-    final item = _notificationFromRemoteMessage(message);
+    final lensText = alert.lens.isEmpty ? 'unknown lens' : alert.lens;
+    final noteText = alert.note.isEmpty ? '' : alert.note;
 
-    if (!mounted) return;
-    setState(() {
-      _notifications.insert(0, item);
-      if (_notifications.length > _maxItems) {
-        _notifications.removeRange(_maxItems, _notifications.length);
-      }
-    });
-  }
-
-  NotificationItem _notificationFromRemoteMessage(RemoteMessage message) {
-    final data = message.data;
-
-    final title =
-        message.notification?.title ??
-        (data['title']?.toString().trim().isNotEmpty == true
-            ? data['title'].toString()
-            : 'Alert');
-
-    final body =
-        message.notification?.body ??
-        (data['message']?.toString().trim().isNotEmpty == true
-            ? data['message'].toString()
-            : (data['note']?.toString() ?? ''));
-
-    final rawType = (data['severity'] ?? data['type'] ?? '')
-        .toString()
-        .toLowerCase();
-
-    NotificationType t = NotificationType.info;
-
-    if (rawType.contains('critical') ||
-        rawType.contains('fire') ||
-        rawType.contains('intruder')) {
-      t = NotificationType.critical;
-    } else if (rawType.contains('warning') ||
-        rawType.contains('smoke') ||
-        rawType.contains('motion') ||
-        rawType.contains('unknown')) {
-      t = NotificationType.warning;
-    }
+    final message = noteText.isEmpty
+        ? 'Lens: $lensText'
+        : 'Lens: $lensText. $noteText';
 
     return NotificationItem(
       title: title,
-      message: body,
-      time: DateTime.now(),
-      type: t,
+      message: message,
+      time: alert.createdAt,
+      type: _mapNotifType(alert.type.toString()),
       isRead: false,
     );
   }
 
-  void _markAllAsRead() {
+  void _markAllAsRead(List<NotificationItem> list) {
     setState(() {
-      for (var notification in _notifications) {
-        notification.isRead = true;
+      for (final n in list) {
+        n.isRead = true;
       }
-    });
-  }
-
-  void _clearAll() {
-    setState(() {
-      _notifications.clear();
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final unreadCount = _notifications.where((n) => !n.isRead).length;
-
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.white,
-        leading: Container(
-          margin: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: IconButton(
-            icon: const Icon(
-              Icons.arrow_back_rounded,
-              color: Color(0xFF1F2937),
-            ),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ),
-        title: ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
-          ).createShader(bounds),
-          child: const Text(
-            'Notifications',
-            style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
-          ),
-        ),
-        actions: [
-          if (_notifications.isNotEmpty)
-            PopupMenuButton<String>(
-              icon: const Icon(
-                Icons.more_vert_rounded,
-                color: Color(0xFF1F2937),
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              onSelected: (value) {
-                if (value == 'mark_read') {
-                  _markAllAsRead();
-                } else if (value == 'clear') {
-                  _clearAll();
-                }
-              },
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 'mark_read',
-                  child: Row(
-                    children: [
-                      Icon(Icons.done_all_rounded, size: 20),
-                      SizedBox(width: 12),
-                      Text('Mark all as read'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'clear',
-                  child: Row(
-                    children: [
-                      Icon(Icons.delete_outline_rounded, size: 20),
-                      SizedBox(width: 12),
-                      Text('Clear all'),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-        ],
+    return StreamBuilder<List<AlertModel>>(
+      stream: _alertService.streamAlerts(
+        limit: 2,
+        collection: 'alerts',
+        orderField: 'created_at',
       ),
-      body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: _notifications.isEmpty
-            ? _buildEmptyState()
-            : Column(
-                children: [
-                  if (unreadCount > 0)
-                    Container(
-                      margin: const EdgeInsets.all(20),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            const Color(0xFFEC4899).withOpacity(0.1),
-                            const Color(0xFF06B6D4).withOpacity(0.1),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: const Color(0xFFEC4899).withOpacity(0.3),
-                          width: 1.5,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(
-                              Icons.notifications_active_rounded,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Text(
-                              'You have $unreadCount unread notification${unreadCount > 1 ? 's' : ''}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 15,
-                                color: Color(0xFF1F2937),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  Expanded(
-                    child: ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                      itemCount: _notifications.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        return _buildNotificationCard(_notifications[index]);
-                      },
-                    ),
+      builder: (context, snapshot) {
+        final dynamicAlerts = (snapshot.data ?? []).map(_fromAlert).toList();
+
+        final notifications = [...dynamicAlerts, ..._synthetic];
+
+        final unreadCount = notifications.where((n) => !n.isRead).length;
+
+        return Scaffold(
+          backgroundColor: const Color(0xFFF8F9FA),
+          appBar: AppBar(
+            elevation: 0,
+            backgroundColor: Colors.white,
+            leading: Container(
+              margin: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),
-      ),
+              child: IconButton(
+                icon: const Icon(
+                  Icons.arrow_back_rounded,
+                  color: Color(0xFF1F2937),
+                ),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+            title: ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
+              ).createShader(bounds),
+              child: const Text(
+                'Notifications',
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+            actions: [
+              if (notifications.isNotEmpty)
+                PopupMenuButton<String>(
+                  icon: const Icon(
+                    Icons.more_vert_rounded,
+                    color: Color(0xFF1F2937),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  onSelected: (value) {
+                    if (value == 'mark_read') {
+                      _markAllAsRead(notifications);
+                    } else if (value == 'clear') {
+                      setState(() {
+                        _synthetic.clear();
+                      });
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'mark_read',
+                      child: Row(
+                        children: [
+                          Icon(Icons.done_all_rounded, size: 20),
+                          SizedBox(width: 12),
+                          Text('Mark all as read'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'clear',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete_outline_rounded, size: 20),
+                          SizedBox(width: 12),
+                          Text('Clear all'),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+          body: FadeTransition(
+            opacity: _fadeAnimation,
+            child: notifications.isEmpty
+                ? _buildEmptyState()
+                : Column(
+                    children: [
+                      if (unreadCount > 0)
+                        Container(
+                          margin: const EdgeInsets.all(20),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                const Color(0xFFEC4899).withOpacity(0.1),
+                                const Color(0xFF06B6D4).withOpacity(0.1),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: const Color(0xFFEC4899).withOpacity(0.3),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFFEC4899),
+                                      Color(0xFF8B5CF6),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(
+                                  Icons.notifications_active_rounded,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Text(
+                                  'You have $unreadCount unread notification${unreadCount > 1 ? 's' : ''}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 15,
+                                    color: Color(0xFF1F2937),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      Expanded(
+                        child: ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                          itemCount: notifications.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 12),
+                          itemBuilder: (context, index) {
+                            return _buildNotificationCard(notifications[index]);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        );
+      },
     );
   }
 
