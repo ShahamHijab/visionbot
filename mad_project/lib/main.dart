@@ -20,7 +20,6 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 Future<void> _initLocalNotifications() async {
   const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
   const iosInit = DarwinInitializationSettings();
-
   const initSettings = InitializationSettings(
     android: androidInit,
     iOS: iosInit,
@@ -67,17 +66,23 @@ Future<void> _showLocal(RemoteMessage message) async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
 
+  // FIX: setPersistence is web only
+  if (kIsWeb) {
+    await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
+  }
+
+  // FCM background handler
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
+  // Local notifications
   await _initLocalNotifications();
 
-  await PushService().init();
+  // Foreground FCM to local notification
+  FirebaseMessaging.onMessage.listen(_showLocal);
 
-  FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-    await _showLocal(message);
-  });
+  // Your push init (tokens, permissions, topics etc)
+  await PushService().init();
 
   runApp(const VisionBotApp());
 }
