@@ -15,7 +15,7 @@ class _LoginScreenState extends State<LoginScreen>
     with TickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _rememberMe = false;
+
   bool _obscurePassword = true;
   bool _loading = false;
 
@@ -560,62 +560,6 @@ class _LoginScreenState extends State<LoginScreen>
                   // Remember Me & Forgot Password
                   Row(
                     children: [
-                      Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: () {
-                            setState(() {
-                              _rememberMe = !_rememberMe;
-                            });
-                          },
-                          borderRadius: BorderRadius.circular(8),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            child: Row(
-                              children: [
-                                AnimatedContainer(
-                                  duration: const Duration(milliseconds: 300),
-                                  width: 24,
-                                  height: 24,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: _rememberMe
-                                          ? const Color(0xFF8B5CF6)
-                                          : Colors.grey.shade400,
-                                      width: 2,
-                                    ),
-                                    gradient: _rememberMe
-                                        ? const LinearGradient(
-                                            colors: [
-                                              Color(0xFFEC4899),
-                                              Color(0xFF8B5CF6),
-                                            ],
-                                          )
-                                        : null,
-                                  ),
-                                  child: _rememberMe
-                                      ? const Icon(
-                                          Icons.check_rounded,
-                                          size: 16,
-                                          color: Colors.white,
-                                        )
-                                      : null,
-                                ),
-                                const SizedBox(width: 12),
-                                const Text(
-                                  "Remember me",
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFF374151),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
                       const Spacer(),
                       TextButton(
                         onPressed: () {
