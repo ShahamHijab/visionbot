@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../../models/alert_model.dart';
 import '../../services/alert_service.dart';
+import '../../routes/app_routes.dart';
 
 class LogsHistoryScreen extends StatefulWidget {
   const LogsHistoryScreen({super.key});
@@ -89,6 +90,15 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
         .join(' ');
   }
 
+  String _formatDateTime(DateTime dt) {
+    final y = dt.year.toString().padLeft(4, '0');
+    final m = dt.month.toString().padLeft(2, '0');
+    final d = dt.day.toString().padLeft(2, '0');
+    final hh = dt.hour.toString().padLeft(2, '0');
+    final mm = dt.minute.toString().padLeft(2, '0');
+    return '$y-$m-$d $hh:$mm';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -152,50 +162,6 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
   }
 
   Widget _buildActivityTab() {
-    // Temporary mock data for testing - remove once you have real Firebase data
-    final mockAlerts = [
-      AlertModel(
-        id: 'mock1',
-        type: 'fire',
-        lens: 'Camera 1',
-        note: 'Building A, Floor 2',
-        createdAt: DateTime.now().subtract(const Duration(minutes: 5)),
-        imageUrl: '',
-      ),
-      AlertModel(
-        id: 'mock2',
-        type: 'smoke',
-        lens: 'Camera 3',
-        note: 'Parking Area',
-        createdAt: DateTime.now().subtract(const Duration(minutes: 30)),
-        imageUrl: '',
-      ),
-      AlertModel(
-        id: 'mock3',
-        type: 'unknown_face',
-        lens: 'Camera 2',
-        note: 'Main Entrance',
-        createdAt: DateTime.now().subtract(const Duration(hours: 1)),
-        imageUrl: '',
-      ),
-      AlertModel(
-        id: 'mock4',
-        type: 'motion',
-        lens: 'Camera 4',
-        note: 'Restricted Area',
-        createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-        imageUrl: '',
-      ),
-      AlertModel(
-        id: 'mock5',
-        type: 'fire',
-        lens: 'Camera 1',
-        note: 'Storage Room',
-        createdAt: DateTime.now().subtract(const Duration(hours: 4)),
-        imageUrl: '',
-      ),
-    ];
-
     return Column(
       children: [
         // Filter chips
@@ -247,7 +213,22 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
             ),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Loading activity logs...',
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
               }
 
               if (snapshot.hasError) {
@@ -257,15 +238,27 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
                     children: [
                       const Icon(Icons.error_outline, size: 64, color: Colors.red),
                       const SizedBox(height: 16),
-                      Text('Error: ${snapshot.error}'),
+                      Text(
+                        'Error loading alerts',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${snapshot.error}',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
                     ],
                   ),
                 );
               }
 
-              // Combine real Firebase data with mock data
-              final firebaseAlerts = snapshot.data ?? [];
-              final allAlerts = firebaseAlerts.isEmpty ? mockAlerts : firebaseAlerts;
+              final allAlerts = snapshot.data ?? [];
               final filteredAlerts = allAlerts.where(_matchesFilter).toList();
 
               if (filteredAlerts.isEmpty) {
@@ -296,88 +289,89 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
         ? 'Lens: $lensText'
         : 'Lens: $lensText • ${alert.note}';
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          Navigator.pushNamed(
+            context,
+            AppRoutes.alertDetail,
+            arguments: alert,
+          );
+        },
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.2)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withOpacity(0.2)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF1F2937),
-                  ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  location,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey.shade600,
-                  ),
+                child: Icon(icon, color: color, size: 24),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1F2937),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      location,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      timeago.format(alert.createdAt),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade400,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  timeago.format(alert.createdAt),
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
-                ),
-              ],
-            ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: Colors.grey.shade400,
+              ),
+            ],
           ),
-          Icon(
-            Icons.chevron_right_rounded,
-            color: Colors.grey.shade400,
-          ),
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildStatisticsTab() {
-    // Temporary mock data for testing
-    final mockAlerts = [
-      AlertModel(id: 'mock1', type: 'fire', lens: 'Camera 1', note: '', createdAt: DateTime.now(), imageUrl: ''),
-      AlertModel(id: 'mock2', type: 'fire', lens: 'Camera 2', note: '', createdAt: DateTime.now().subtract(const Duration(hours: 2)), imageUrl: ''),
-      AlertModel(id: 'mock3', type: 'smoke', lens: 'Camera 3', note: '', createdAt: DateTime.now().subtract(const Duration(hours: 5)), imageUrl: ''),
-      AlertModel(id: 'mock4', type: 'smoke', lens: 'Camera 1', note: '', createdAt: DateTime.now().subtract(const Duration(days: 1)), imageUrl: ''),
-      AlertModel(id: 'mock5', type: 'unknown_face', lens: 'Camera 2', note: '', createdAt: DateTime.now().subtract(const Duration(minutes: 30)), imageUrl: ''),
-      AlertModel(id: 'mock6', type: 'unknown_face', lens: 'Camera 4', note: '', createdAt: DateTime.now().subtract(const Duration(hours: 3)), imageUrl: ''),
-      AlertModel(id: 'mock7', type: 'unknown_face', lens: 'Camera 1', note: '', createdAt: DateTime.now().subtract(const Duration(days: 2)), imageUrl: ''),
-      AlertModel(id: 'mock8', type: 'motion', lens: 'Camera 3', note: '', createdAt: DateTime.now().subtract(const Duration(hours: 1)), imageUrl: ''),
-      AlertModel(id: 'mock9', type: 'motion', lens: 'Camera 2', note: '', createdAt: DateTime.now().subtract(const Duration(hours: 6)), imageUrl: ''),
-      AlertModel(id: 'mock10', type: 'motion', lens: 'Camera 4', note: '', createdAt: DateTime.now().subtract(const Duration(days: 1)), imageUrl: ''),
-    ];
-
     return StreamBuilder<List<AlertModel>>(
       stream: _alertService.streamAlerts(
         limit: 100,
@@ -385,8 +379,11 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
         orderField: 'created_at',
       ),
       builder: (context, snapshot) {
-        // Use mock data if Firebase is empty
-        final alerts = (snapshot.data?.isEmpty ?? true) ? mockAlerts : (snapshot.data ?? []);
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final alerts = snapshot.data ?? [];
         
         // Calculate statistics
         final fireCount = alerts.where((a) => _normalizeType(a.type.toString()) == 'fire').length;
@@ -404,23 +401,62 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
                  a.createdAt.day == today.day;
         }).length;
 
+        final yesterday = today.subtract(const Duration(days: 1));
+        final yesterdayAlerts = alerts.where((a) {
+          return a.createdAt.year == yesterday.year &&
+                 a.createdAt.month == yesterday.month &&
+                 a.createdAt.day == yesterday.day;
+        }).length;
+
+        // Show placeholder if no data
+        if (alerts.isEmpty) {
+          return _buildStatisticsPlaceholder();
+        }
+
         return ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            _buildStatCard(
-              'Total Alerts',
-              alerts.length.toString(),
-              Icons.notifications_rounded,
-              const Color(0xFF8B5CF6),
+            // Overview Section
+            const Text(
+              'Overview',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                color: Color(0xFF1F2937),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildStatCard(
+                    'Total Alerts',
+                    alerts.length.toString(),
+                    Icons.notifications_rounded,
+                    const Color(0xFF8B5CF6),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildStatCard(
+                    'Today',
+                    todayAlerts.toString(),
+                    Icons.today_rounded,
+                    const Color(0xFF45B7D1),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
             _buildStatCard(
-              'Today\'s Alerts',
-              todayAlerts.toString(),
-              Icons.today_rounded,
-              const Color(0xFF45B7D1),
+              'Yesterday\'s Alerts',
+              yesterdayAlerts.toString(),
+              Icons.calendar_today_rounded,
+              const Color(0xFF4ECDC4),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
+            
+            // Detection Breakdown Section
             const Text(
               'Detection Breakdown',
               style: TextStyle(
@@ -460,6 +496,51 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
           ],
         );
       },
+    );
+  }
+
+  Widget _buildStatisticsPlaceholder() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: [
+                  const Color(0xFF8B5CF6).withOpacity(0.1),
+                  const Color(0xFF06B6D4).withOpacity(0.1),
+                ],
+              ),
+            ),
+            child: const Icon(
+              Icons.bar_chart_rounded,
+              size: 64,
+              color: Color(0xFF8B5CF6),
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'No Data Available',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF1F2937),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Statistics will appear once alerts are detected',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey.shade600,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -546,6 +627,16 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
         type: 'info',
         message: 'Obstacle detected and avoided',
         time: DateTime.now().subtract(const Duration(hours: 6)),
+      ),
+      SystemLog(
+        type: 'success',
+        message: 'All robots online and operational',
+        time: DateTime.now().subtract(const Duration(hours: 8)),
+      ),
+      SystemLog(
+        type: 'info',
+        message: 'Scheduled patrol route updated',
+        time: DateTime.now().subtract(const Duration(hours: 12)),
       ),
     ];
 
@@ -668,7 +759,10 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
           ),
           const SizedBox(height: 8),
           Text(
-            'No logs match your selected filter',
+            _selectedFilter == 'All' 
+                ? 'No alerts have been recorded yet'
+                : 'No logs match your selected filter',
+            textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 16,
               color: Colors.grey.shade600,
