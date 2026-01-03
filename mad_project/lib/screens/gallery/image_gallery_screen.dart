@@ -80,7 +80,20 @@ class ImageGalleryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Image Gallery')),
+      backgroundColor: const Color(0xFFF8F9FA),
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.white,
+        title: ShaderMask(
+          shaderCallback: (bounds) => const LinearGradient(
+            colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
+          ).createShader(bounds),
+          child: const Text(
+            'Image Gallery',
+            style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
+          ),
+        ),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: GridView.builder(
@@ -135,21 +148,20 @@ class _GalleryTile extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Ink(
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.06),
-                blurRadius: 10,
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 16,
                 offset: const Offset(0, 4),
               ),
             ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(16),
             child: Stack(
               fit: StackFit.expand,
               children: [
@@ -167,33 +179,37 @@ class _GalleryTile extends StatelessWidget {
                   },
                 ),
 
-                // Soft dark overlay for readability
+                // Enhanced gradient overlay for readability
                 Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        Colors.black.withOpacity(0.05),
-                        Colors.black.withOpacity(0.45),
+                        Colors.black.withOpacity(0.08),
+                        Colors.black.withOpacity(0.55),
                       ],
                     ),
                   ),
                 ),
 
-                // Bottom label
+                // Bottom label with gradient accent
                 Positioned(
-                  left: 10,
-                  right: 10,
-                  bottom: 10,
+                  left: 12,
+                  right: 12,
+                  bottom: 12,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 8,
+                      horizontal: 12,
+                      vertical: 10,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.45),
+                      color: Colors.black.withOpacity(0.5),
                       borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: const Color(0xFF06B6D4).withOpacity(0.3),
+                        width: 1,
+                      ),
                     ),
                     child: Row(
                       children: [

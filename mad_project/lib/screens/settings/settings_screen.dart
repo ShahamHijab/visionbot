@@ -13,21 +13,21 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen>
     with SingleTickerProviderStateMixin {
   final AuthService _authService = AuthService();
-  
+
   bool _notificationsEnabled = true;
   bool _fireAlerts = true;
   bool _smokeAlerts = true;
   bool _motionAlerts = true;
   bool _soundEnabled = true;
   bool _vibrationEnabled = true;
-  
+
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
-    
+
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
@@ -68,7 +68,10 @@ class _SettingsScreenState extends State<SettingsScreen>
             ],
           ),
           child: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF1F2937)),
+            icon: const Icon(
+              Icons.arrow_back_rounded,
+              color: Color(0xFF1F2937),
+            ),
             onPressed: () => Navigator.pop(context),
           ),
         ),
@@ -78,10 +81,7 @@ class _SettingsScreenState extends State<SettingsScreen>
           ).createShader(bounds),
           child: const Text(
             'Settings',
-            style: TextStyle(
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-            ),
+            style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
           ),
         ),
       ),
@@ -123,9 +123,9 @@ class _SettingsScreenState extends State<SettingsScreen>
               (value) => setState(() => _motionAlerts = value),
               enabled: _notificationsEnabled,
             ),
-            
+
             const SizedBox(height: 32),
-            
+
             // Sound & Vibration Section
             _buildSectionHeader('Sound & Vibration', Icons.volume_up_rounded),
             const SizedBox(height: 16),
@@ -142,9 +142,9 @@ class _SettingsScreenState extends State<SettingsScreen>
               _vibrationEnabled,
               (value) => setState(() => _vibrationEnabled = value),
             ),
-            
+
             const SizedBox(height: 32),
-            
+
             // App Section
             _buildSectionHeader('App', Icons.phone_android_rounded),
             const SizedBox(height: 16),
@@ -161,9 +161,9 @@ class _SettingsScreenState extends State<SettingsScreen>
               Icons.help_outline_rounded,
               () => Navigator.pushNamed(context, AppRoutes.userGuide),
             ),
-            
+
             const SizedBox(height: 32),
-            
+
             // Account Section
             _buildSectionHeader('Account', Icons.person_outline_rounded),
             const SizedBox(height: 16),
@@ -174,7 +174,7 @@ class _SettingsScreenState extends State<SettingsScreen>
               () => _showLogoutDialog(),
               isDestructive: true,
             ),
-            
+
             const SizedBox(height: 32),
           ],
         ),
@@ -239,7 +239,9 @@ class _SettingsScreenState extends State<SettingsScreen>
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: enabled ? const Color(0xFF1F2937) : Colors.grey.shade400,
+                    color: enabled
+                        ? const Color(0xFF1F2937)
+                        : Colors.grey.shade400,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -248,7 +250,9 @@ class _SettingsScreenState extends State<SettingsScreen>
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: enabled ? Colors.grey.shade600 : Colors.grey.shade400,
+                    color: enabled
+                        ? Colors.grey.shade600
+                        : Colors.grey.shade400,
                   ),
                 ),
               ],
@@ -356,9 +360,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text(
           'Logout',
           style: TextStyle(
@@ -388,7 +390,7 @@ class _SettingsScreenState extends State<SettingsScreen>
             onPressed: () async {
               await _authService.signOut();
               if (!context.mounted) return;
-              
+
               Navigator.pushNamedAndRemoveUntil(
                 context,
                 AppRoutes.login,

@@ -1256,7 +1256,9 @@ class _ProfileTabState extends State<ProfileTab> {
                           context: context,
                           builder: (context) => AlertDialog(
                             title: const Text('Logout'),
-                            content: const Text('Are you sure you want to logout?'),
+                            content: const Text(
+                              'Are you sure you want to logout?',
+                            ),
                             actions: [
                               TextButton(
                                 onPressed: () => Navigator.pop(context),
@@ -1273,9 +1275,13 @@ class _ProfileTabState extends State<ProfileTab> {
                                   );
                                 },
                                 child: ShaderMask(
-                                  shaderCallback: (bounds) => const LinearGradient(
-                                    colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
-                                  ).createShader(bounds),
+                                  shaderCallback: (bounds) =>
+                                      const LinearGradient(
+                                        colors: [
+                                          Color(0xFFEC4899),
+                                          Color(0xFF8B5CF6),
+                                        ],
+                                      ).createShader(bounds),
                                   child: const Text(
                                     'Logout',
                                     style: TextStyle(color: Colors.white),
