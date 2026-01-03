@@ -335,13 +335,16 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
             ],
           ),
           SliverToBoxAdapter(
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: SlideTransition(
-                position: _slideAnimation,
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: SlideTransition(
+              position: _slideAnimation,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1100),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildWelcomeCard(),
@@ -351,7 +354,9 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
                       _buildQuickActionsSection(context),
                       const SizedBox(height: 28),
                       _buildRecentAlertsSection(context),
-                    ],
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -495,8 +500,8 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
+      gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 260,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
         childAspectRatio: 1.1,
