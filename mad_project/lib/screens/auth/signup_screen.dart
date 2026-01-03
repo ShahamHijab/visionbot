@@ -761,7 +761,7 @@ class _SignupScreenState extends State<SignupScreen>
                           padding: const EdgeInsets.symmetric(horizontal: 4),
                         ),
                         child: const Text(
-                          "Log in",
+                          "Log In",
                           style: TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 15,
