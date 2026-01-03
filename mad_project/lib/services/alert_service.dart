@@ -19,8 +19,4 @@ class AlertService {
               .toList(growable: false);
         });
   }
-
-  Stream<List<AlertModel>> streamRecentAlerts({int limit = 3}) {
-    return streamAlerts(limit: limit);
-  }
 }

@@ -71,12 +71,24 @@ class _DashboardScreenState extends State<DashboardScreen>
             elevation: 0,
             items: [
               _buildNavItem(Icons.home_rounded, Icons.home_outlined, 'Home', 0),
-              _buildNavItem(Icons.notification_important_rounded,
-                  Icons.notification_important_outlined, 'Alerts', 1),
-              _buildNavItem(Icons.photo_library_rounded,
-                  Icons.photo_library_outlined, 'Gallery', 2),
               _buildNavItem(
-                  Icons.person_rounded, Icons.person_outline, 'Profile', 3),
+                Icons.notification_important_rounded,
+                Icons.notification_important_outlined,
+                'Alerts',
+                1,
+              ),
+              _buildNavItem(
+                Icons.photo_library_rounded,
+                Icons.photo_library_outlined,
+                'Gallery',
+                2,
+              ),
+              _buildNavItem(
+                Icons.person_rounded,
+                Icons.person_outline,
+                'Profile',
+                3,
+              ),
             ],
           ),
         ),
@@ -85,7 +97,11 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   BottomNavigationBarItem _buildNavItem(
-      IconData activeIcon, IconData inactiveIcon, String label, int index) {
+    IconData activeIcon,
+    IconData inactiveIcon,
+    String label,
+    int index,
+  ) {
     final isSelected = _selectedIndex == index;
     return BottomNavigationBarItem(
       icon: AnimatedContainer(
@@ -94,10 +110,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         decoration: BoxDecoration(
           gradient: isSelected
               ? const LinearGradient(
-                  colors: [
-                    Color(0xFFEC4899),
-                    Color(0xFF8B5CF6),
-                  ],
+                  colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
                 )
               : null,
           borderRadius: BorderRadius.circular(12),
@@ -120,8 +133,7 @@ class HomeTab extends StatefulWidget {
   State<HomeTab> createState() => _HomeTabState();
 }
 
-class _HomeTabState extends State<HomeTab>
-    with SingleTickerProviderStateMixin {
+class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -139,13 +151,13 @@ class _HomeTabState extends State<HomeTab>
       curve: Curves.easeInOut,
     );
 
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.2),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOutCubic,
-    ));
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
 
     _animationController.forward();
   }
@@ -172,10 +184,7 @@ class _HomeTabState extends State<HomeTab>
             flexibleSpace: FlexibleSpaceBar(
               title: ShaderMask(
                 shaderCallback: (bounds) => const LinearGradient(
-                  colors: [
-                    Color(0xFFEC4899),
-                    Color(0xFF06B6D4),
-                  ],
+                  colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
                 ).createShader(bounds),
                 child: const Text(
                   'VisionBot',
@@ -196,16 +205,15 @@ class _HomeTabState extends State<HomeTab>
                     Container(
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
-                          colors: [
-                            Color(0xFFEC4899),
-                            Color(0xFF8B5CF6),
-                          ],
+                          colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
                         ),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: IconButton(
-                        icon: const Icon(Icons.notifications_rounded,
-                            color: Colors.white),
+                        icon: const Icon(
+                          Icons.notifications_rounded,
+                          color: Colors.white,
+                        ),
                         onPressed: () {
                           Navigator.pushNamed(context, AppRoutes.notifications);
                         },
@@ -273,10 +281,7 @@ class _HomeTabState extends State<HomeTab>
       builder: (context, value, child) {
         return Transform.scale(
           scale: 0.9 + (0.1 * value),
-          child: Opacity(
-            opacity: value,
-            child: child,
-          ),
+          child: Opacity(opacity: value, child: child),
         );
       },
       child: Container(
@@ -284,11 +289,7 @@ class _HomeTabState extends State<HomeTab>
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
           gradient: const LinearGradient(
-            colors: [
-              Color(0xFFEC4899),
-              Color(0xFF8B5CF6),
-              Color(0xFF06B6D4),
-            ],
+            colors: [Color(0xFFEC4899), Color(0xFF8B5CF6), Color(0xFF06B6D4)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -421,10 +422,7 @@ class _HomeTabState extends State<HomeTab>
           builder: (context, value, child) {
             return Transform.translate(
               offset: Offset(0, 30 * (1 - value)),
-              child: Opacity(
-                opacity: value,
-                child: child,
-              ),
+              child: Opacity(opacity: value, child: child),
             );
           },
           child: _buildStatCard(
@@ -439,7 +437,11 @@ class _HomeTabState extends State<HomeTab>
   }
 
   Widget _buildStatCard(
-      String title, String value, IconData icon, Color color) {
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -494,10 +496,7 @@ class _HomeTabState extends State<HomeTab>
       children: [
         ShaderMask(
           shaderCallback: (bounds) => const LinearGradient(
-            colors: [
-              Color(0xFFEC4899),
-              Color(0xFF8B5CF6),
-            ],
+            colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
           ).createShader(bounds),
           child: const Text(
             'Quick Actions',
@@ -537,8 +536,13 @@ class _HomeTabState extends State<HomeTab>
     );
   }
 
-  Widget _buildActionButton(BuildContext context, String label, IconData icon,
-      Color color, String route) {
+  Widget _buildActionButton(
+    BuildContext context,
+    String label,
+    IconData icon,
+    Color color,
+    String route,
+  ) {
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.0, end: 1.0),
       duration: const Duration(milliseconds: 800),
@@ -546,10 +550,7 @@ class _HomeTabState extends State<HomeTab>
       builder: (context, value, child) {
         return Transform.scale(
           scale: 0.9 + (0.1 * value),
-          child: Opacity(
-            opacity: value,
-            child: child,
-          ),
+          child: Opacity(opacity: value, child: child),
         );
       },
       child: Material(
@@ -562,10 +563,7 @@ class _HomeTabState extends State<HomeTab>
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: color.withOpacity(0.3),
-                width: 2,
-              ),
+              border: Border.all(color: color.withOpacity(0.3), width: 2),
               boxShadow: [
                 BoxShadow(
                   color: color.withOpacity(0.15),
@@ -580,10 +578,7 @@ class _HomeTabState extends State<HomeTab>
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [
-                        color,
-                        color.withOpacity(0.7),
-                      ],
+                      colors: [color, color.withOpacity(0.7)],
                     ),
                     borderRadius: BorderRadius.circular(16),
                   ),
@@ -616,10 +611,7 @@ class _HomeTabState extends State<HomeTab>
           children: [
             ShaderMask(
               shaderCallback: (bounds) => const LinearGradient(
-                colors: [
-                  Color(0xFFEC4899),
-                  Color(0xFF8B5CF6),
-                ],
+                colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
               ).createShader(bounds),
               child: const Text(
                 'Recent Alerts',
@@ -637,10 +629,7 @@ class _HomeTabState extends State<HomeTab>
               },
               child: ShaderMask(
                 shaderCallback: (bounds) => const LinearGradient(
-                  colors: [
-                    Color(0xFFEC4899),
-                    Color(0xFF8B5CF6),
-                  ],
+                  colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
                 ).createShader(bounds),
                 child: const Text(
                   'View All',
@@ -667,10 +656,7 @@ class _HomeTabState extends State<HomeTab>
               builder: (context, value, child) {
                 return Transform.translate(
                   offset: Offset(30 * (1 - value), 0),
-                  child: Opacity(
-                    opacity: value,
-                    child: child,
-                  ),
+                  child: Opacity(opacity: value, child: child),
                 );
               },
               child: Padding(
@@ -691,8 +677,14 @@ class _HomeTabState extends State<HomeTab>
     );
   }
 
-  Widget _buildAlertCard(String title, String location, String time,
-      Color color, IconData icon, BuildContext context) {
+  Widget _buildAlertCard(
+    String title,
+    String location,
+    String time,
+    Color color,
+    IconData icon,
+    BuildContext context,
+  ) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -719,10 +711,7 @@ class _HomeTabState extends State<HomeTab>
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [
-                      color,
-                      color.withOpacity(0.7),
-                    ],
+                    colors: [color, color.withOpacity(0.7)],
                   ),
                   borderRadius: BorderRadius.circular(16),
                 ),
