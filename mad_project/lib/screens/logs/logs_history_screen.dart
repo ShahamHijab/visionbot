@@ -152,6 +152,50 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
   }
 
   Widget _buildActivityTab() {
+    // Temporary mock data for testing - remove once you have real Firebase data
+    final mockAlerts = [
+      AlertModel(
+        id: 'mock1',
+        type: 'fire',
+        lens: 'Camera 1',
+        note: 'Building A, Floor 2',
+        createdAt: DateTime.now().subtract(const Duration(minutes: 5)),
+        imageUrl: '',
+      ),
+      AlertModel(
+        id: 'mock2',
+        type: 'smoke',
+        lens: 'Camera 3',
+        note: 'Parking Area',
+        createdAt: DateTime.now().subtract(const Duration(minutes: 30)),
+        imageUrl: '',
+      ),
+      AlertModel(
+        id: 'mock3',
+        type: 'unknown_face',
+        lens: 'Camera 2',
+        note: 'Main Entrance',
+        createdAt: DateTime.now().subtract(const Duration(hours: 1)),
+        imageUrl: '',
+      ),
+      AlertModel(
+        id: 'mock4',
+        type: 'motion',
+        lens: 'Camera 4',
+        note: 'Restricted Area',
+        createdAt: DateTime.now().subtract(const Duration(hours: 2)),
+        imageUrl: '',
+      ),
+      AlertModel(
+        id: 'mock5',
+        type: 'fire',
+        lens: 'Camera 1',
+        note: 'Storage Room',
+        createdAt: DateTime.now().subtract(const Duration(hours: 4)),
+        imageUrl: '',
+      ),
+    ];
+
     return Column(
       children: [
         // Filter chips
@@ -219,7 +263,9 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
                 );
               }
 
-              final allAlerts = snapshot.data ?? [];
+              // Combine real Firebase data with mock data
+              final firebaseAlerts = snapshot.data ?? [];
+              final allAlerts = firebaseAlerts.isEmpty ? mockAlerts : firebaseAlerts;
               final filteredAlerts = allAlerts.where(_matchesFilter).toList();
 
               if (filteredAlerts.isEmpty) {
@@ -318,6 +364,20 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
   }
 
   Widget _buildStatisticsTab() {
+    // Temporary mock data for testing
+    final mockAlerts = [
+      AlertModel(id: 'mock1', type: 'fire', lens: 'Camera 1', note: '', createdAt: DateTime.now(), imageUrl: ''),
+      AlertModel(id: 'mock2', type: 'fire', lens: 'Camera 2', note: '', createdAt: DateTime.now().subtract(const Duration(hours: 2)), imageUrl: ''),
+      AlertModel(id: 'mock3', type: 'smoke', lens: 'Camera 3', note: '', createdAt: DateTime.now().subtract(const Duration(hours: 5)), imageUrl: ''),
+      AlertModel(id: 'mock4', type: 'smoke', lens: 'Camera 1', note: '', createdAt: DateTime.now().subtract(const Duration(days: 1)), imageUrl: ''),
+      AlertModel(id: 'mock5', type: 'unknown_face', lens: 'Camera 2', note: '', createdAt: DateTime.now().subtract(const Duration(minutes: 30)), imageUrl: ''),
+      AlertModel(id: 'mock6', type: 'unknown_face', lens: 'Camera 4', note: '', createdAt: DateTime.now().subtract(const Duration(hours: 3)), imageUrl: ''),
+      AlertModel(id: 'mock7', type: 'unknown_face', lens: 'Camera 1', note: '', createdAt: DateTime.now().subtract(const Duration(days: 2)), imageUrl: ''),
+      AlertModel(id: 'mock8', type: 'motion', lens: 'Camera 3', note: '', createdAt: DateTime.now().subtract(const Duration(hours: 1)), imageUrl: ''),
+      AlertModel(id: 'mock9', type: 'motion', lens: 'Camera 2', note: '', createdAt: DateTime.now().subtract(const Duration(hours: 6)), imageUrl: ''),
+      AlertModel(id: 'mock10', type: 'motion', lens: 'Camera 4', note: '', createdAt: DateTime.now().subtract(const Duration(days: 1)), imageUrl: ''),
+    ];
+
     return StreamBuilder<List<AlertModel>>(
       stream: _alertService.streamAlerts(
         limit: 100,
@@ -325,7 +385,8 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
         orderField: 'created_at',
       ),
       builder: (context, snapshot) {
-        final alerts = snapshot.data ?? [];
+        // Use mock data if Firebase is empty
+        final alerts = (snapshot.data?.isEmpty ?? true) ? mockAlerts : (snapshot.data ?? []);
         
         // Calculate statistics
         final fireCount = alerts.where((a) => _normalizeType(a.type.toString()) == 'fire').length;
