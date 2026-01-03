@@ -1,5 +1,6 @@
 // lib/screens/dashboard/dashboard_screen.dart
 import 'package:flutter/material.dart';
+import 'package:mad_project/screens/alerts/alerts_dashboard.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_service.dart';
 import 'dart:math' as math;
@@ -918,47 +919,34 @@ class _AlertUI {
 
 // Keep the other tabs (AlertsTab, GalleryTab, ProfileTab) as they were
 // Alerts Tab
-class AlertsTab extends StatelessWidget {
+// Replace ONLY AlertsTab in: lib/screens/dashboard/dashboard_screen.dart
+
+class AlertsTab extends StatefulWidget {
   const AlertsTab({super.key});
 
   @override
+  State<AlertsTab> createState() => _AlertsTabState();
+}
+
+class _AlertsTabState extends State<AlertsTab> {
+  bool _navigated = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    if (_navigated) return;
+    _navigated = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.pushNamed(context, AppRoutes.alerts);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Alerts')),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.notification_important_outlined,
-              size: 80,
-              color: Colors.grey,
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'No new alerts',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Colors.black54,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'All systems are running normally',
-              style: TextStyle(color: Colors.black38),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pushNamed(context, AppRoutes.alerts);
-              },
-              child: const Text('View All Alerts'),
-            ),
-          ],
-        ),
-      ),
-    );
+    return const AlertsDashboard();
   }
 }
 
