@@ -1,4 +1,5 @@
 // lib/screens/auth/verify_email_screen.dart
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../routes/app_routes.dart';
@@ -11,12 +12,16 @@ class VerifyEmailScreen extends StatefulWidget {
   State<VerifyEmailScreen> createState() => _VerifyEmailScreenState();
 }
 
-class _VerifyEmailScreenState extends State<VerifyEmailScreen> with SingleTickerProviderStateMixin {
+class _VerifyEmailScreenState extends State<VerifyEmailScreen>
+    with SingleTickerProviderStateMixin {
   final AuthService _authService = AuthService();
 
   bool _loading = false;
   String _email = '';
-  
+
+  Timer? _cooldownTimer;
+  int _resendCooldown = 0;
+
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
@@ -24,42 +29,55 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> with SingleTicker
   @override
   void initState() {
     super.initState();
-    
+
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
     );
-    
+
     _fadeAnimation = CurvedAnimation(
       parent: _animationController,
       curve: Curves.easeInOut,
     );
-    
+
     _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.elasticOut,
-      ),
+      CurvedAnimation(parent: _animationController, curve: Curves.elasticOut),
     );
-    
+
     _animationController.forward();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final args =
           ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
 
-      if (args == null) return;
+      final userEmail = FirebaseAuth.instance.currentUser?.email ?? '';
 
       setState(() {
-        _email = (args['email'] ?? '').toString();
+        _email = (args?['email'] ?? userEmail).toString();
       });
     });
   }
 
   @override
   void dispose() {
+    _cooldownTimer?.cancel();
     _animationController.dispose();
     super.dispose();
+  }
+
+  void _startResendCooldown([int seconds = 60]) {
+    _cooldownTimer?.cancel();
+    setState(() => _resendCooldown = seconds);
+
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) return;
+      if (_resendCooldown <= 1) {
+        t.cancel();
+        setState(() => _resendCooldown = 0);
+        return;
+      }
+      setState(() => _resendCooldown -= 1);
+    });
   }
 
   Future<void> _checkVerified() async {
@@ -69,7 +87,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> with SingleTicker
 
     try {
       final ok = await _authService.refreshAndCheckEmailVerified();
-
       if (!mounted) return;
 
       if (!ok) {
@@ -78,36 +95,13 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> with SingleTicker
         return;
       }
 
-      // Now and only now, create Firestore user doc
       await _authService.finalizeVerifiedUser();
-
       final role = await _authService.getCurrentUserRole();
 
       if (!mounted) return;
       setState(() => _loading = false);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle_outline, color: Colors.white, size: 22),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
-                  'Email verified successfully!',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: const Color(0xFF06B6D4),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          margin: const EdgeInsets.all(20),
-          duration: const Duration(seconds: 2),
-          elevation: 8,
-        ),
-      );
+      _showSuccess('Email verified successfully!');
 
       await Future.delayed(const Duration(milliseconds: 500));
       if (!mounted) return;
@@ -130,7 +124,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> with SingleTicker
       if (!mounted) return;
       setState(() => _loading = false);
       _showError(_getErrorMessage(e.code));
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       setState(() => _loading = false);
       _showError('Verification check failed. Please try again.');
@@ -138,12 +132,21 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> with SingleTicker
   }
 
   Future<void> _resendLink() async {
-    if (_email.isEmpty) {
-      _showError('Email not found. Please sign up again.');
+    if (_loading) return;
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      _showError('Session expired. Please sign up again.');
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        AppRoutes.signup,
+        (route) => false,
+      );
       return;
     }
 
-    if (_loading) return;
+    if (_resendCooldown > 0) return;
+
     setState(() => _loading = true);
 
     try {
@@ -152,33 +155,18 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> with SingleTicker
       if (!mounted) return;
       setState(() => _loading = false);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.send_outlined, color: Colors.white, size: 22),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
-                  'Verification link sent again. Check your inbox.',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: const Color(0xFF8B5CF6),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          margin: const EdgeInsets.all(20),
-          duration: const Duration(seconds: 4),
-          elevation: 8,
-        ),
-      );
+      _startResendCooldown(60);
+      _showInfo('Verification link sent again. Check inbox and spam.');
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
+
+      if (e.code == 'too-many-requests') {
+        _startResendCooldown(120);
+      }
+
       _showError(_getErrorMessage(e.code));
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       setState(() => _loading = false);
       _showError('Failed to resend link. Please try again.');
@@ -192,10 +180,70 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> with SingleTicker
       case 'no-current-user':
         return 'No user found. Please sign up again.';
       case 'too-many-requests':
-        return 'Too many requests. Try again later.';
+        return 'Too many requests. Wait a bit and try again.';
       default:
         return 'Something went wrong. Please try again.';
     }
+  }
+
+  void _showSuccess(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(
+              Icons.check_circle_outline,
+              color: Colors.white,
+              size: 22,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                msg,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFF06B6D4),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        margin: const EdgeInsets.all(20),
+        duration: const Duration(seconds: 2),
+        elevation: 8,
+      ),
+    );
+  }
+
+  void _showInfo(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.send_outlined, color: Colors.white, size: 22),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                msg,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFF8B5CF6),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        margin: const EdgeInsets.all(20),
+        duration: const Duration(seconds: 4),
+        elevation: 8,
+      ),
+    );
   }
 
   void _showError(String msg) {
@@ -208,7 +256,10 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> with SingleTicker
             Expanded(
               child: Text(
                 msg,
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
@@ -236,6 +287,10 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> with SingleTicker
 
   @override
   Widget build(BuildContext context) {
+    final resendLabel = _resendCooldown > 0
+        ? 'Resend in $_resendCooldown s'
+        : 'Resend';
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -253,9 +308,11 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> with SingleTicker
         child: SafeArea(
           child: Column(
             children: [
-              // Custom AppBar
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 child: Row(
                   children: [
                     Container(
@@ -271,17 +328,17 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> with SingleTicker
                         ],
                       ),
                       child: IconButton(
-                        icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF1F2937)),
+                        icon: const Icon(
+                          Icons.arrow_back_rounded,
+                          color: Color(0xFF1F2937),
+                        ),
                         onPressed: _goBack,
                       ),
                     ),
                     const SizedBox(width: 16),
                     ShaderMask(
                       shaderCallback: (bounds) => const LinearGradient(
-                        colors: [
-                          Color(0xFFEC4899),
-                          Color(0xFF06B6D4),
-                        ],
+                        colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
                       ).createShader(bounds),
                       child: const Text(
                         'Verify Email',
@@ -295,7 +352,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> with SingleTicker
                   ],
                 ),
               ),
-              
               Expanded(
                 child: FadeTransition(
                   opacity: _fadeAnimation,
@@ -304,7 +360,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> with SingleTicker
                     child: Column(
                       children: [
                         const SizedBox(height: 20),
-                        // Email Icon
                         ScaleTransition(
                           scale: _scaleAnimation,
                           child: Container(
@@ -317,29 +372,18 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> with SingleTicker
                                   const Color(0xFF06B6D4).withOpacity(0.15),
                                   const Color(0xFF8B5CF6).withOpacity(0.15),
                                 ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
                               ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFF06B6D4).withOpacity(0.3),
-                                  blurRadius: 30,
-                                  offset: const Offset(0, 10),
-                                ),
-                              ],
                             ),
                             child: Container(
                               padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(
+                              decoration: const BoxDecoration(
                                 shape: BoxShape.circle,
-                                gradient: const LinearGradient(
+                                gradient: LinearGradient(
                                   colors: [
                                     Color(0xFFEC4899),
                                     Color(0xFF06B6D4),
                                     Color(0xFF8B5CF6),
                                   ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
                                 ),
                               ),
                               child: const Icon(
@@ -351,7 +395,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> with SingleTicker
                           ),
                         ),
                         const SizedBox(height: 40),
-                        // Title
                         ShaderMask(
                           shaderCallback: (bounds) => const LinearGradient(
                             colors: [
@@ -366,7 +409,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> with SingleTicker
                               fontSize: 32,
                               fontWeight: FontWeight.w900,
                               color: Colors.white,
-                              letterSpacing: -0.5,
                             ),
                           ),
                         ),
@@ -381,7 +423,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> with SingleTicker
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 16),
-                        // Email Display
                         if (_email.isNotEmpty)
                           Container(
                             padding: const EdgeInsets.symmetric(
@@ -389,12 +430,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> with SingleTicker
                               vertical: 14,
                             ),
                             decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  const Color(0xFF06B6D4).withOpacity(0.1),
-                                  const Color(0xFF8B5CF6).withOpacity(0.1),
-                                ],
-                              ),
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
                                 color: const Color(0xFF06B6D4).withOpacity(0.3),
@@ -417,7 +452,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> with SingleTicker
                                       color: Color(0xFF1F2937),
                                       fontWeight: FontWeight.w700,
                                       fontSize: 16,
-                                      letterSpacing: 0.2,
                                     ),
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -425,73 +459,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> with SingleTicker
                               ],
                             ),
                           ),
-                        const SizedBox(height: 36),
-                        // Instructions Box
-                        Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                const Color(0xFF06B6D4).withOpacity(0.08),
-                                const Color(0xFF8B5CF6).withOpacity(0.08),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: const Color(0xFF06B6D4).withOpacity(0.2),
-                              width: 1.5,
-                            ),
-                          ),
-                          child: Column(
-                            children: [
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(10),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: const Icon(
-                                      Icons.info_outline_rounded,
-                                      color: Color(0xFF06B6D4),
-                                      size: 24,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 14),
-                                  const Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Click the verification link in your email',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 15,
-                                            color: Color(0xFF1F2937),
-                                            height: 1.4,
-                                          ),
-                                        ),
-                                        SizedBox(height: 6),
-                                        Text(
-                                          'Check spam folder if you do not see it',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: Color(0xFF6B7280),
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
                         const SizedBox(height: 32),
-                        // Continue Button
                         Container(
                           width: double.infinity,
                           height: 60,
@@ -502,22 +470,8 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> with SingleTicker
                                 Color(0xFF8B5CF6),
                                 Color(0xFF06B6D4),
                               ],
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
                             ),
                             borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFFEC4899).withOpacity(0.4),
-                                blurRadius: 20,
-                                offset: const Offset(0, 10),
-                              ),
-                              BoxShadow(
-                                color: const Color(0xFF06B6D4).withOpacity(0.3),
-                                blurRadius: 20,
-                                offset: const Offset(0, 5),
-                              ),
-                            ],
                           ),
                           child: Material(
                             color: Colors.transparent,
@@ -540,15 +494,13 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> with SingleTicker
                                           fontSize: 18,
                                           fontWeight: FontWeight.w800,
                                           color: Colors.white,
-                                          letterSpacing: 0.5,
                                         ),
                                       ),
                               ),
                             ),
                           ),
                         ),
-                        const SizedBox(height: 20),
-                        // Resend Link
+                        const SizedBox(height: 18),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -561,65 +513,18 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> with SingleTicker
                               ),
                             ),
                             TextButton(
-                              onPressed: _loading ? null : _resendLink,
-                              style: TextButton.styleFrom(
-                                foregroundColor: const Color(0xFF8B5CF6),
-                                padding: const EdgeInsets.symmetric(horizontal: 4),
-                              ),
-                              child: const Text(
-                                'Resend',
-                                style: TextStyle(
+                              onPressed: (_loading || _resendCooldown > 0)
+                                  ? null
+                                  : _resendLink,
+                              child: Text(
+                                resendLabel,
+                                style: const TextStyle(
                                   fontWeight: FontWeight.w800,
                                   fontSize: 15,
                                 ),
                               ),
                             ),
                           ],
-                        ),
-                        const SizedBox(height: 24),
-                        // Info Banner
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                const Color(0xFFEC4899).withOpacity(0.08),
-                                const Color(0xFFEC4899).withOpacity(0.05),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: const Color(0xFFEC4899).withOpacity(0.2),
-                              width: 1.5,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: const Icon(
-                                  Icons.schedule_rounded,
-                                  color: Color(0xFFEC4899),
-                                  size: 22,
-                                ),
-                              ),
-                              const SizedBox(width: 14),
-                              const Expanded(
-                                child: Text(
-                                  'Link may take a moment to arrive',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFF1F2937),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
                         ),
                       ],
                     ),
