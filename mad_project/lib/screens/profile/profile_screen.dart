@@ -17,7 +17,6 @@ class _ProfileScreenState extends State<ProfileScreen>
   final AuthService _authService = AuthService();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
-  final _phoneController = TextEditingController();
 
   bool _isEditing = false;
   bool _loading = false;
@@ -57,7 +56,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     _animationController.dispose();
     _nameController.dispose();
     _emailController.dispose();
-    _phoneController.dispose();
     super.dispose();
   }
 
@@ -111,7 +109,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     setState(() {
       _nameController.text = refreshedUser?.displayName ?? '';
       _emailController.text = refreshedUser?.email ?? '';
-      _phoneController.text = refreshedUser?.phoneNumber ?? '';
     });
   }
 
@@ -119,8 +116,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     if (_loading) return;
 
     final newName = _nameController.text.trim();
-    final newPhone = _phoneController.text.trim();
-
     if (newName.isEmpty) {
       _showSnack('Name cannot be empty', isError: true);
       return;
@@ -140,7 +135,6 @@ class _ProfileScreenState extends State<ProfileScreen>
       await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
         'name': newName,
         'email': refreshedUser?.email ?? user.email ?? '',
-        'phone': newPhone,
         'updated_at': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
@@ -329,13 +323,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                     icon: Icons.email_outlined,
                     hint: 'your.email@example.com',
                     enabled: false,
-                  ),
-                  const SizedBox(height: 20),
-                  _buildInputField(
-                    controller: _phoneController,
-                    label: 'Phone Number',
-                    icon: Icons.phone_outlined,
-                    hint: '+1 234 567 8900',
                   ),
                 ],
 

@@ -4,12 +4,47 @@ import '../../routes/app_routes.dart';
 class ImageGalleryScreen extends StatelessWidget {
   const ImageGalleryScreen({super.key});
 
-  // Only 4 demo images
   static const List<Map<String, dynamic>> _demoImages = [
-    {'title': 'Fire', 'time': '2 mins ago', 'asset': 'assets/fire.jfif'},
-    {'title': 'Person', 'time': '15 mins ago', 'asset': 'assets/person.jfif'},
-    {'title': 'Fire', 'time': '1 hour ago', 'asset': 'assets/fire.jfif'},
-    {'title': 'Group', 'time': 'Yesterday', 'asset': 'assets/group.jfif'},
+    {
+      'title': 'Fire',
+      'time': '2 mins ago',
+      'asset': 'assets/fire.jfif',
+      'type': 'Fire Detection',
+      'camera': 'Camera 1',
+      'location': 'Building A, Floor 2',
+      'confidence': '92%',
+      'description': 'Fire detected near electrical panel',
+    },
+    {
+      'title': 'Person',
+      'time': '15 mins ago',
+      'asset': 'assets/person.jfif',
+      'type': 'Human Detection',
+      'camera': 'Camera 3',
+      'location': 'Restricted Zone',
+      'confidence': '87%',
+      'description': 'Unknown person detected in restricted area',
+    },
+    {
+      'title': 'Fire',
+      'time': '1 hour ago',
+      'asset': 'assets/fire.jfif',
+      'type': 'Fire Detection',
+      'camera': 'Camera 2',
+      'location': 'Parking Area',
+      'confidence': '90%',
+      'description': 'Smoke and flames detected',
+    },
+    {
+      'title': 'Group',
+      'time': 'Yesterday',
+      'asset': 'assets/group.jfif',
+      'type': 'Crowd Detection',
+      'camera': 'Camera 4',
+      'location': 'Main Entrance',
+      'confidence': '78%',
+      'description': 'Multiple people detected near entrance',
+    },
   ];
 
   @override
