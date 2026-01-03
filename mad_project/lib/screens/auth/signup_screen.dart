@@ -428,7 +428,7 @@ class _SignupScreenState extends State<SignupScreen>
                   const SizedBox(height: 36),
                   // Full Name Field
                   _inputField(
-                    label: "Full name",
+                    label: "Full Name",
                     hint: "Your name",
                     icon: Icons.person_outline_rounded,
                     controller: _nameController,
