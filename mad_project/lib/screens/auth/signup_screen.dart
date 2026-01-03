@@ -717,11 +717,7 @@ class _SignupScreenState extends State<SignupScreen>
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(4),
                               ),
-                              child: const Icon(
-                                Icons.g_mobiledata_rounded,
-                                size: 28,
-                                color: Color(0xFF4285F4),
-                              ),
+                              child: Image.asset('assets/google.png'),
                             ),
                             const SizedBox(width: 16),
                             const Text(
