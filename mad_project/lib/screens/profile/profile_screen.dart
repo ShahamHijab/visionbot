@@ -408,7 +408,17 @@ class _ProfileScreenState extends State<ProfileScreen>
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.grey.shade300, width: 2),
+                      border: Border.all(
+                        color: const Color(0xFFEC4899).withOpacity(0.5),
+                        width: 2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFEC4899).withOpacity(0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
                     child: Material(
                       color: Colors.transparent,
@@ -418,14 +428,19 @@ class _ProfileScreenState extends State<ProfileScreen>
                           _loadUserData();
                         }),
                         borderRadius: BorderRadius.circular(20),
-                        child: const Center(
-                          child: Text(
-                            'Cancel',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF1F2937),
-                              letterSpacing: 0.5,
+                        child: Center(
+                          child: ShaderMask(
+                            shaderCallback: (bounds) => const LinearGradient(
+                              colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
+                            ).createShader(bounds),
+                            child: const Text(
+                              'Cancel',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                                letterSpacing: 0.5,
+                              ),
                             ),
                           ),
                         ),
@@ -472,13 +487,18 @@ class _ProfileScreenState extends State<ProfileScreen>
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 12),
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 15,
-              color: Color(0xFF1F2937),
-              letterSpacing: 0.3,
+          child: ShaderMask(
+            shaderCallback: (bounds) => const LinearGradient(
+              colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
+            ).createShader(bounds),
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 15,
+                color: Colors.white,
+                letterSpacing: 0.3,
+              ),
             ),
           ),
         ),
@@ -509,7 +529,12 @@ class _ProfileScreenState extends State<ProfileScreen>
               ),
               prefixIcon: Container(
                 margin: const EdgeInsets.only(left: 12, right: 8),
-                child: Icon(icon, color: const Color(0xFF06B6D4), size: 24),
+                child: ShaderMask(
+                  shaderCallback: (bounds) => const LinearGradient(
+                    colors: [Color(0xFF06B6D4), Color(0xFF8B5CF6)],
+                  ).createShader(bounds),
+                  child: Icon(icon, color: Colors.white, size: 24),
+                ),
               ),
               filled: true,
               fillColor: enabled ? Colors.white : Colors.grey.shade100,

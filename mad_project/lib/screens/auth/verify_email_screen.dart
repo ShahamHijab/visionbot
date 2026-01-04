@@ -501,30 +501,40 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen>
                           ),
                         ),
                         const SizedBox(height: 18),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              "Didn't receive the email?",
-                              style: TextStyle(
-                                color: Colors.grey.shade700,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: (_loading || _resendCooldown > 0)
-                                  ? null
-                                  : _resendLink,
-                              child: Text(
-                                resendLabel,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 15,
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  "Didn't receive the email? Check you spam folder or ",
+                                  style: TextStyle(
+                                    color: Colors.grey.shade700,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+                              TextButton(
+                                onPressed: (_loading || _resendCooldown > 0)
+                                    ? null
+                                    : _resendLink,
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                  ),
+                                ),
+                                child: Text(
+                                  resendLabel,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),

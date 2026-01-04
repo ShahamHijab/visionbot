@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+
 import 'routes/app_routes.dart';
 import 'theme/app_theme.dart';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
 import 'services/push_service.dart';
 
 final FlutterLocalNotificationsPlugin _local =
@@ -20,6 +23,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 Future<void> _initLocalNotifications() async {
   const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
   const iosInit = DarwinInitializationSettings();
+
   const initSettings = InitializationSettings(
     android: androidInit,
     iOS: iosInit,
@@ -38,7 +42,12 @@ Future<void> _initLocalNotifications() async {
       .resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin
       >();
-  await androidPlugin?.createNotificationChannel(channel);
+
+  if (androidPlugin != null) {
+    await androidPlugin.createNotificationChannel(channel);
+
+    await androidPlugin.requestNotificationsPermission();
+  }
 }
 
 Future<void> _showLocal(RemoteMessage message) async {
@@ -49,8 +58,10 @@ Future<void> _showLocal(RemoteMessage message) async {
     android: AndroidNotificationDetails(
       'alerts_channel',
       'Alerts',
+      channelDescription: 'VisionBot alert notifications',
       importance: Importance.high,
       priority: Priority.high,
+      icon: '@mipmap/ic_launcher',
     ),
     iOS: DarwinNotificationDetails(),
   );
@@ -67,21 +78,16 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // FIX: setPersistence is web only
   if (kIsWeb) {
     await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
   }
 
-  // FCM background handler
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // Local notifications
   await _initLocalNotifications();
 
-  // Foreground FCM to local notification
   FirebaseMessaging.onMessage.listen(_showLocal);
 
-  // Your push init (tokens, permissions, topics etc)
   await PushService().init();
 
   runApp(const VisionBotApp());

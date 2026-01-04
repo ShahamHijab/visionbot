@@ -35,10 +35,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
     );
 
     _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.elasticOut,
-      ),
+      CurvedAnimation(parent: _animationController, curve: Curves.elasticOut),
     );
 
     _animationController.forward();
@@ -69,7 +66,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
           ),
           backgroundColor: const Color(0xFFEC4899),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           margin: const EdgeInsets.all(20),
           duration: const Duration(seconds: 3),
           elevation: 8,
@@ -93,7 +92,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
         SnackBar(
           content: Row(
             children: [
-              const Icon(Icons.check_circle_outline, color: Colors.white, size: 22),
+              const Icon(
+                Icons.check_circle_outline,
+                color: Colors.white,
+                size: 22,
+              ),
               const SizedBox(width: 12),
               const Expanded(
                 child: Text(
@@ -105,7 +108,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
           ),
           backgroundColor: const Color(0xFF06B6D4),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           margin: const EdgeInsets.all(20),
           duration: const Duration(seconds: 3),
           elevation: 8,
@@ -130,7 +135,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
           ),
           backgroundColor: const Color(0xFFEC4899),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           margin: const EdgeInsets.all(20),
           duration: const Duration(seconds: 3),
           elevation: 8,
@@ -155,7 +162,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
           ),
           backgroundColor: const Color(0xFFEC4899),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           margin: const EdgeInsets.all(20),
           duration: const Duration(seconds: 3),
           elevation: 8,
@@ -185,7 +194,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
             children: [
               // Custom AppBar
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 child: Row(
                   children: [
                     Container(
@@ -201,17 +213,17 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                         ],
                       ),
                       child: IconButton(
-                        icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF1F2937)),
+                        icon: const Icon(
+                          Icons.arrow_back_rounded,
+                          color: Color(0xFF1F2937),
+                        ),
                         onPressed: () => Navigator.pop(context),
                       ),
                     ),
                     const SizedBox(width: 16),
                     ShaderMask(
                       shaderCallback: (bounds) => const LinearGradient(
-                        colors: [
-                          Color(0xFFEC4899),
-                          Color(0xFF06B6D4),
-                        ],
+                        colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
                       ).createShader(bounds),
                       child: const Text(
                         'Reset Password',
@@ -252,7 +264,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFF06B6D4).withOpacity(0.3),
+                                  color: const Color(
+                                    0xFF06B6D4,
+                                  ).withOpacity(0.3),
                                   blurRadius: 30,
                                   offset: const Offset(0, 10),
                                 ),
@@ -316,7 +330,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                           ),
                         ),
                         const SizedBox(height: 36),
-                        
+
                         // Email sent success box
                         if (_emailSent) ...[
                           Container(
@@ -351,7 +365,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                                 const SizedBox(width: 16),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       const Text(
                                         'Email Sent!',
@@ -378,20 +393,32 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                           ),
                           const SizedBox(height: 24),
                         ],
-                        
+
                         // Email Input Field
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Padding(
-                              padding: EdgeInsets.only(left: 4, bottom: 12),
-                              child: Text(
-                                "Email Address",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 15,
-                                  color: Color(0xFF1F2937),
-                                  letterSpacing: 0.3,
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                left: 4,
+                                bottom: 12,
+                              ),
+                              child: ShaderMask(
+                                shaderCallback: (bounds) =>
+                                    const LinearGradient(
+                                      colors: [
+                                        Color(0xFFEC4899),
+                                        Color(0xFF8B5CF6),
+                                      ],
+                                    ).createShader(bounds),
+                                child: const Text(
+                                  "Email Address",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 15,
+                                    color: Colors.white,
+                                    letterSpacing: 0.3,
+                                  ),
                                 ),
                               ),
                             ),
@@ -400,7 +427,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                                 borderRadius: BorderRadius.circular(20),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFF06B6D4).withOpacity(0.1),
+                                    color: const Color(
+                                      0xFF06B6D4,
+                                    ).withOpacity(0.1),
                                     blurRadius: 20,
                                     offset: const Offset(0, 4),
                                   ),
@@ -421,7 +450,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                                     fontWeight: FontWeight.w400,
                                   ),
                                   prefixIcon: Container(
-                                    margin: const EdgeInsets.only(left: 12, right: 8),
+                                    margin: const EdgeInsets.only(
+                                      left: 12,
+                                      right: 8,
+                                    ),
                                     child: const Icon(
                                       Icons.alternate_email_rounded,
                                       color: Color(0xFF06B6D4),
@@ -502,7 +534,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                                         ),
                                       )
                                     : const Text(
-                                        "Send reset email",
+                                        "Send Reset Email",
                                         style: TextStyle(
                                           fontSize: 18,
                                           fontWeight: FontWeight.w800,
@@ -525,11 +557,17 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                               vertical: 12,
                             ),
                           ),
-                          child: const Text(
-                            "Back to login",
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 16,
+                          child: ShaderMask(
+                            shaderCallback: (bounds) => const LinearGradient(
+                              colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
+                            ).createShader(bounds),
+                            child: const Text(
+                              "Back to login",
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                         ),
