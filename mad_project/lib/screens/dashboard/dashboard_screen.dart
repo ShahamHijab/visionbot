@@ -494,60 +494,67 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
   }
 
   Widget _buildStatsGrid() {
-    final stats = [
-      {
-        'title': 'Active Alerts',
-        'value': '12',
-        'icon': Icons.warning_amber_rounded,
-        'color': const Color(0xFFFF6B6B),
-      },
-      {
-        'title': 'Robots Online',
-        'value': '3/4',
-        'icon': Icons.smart_toy_rounded,
-        'color': const Color(0xFF4ECDC4),
-      },
-      {
-        'title': 'Today Images',
-        'value': '7',
-        'icon': Icons.photo_library_rounded,
-        'color': const Color(0xFF45B7D1),
-      },
-      {
-        'title': 'Area Covered',
-        'value': '2.4 km',
-        'icon': Icons.map_rounded,
-        'color': const Color(0xFF8B5CF6),
-      },
-    ];
+    return StreamBuilder<int>(
+      stream: _alertsCountStream(),
+      builder: (context, snapshot) {
+        final alertsCount = snapshot.data ?? 0;
 
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 260,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 1.1,
-      ),
-      itemCount: stats.length,
-      itemBuilder: (context, index) {
-        return TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0.0, end: 1.0),
-          duration: Duration(milliseconds: 600 + (index * 100)),
-          curve: Curves.easeOutCubic,
-          builder: (context, value, child) {
-            return Transform.translate(
-              offset: Offset(0, 30 * (1 - value)),
-              child: Opacity(opacity: value, child: child),
+        final stats = [
+          {
+            'title': 'Active Alerts',
+            'value': alertsCount.toString(),
+            'icon': Icons.warning_amber_rounded,
+            'color': const Color(0xFFFF6B6B),
+          },
+          {
+            'title': 'Robots Online',
+            'value': '3/4',
+            'icon': Icons.smart_toy_rounded,
+            'color': const Color(0xFF4ECDC4),
+          },
+          {
+            'title': 'Today Images',
+            'value': '7',
+            'icon': Icons.photo_library_rounded,
+            'color': const Color(0xFF45B7D1),
+          },
+          {
+            'title': 'Area Covered',
+            'value': '2.4 km',
+            'icon': Icons.map_rounded,
+            'color': const Color(0xFF8B5CF6),
+          },
+        ];
+
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: 260,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1.1,
+          ),
+          itemCount: stats.length,
+          itemBuilder: (context, index) {
+            return TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.0, end: 1.0),
+              duration: Duration(milliseconds: 600 + (index * 100)),
+              curve: Curves.easeOutCubic,
+              builder: (context, value, child) {
+                return Transform.translate(
+                  offset: Offset(0, 30 * (1 - value)),
+                  child: Opacity(opacity: value, child: child),
+                );
+              },
+              child: _buildStatCard(
+                stats[index]['title'] as String,
+                stats[index]['value'] as String,
+                stats[index]['icon'] as IconData,
+                stats[index]['color'] as Color,
+              ),
             );
           },
-          child: _buildStatCard(
-            stats[index]['title'] as String,
-            stats[index]['value'] as String,
-            stats[index]['icon'] as IconData,
-            stats[index]['color'] as Color,
-          ),
         );
       },
     );

@@ -1,6 +1,4 @@
 import 'dart:io';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
@@ -10,29 +8,29 @@ class PushService {
   Future<void> init() async {
     if (kIsWeb) return;
 
-    if (Platform.isIOS) {
-      await _messaging.requestPermission(alert: true, badge: true, sound: true);
-    } else {
-      await _messaging.requestPermission();
+    await _messaging.setAutoInitEnabled(true);
+
+    final settings = await _messaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    if (settings.authorizationStatus == AuthorizationStatus.denied) {
+      return;
     }
+
+    if (Platform.isIOS) {
+      await _messaging.setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+    }
+
+    await _messaging.subscribeToTopic('alerts_all');
 
     final token = await _messaging.getToken();
-    if (token != null) {
-      await _saveToken(token);
-    }
-
-    _messaging.onTokenRefresh.listen((newToken) async {
-      await _saveToken(newToken);
-    });
-  }
-
-  Future<void> _saveToken(String token) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-      'fcm_token': token,
-      'updated_at': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    debugPrint('FCM TOKEN: $token');
   }
 }

@@ -5,7 +5,6 @@ import 'firebase_options.dart';
 import 'routes/app_routes.dart';
 import 'theme/app_theme.dart';
 
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -15,10 +14,12 @@ import 'services/push_service.dart';
 final FlutterLocalNotificationsPlugin _local =
     FlutterLocalNotificationsPlugin();
 
-@pragma('vm:entry-point')
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-}
+const AndroidNotificationChannel _alertsChannel = AndroidNotificationChannel(
+  'alerts_channel',
+  'Alerts',
+  description: 'VisionBot alert notifications',
+  importance: Importance.high,
+);
 
 Future<void> _initLocalNotifications() async {
   const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -31,28 +32,21 @@ Future<void> _initLocalNotifications() async {
 
   await _local.initialize(initSettings);
 
-  const channel = AndroidNotificationChannel(
-    'alerts_channel',
-    'Alerts',
-    description: 'VisionBot alert notifications',
-    importance: Importance.high,
-  );
-
   final androidPlugin = _local
       .resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin
       >();
 
   if (androidPlugin != null) {
-    await androidPlugin.createNotificationChannel(channel);
-
-    await androidPlugin.requestNotificationsPermission();
+    await androidPlugin.createNotificationChannel(_alertsChannel);
   }
 }
 
-Future<void> _showLocal(RemoteMessage message) async {
+Future<void> _showLocalFromRemote(RemoteMessage message) async {
   final title = message.notification?.title ?? 'Alert';
   final body = message.notification?.body ?? '';
+
+  if (title.isEmpty && body.isEmpty) return;
 
   const details = NotificationDetails(
     android: AndroidNotificationDetails(
@@ -74,19 +68,37 @@ Future<void> _showLocal(RemoteMessage message) async {
   );
 }
 
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  if (kIsWeb) {
-    await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
-  }
+  await _initLocalNotifications();
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  await _initLocalNotifications();
+  final fcm = FirebaseMessaging.instance;
 
-  FirebaseMessaging.onMessage.listen(_showLocal);
+  final token = await fcm.getToken();
+  debugPrint('FCM TOKEN: $token');
+
+  FirebaseMessaging.onMessage.listen((message) async {
+    debugPrint('FCM FOREGROUND: ${message.messageId}');
+    debugPrint(
+      'FCM FOREGROUND notification: ${message.notification?.title} | ${message.notification?.body}',
+    );
+    debugPrint('FCM FOREGROUND data: ${message.data}');
+
+    await _showLocalFromRemote(message);
+  });
+
+  FirebaseMessaging.onMessageOpenedApp.listen((message) {
+    debugPrint('FCM OPENED FROM NOTIF: ${message.messageId}');
+  });
 
   await PushService().init();
 
