@@ -29,6 +29,12 @@ class PushService {
     }
 
     await _messaging.subscribeToTopic('alerts_all');
+    await _messaging.subscribeToTopic('alerts_all');
+    debugPrint('SUBSCRIBED alerts_all');
+
+    await _messaging.unsubscribeFromTopic('alerts_all');
+    await _messaging.subscribeToTopic('alerts_all');
+    debugPrint('REFRESHED SUBSCRIPTION alerts_all');
 
     final token = await _messaging.getToken();
     debugPrint('FCM TOKEN: $token');
