@@ -1,5 +1,9 @@
 // lib/screens/settings/settings_screen.dart
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+
 import '../../routes/app_routes.dart';
 import '../../services/auth_service.dart';
 
@@ -21,6 +25,8 @@ class _SettingsScreenState extends State<SettingsScreen>
   bool _soundEnabled = true;
   bool _vibrationEnabled = true;
 
+  bool _loadingPrefs = true;
+
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
@@ -39,6 +45,8 @@ class _SettingsScreenState extends State<SettingsScreen>
     );
 
     _animationController.forward();
+
+    _loadPrefs();
   }
 
   @override
@@ -47,8 +55,145 @@ class _SettingsScreenState extends State<SettingsScreen>
     super.dispose();
   }
 
+  User? get _user => FirebaseAuth.instance.currentUser;
+
+  DocumentReference<Map<String, dynamic>>? get _userDocRef {
+    final u = _user;
+    if (u == null) return null;
+    return FirebaseFirestore.instance.collection('users').doc(u.uid);
+  }
+
+  Future<void> _loadPrefs() async {
+    final ref = _userDocRef;
+
+    if (ref == null) {
+      setState(() => _loadingPrefs = false);
+      return;
+    }
+
+    try {
+      final snap = await ref.get();
+      final data = snap.data() ?? {};
+
+      setState(() {
+        _notificationsEnabled =
+            (data['notifications_enabled'] ?? _notificationsEnabled) == true;
+        _fireAlerts = (data['notify_fire'] ?? _fireAlerts) == true;
+        _smokeAlerts = (data['notify_smoke'] ?? _smokeAlerts) == true;
+        _motionAlerts = (data['notify_motion'] ?? _motionAlerts) == true;
+        _soundEnabled = (data['notify_sound'] ?? _soundEnabled) == true;
+        _vibrationEnabled =
+            (data['notify_vibration'] ?? _vibrationEnabled) == true;
+
+        _loadingPrefs = false;
+      });
+
+      await _applyTopicsFromState();
+    } catch (_) {
+      setState(() => _loadingPrefs = false);
+    }
+  }
+
+  Future<void> _savePrefs() async {
+    final ref = _userDocRef;
+    if (ref == null) return;
+
+    await ref.set({
+      'notifications_enabled': _notificationsEnabled,
+      'notify_fire': _fireAlerts,
+      'notify_smoke': _smokeAlerts,
+      'notify_motion': _motionAlerts,
+      'notify_sound': _soundEnabled,
+      'notify_vibration': _vibrationEnabled,
+      'prefs_updated_at': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> _applyTopicsFromState() async {
+    final fcm = FirebaseMessaging.instance;
+
+    if (!_notificationsEnabled) {
+      await fcm.unsubscribeFromTopic('alerts_all');
+      await fcm.unsubscribeFromTopic('alerts_fire');
+      await fcm.unsubscribeFromTopic('alerts_smoke');
+      await fcm.unsubscribeFromTopic('alerts_motion');
+      return;
+    }
+
+    await fcm.subscribeToTopic('alerts_all');
+
+    if (_fireAlerts) {
+      await fcm.subscribeToTopic('alerts_fire');
+    } else {
+      await fcm.unsubscribeFromTopic('alerts_fire');
+    }
+
+    if (_smokeAlerts) {
+      await fcm.subscribeToTopic('alerts_smoke');
+    } else {
+      await fcm.unsubscribeFromTopic('alerts_smoke');
+    }
+
+    if (_motionAlerts) {
+      await fcm.subscribeToTopic('alerts_motion');
+    } else {
+      await fcm.unsubscribeFromTopic('alerts_motion');
+    }
+  }
+
+  Future<void> _setNotificationsEnabled(bool value) async {
+    setState(() => _notificationsEnabled = value);
+
+    if (!value) {
+      setState(() {
+        _fireAlerts = false;
+        _smokeAlerts = false;
+        _motionAlerts = false;
+      });
+    } else {
+      setState(() {
+        _fireAlerts = true;
+        _smokeAlerts = true;
+        _motionAlerts = true;
+      });
+    }
+
+    await _savePrefs();
+    await _applyTopicsFromState();
+  }
+
+  Future<void> _setFireAlerts(bool value) async {
+    setState(() => _fireAlerts = value);
+    await _savePrefs();
+    await _applyTopicsFromState();
+  }
+
+  Future<void> _setSmokeAlerts(bool value) async {
+    setState(() => _smokeAlerts = value);
+    await _savePrefs();
+    await _applyTopicsFromState();
+  }
+
+  Future<void> _setMotionAlerts(bool value) async {
+    setState(() => _motionAlerts = value);
+    await _savePrefs();
+    await _applyTopicsFromState();
+  }
+
+  Future<void> _setSoundEnabled(bool value) async {
+    setState(() => _soundEnabled = value);
+    await _savePrefs();
+  }
+
+  Future<void> _setVibrationEnabled(bool value) async {
+    setState(() => _vibrationEnabled = value);
+    await _savePrefs();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final disabled = _loadingPrefs;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
@@ -90,64 +235,74 @@ class _SettingsScreenState extends State<SettingsScreen>
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            // Notifications Section
             _buildSectionHeader('Notifications', Icons.notifications_rounded),
             const SizedBox(height: 16),
+
             _buildSwitchTile(
               'Enable Notifications',
               'Receive push notifications',
               _notificationsEnabled,
-              (value) => setState(() => _notificationsEnabled = value),
+              disabled ? null : (value) => _setNotificationsEnabled(value),
             ),
             const SizedBox(height: 12),
+
             _buildSwitchTile(
               'Fire Alerts',
               'Get notified about fire detection',
               _fireAlerts,
-              (value) => setState(() => _fireAlerts = value),
-              enabled: _notificationsEnabled,
+              (!_notificationsEnabled || disabled)
+                  ? null
+                  : (value) => _setFireAlerts(value),
+              enabled: _notificationsEnabled && !disabled,
             ),
             const SizedBox(height: 12),
+
             _buildSwitchTile(
               'Smoke Alerts',
               'Get notified about smoke detection',
               _smokeAlerts,
-              (value) => setState(() => _smokeAlerts = value),
-              enabled: _notificationsEnabled,
+              (!_notificationsEnabled || disabled)
+                  ? null
+                  : (value) => _setSmokeAlerts(value),
+              enabled: _notificationsEnabled && !disabled,
             ),
             const SizedBox(height: 12),
+
             _buildSwitchTile(
               'Motion Alerts',
               'Get notified about motion detection',
               _motionAlerts,
-              (value) => setState(() => _motionAlerts = value),
-              enabled: _notificationsEnabled,
+              (!_notificationsEnabled || disabled)
+                  ? null
+                  : (value) => _setMotionAlerts(value),
+              enabled: _notificationsEnabled && !disabled,
             ),
 
             const SizedBox(height: 32),
 
-            // Sound & Vibration Section
             _buildSectionHeader('Sound & Vibration', Icons.volume_up_rounded),
             const SizedBox(height: 16),
+
             _buildSwitchTile(
               'Sound',
               'Play sound for notifications',
               _soundEnabled,
-              (value) => setState(() => _soundEnabled = value),
+              disabled ? null : (value) => _setSoundEnabled(value),
             ),
             const SizedBox(height: 12),
+
             _buildSwitchTile(
               'Vibration',
               'Vibrate for notifications',
               _vibrationEnabled,
-              (value) => setState(() => _vibrationEnabled = value),
+              disabled ? null : (value) => _setVibrationEnabled(value),
             ),
 
             const SizedBox(height: 32),
 
-            // App Section
             _buildSectionHeader('App', Icons.phone_android_rounded),
             const SizedBox(height: 16),
+
             _buildNavigationTile(
               'About',
               'App version and information',
@@ -155,6 +310,7 @@ class _SettingsScreenState extends State<SettingsScreen>
               () => Navigator.pushNamed(context, AppRoutes.about),
             ),
             const SizedBox(height: 12),
+
             _buildNavigationTile(
               'User Guide',
               'Learn how to use the app',
@@ -164,9 +320,9 @@ class _SettingsScreenState extends State<SettingsScreen>
 
             const SizedBox(height: 32),
 
-            // Account Section
             _buildSectionHeader('Account', Icons.person_outline_rounded),
             const SizedBox(height: 16),
+
             _buildNavigationTile(
               'Logout',
               'Sign out of your account',
@@ -212,9 +368,11 @@ class _SettingsScreenState extends State<SettingsScreen>
     String title,
     String subtitle,
     bool value,
-    ValueChanged<bool> onChanged, {
+    ValueChanged<bool>? onChanged, {
     bool enabled = true,
   }) {
+    final effectiveEnabled = enabled && onChanged != null;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -239,7 +397,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: enabled
+                    color: effectiveEnabled
                         ? const Color(0xFF1F2937)
                         : Colors.grey.shade400,
                   ),
@@ -250,7 +408,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: enabled
+                    color: effectiveEnabled
                         ? Colors.grey.shade600
                         : Colors.grey.shade400,
                   ),
@@ -262,7 +420,7 @@ class _SettingsScreenState extends State<SettingsScreen>
             scale: 0.9,
             child: Switch(
               value: value,
-              onChanged: enabled ? onChanged : null,
+              onChanged: effectiveEnabled ? onChanged : null,
               activeColor: const Color(0xFF06B6D4),
               activeTrackColor: const Color(0xFF06B6D4).withOpacity(0.5),
             ),

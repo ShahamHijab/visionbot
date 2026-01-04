@@ -6,29 +6,33 @@ admin.initializeApp();
 exports.sendAlertPush = functions.firestore
   .document("alerts/{alertId}")
   .onCreate(async (snap) => {
-    const alert = snap.data();
+    const alert = snap.data() || {};
 
-    const uid = alert.user_id;
-    if (!uid) return null;
+    const type = String(alert.type || "alert");
+    const note = String(alert.note || "");
+    const lens = String(alert.lens || "");
 
-    const userDoc = await admin.firestore().collection("users").doc(uid).get();
-    const token = userDoc.data()?.fcm_token;
-    if (!token) return null;
+    const title = type.replaceAll("_", " ");
+    const body = note || (lens ? `Lens: ${lens}` : "New alert");
 
-    const type = (alert.type || "alert").toString();
-    const note = (alert.note || "").toString();
-
-    await admin.messaging().send({
-      token: token,
+    const message = {
+      topic: "alerts_all",
       notification: {
-        title: type.replaceAll("_", " "),
-        body: note,
+        title: title,
+        body: body,
+      },
+      android: {
+        priority: "high",
+        notification: {
+          channelId: "alerts_channel",
+        },
       },
       data: {
         alert_id: snap.id,
         type: type,
       },
-    });
+    };
 
+    await admin.messaging().send(message);
     return null;
   });
