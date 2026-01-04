@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_service.dart';
+import '../../models/user_model.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -17,9 +18,11 @@ class _ProfileScreenState extends State<ProfileScreen>
   final AuthService _authService = AuthService();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _roleController = TextEditingController();
 
   bool _isEditing = false;
   bool _loading = false;
+  UserRole? _userRole;
 
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -56,6 +59,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     _animationController.dispose();
     _nameController.dispose();
     _emailController.dispose();
+    _roleController.dispose();
     super.dispose();
   }
 
@@ -105,11 +109,53 @@ class _ProfileScreenState extends State<ProfileScreen>
 
     final refreshedUser = FirebaseAuth.instance.currentUser;
 
-    if (!mounted) return;
-    setState(() {
-      _nameController.text = refreshedUser?.displayName ?? '';
-      _emailController.text = refreshedUser?.email ?? '';
-    });
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (userDoc.exists) {
+        final userData = userDoc.data();
+        final roleString = userData?['role'] as String?;
+        UserRole? role;
+
+        if (roleString != null) {
+          try {
+            role = UserRole.values.firstWhere(
+              (e) => e.toString() == 'UserRole.$roleString',
+            );
+          } catch (_) {
+            role = UserRole.securityOfficer;
+          }
+        }
+
+        if (!mounted) return;
+        setState(() {
+          _nameController.text = refreshedUser?.displayName ?? '';
+          _emailController.text = refreshedUser?.email ?? '';
+          _userRole = role ?? UserRole.securityOfficer;
+          _roleController.text = _userRole!.displayName;
+        });
+      } else {
+        if (!mounted) return;
+        setState(() {
+          _nameController.text = refreshedUser?.displayName ?? '';
+          _emailController.text = refreshedUser?.email ?? '';
+          _userRole = UserRole.securityOfficer;
+          _roleController.text = _userRole!.displayName;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading user data: $e');
+      if (!mounted) return;
+      setState(() {
+        _nameController.text = refreshedUser?.displayName ?? '';
+        _emailController.text = refreshedUser?.email ?? '';
+        _userRole = UserRole.securityOfficer;
+        _roleController.text = _userRole!.displayName;
+      });
+    }
   }
 
   Future<void> _saveProfile() async {
@@ -196,278 +242,299 @@ class _ProfileScreenState extends State<ProfileScreen>
           position: _slideAnimation,
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(20),
-            child: Column(
-              children: [
-                Stack(
-                  children: [
-                    Container(
-                      width: 120,
-                      height: 120,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: const LinearGradient(
-                          colors: [
-                            Color(0xFFEC4899),
-                            Color(0xFF06B6D4),
-                            Color(0xFF8B5CF6),
-                          ],
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF06B6D4).withOpacity(0.4),
-                            blurRadius: 30,
-                            offset: const Offset(0, 10),
-                          ),
-                        ],
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(4),
-                        child: Container(
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white,
-                          ),
-                          child: user?.photoURL != null
-                              ? ClipOval(
-                                  child: Image.network(
-                                    user!.photoURL!,
-                                    fit: BoxFit.cover,
-                                  ),
-                                )
-                              : const Icon(
-                                  Icons.person,
-                                  size: 60,
-                                  color: Color(0xFF06B6D4),
-                                ),
-                        ),
-                      ),
-                    ),
-                    if (_isEditing)
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
-                            ),
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFFEC4899).withOpacity(0.4),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
+            child: Center(
+              child: Column(
+                children: [
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Container(
+                        width: 120,
+                        height: 120,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color(0xFFEC4899),
+                              Color(0xFF06B6D4),
+                              Color(0xFF8B5CF6),
                             ],
                           ),
-                          child: const Icon(
-                            Icons.camera_alt_rounded,
-                            color: Colors.white,
-                            size: 20,
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF06B6D4).withOpacity(0.4),
+                              blurRadius: 30,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white,
+                            ),
+                            child: user?.photoURL != null
+                                ? ClipOval(
+                                    child: Image.network(
+                                      user!.photoURL!,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.person,
+                                    size: 60,
+                                    color: Color(0xFF06B6D4),
+                                  ),
                           ),
                         ),
                       ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-
-                if (!_isEditing) ...[
-                  Text(
-                    user?.displayName ?? 'User',
-                    style: const TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w900,
-                      color: Color(0xFF1F2937),
-                    ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          const Color(0xFF06B6D4).withOpacity(0.1),
-                          const Color(0xFF8B5CF6).withOpacity(0.1),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: const Color(0xFF06B6D4).withOpacity(0.3),
-                        width: 1.5,
-                      ),
-                    ),
-                    child: Text(
-                      user?.email ?? '',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey.shade700,
-                      ),
-                    ),
-                  ),
-                ] else ...[
-                  _buildInputField(
-                    controller: _nameController,
-                    label: 'Full Name',
-                    icon: Icons.person_outline_rounded,
-                    hint: 'Enter your name',
-                  ),
-                  const SizedBox(height: 20),
-                  _buildInputField(
-                    controller: _emailController,
-                    label: 'Email Address',
-                    icon: Icons.email_outlined,
-                    hint: 'your.email@example.com',
-                    enabled: false,
-                  ),
-                ],
+                  const SizedBox(height: 24),
 
-                const SizedBox(height: 32),
-
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildStatCard(
-                        '24',
-                        'Alerts',
-                        Icons.notification_important_rounded,
-                        const Color(0xFFFF6B6B),
+                  if (!_isEditing) ...[
+                    Text(
+                      user?.displayName ?? 'User',
+                      style: const TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF1F2937),
                       ),
+                      textAlign: TextAlign.center,
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _buildStatCard(
-                        '156',
-                        'Images',
-                        Icons.photo_library_rounded,
-                        const Color(0xFF45B7D1),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
                       ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 32),
-
-                if (_isEditing) ...[
-                  Container(
-                    width: double.infinity,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [
-                          Color(0xFFEC4899),
-                          Color(0xFF8B5CF6),
-                          Color(0xFF06B6D4),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFFEC4899).withOpacity(0.4),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            const Color(0xFF06B6D4).withOpacity(0.1),
+                            const Color(0xFF8B5CF6).withOpacity(0.1),
+                          ],
                         ),
-                      ],
-                    ),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: _loading ? null : _saveProfile,
                         borderRadius: BorderRadius.circular(20),
-                        child: Center(
-                          child: _loading
-                              ? const SizedBox(
-                                  width: 26,
-                                  height: 26,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 3,
-                                  ),
-                                )
-                              : const Text(
-                                  'Save Changes',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white,
-                                    letterSpacing: 0.5,
-                                  ),
+                        border: Border.all(
+                          color: const Color(0xFF06B6D4).withOpacity(0.3),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Text(
+                        user?.email ?? '',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade700,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            const Color(0xFFEC4899).withOpacity(0.1),
+                            const Color(0xFF8B5CF6).withOpacity(0.1),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: const Color(0xFFEC4899).withOpacity(0.3),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Text(
+                        _userRole?.displayName ?? 'Security Officer',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade700,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                    SizedBox(
+                      width: double.infinity,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _buildStatCard(
+                              '24',
+                              'Alerts',
+                              Icons.notification_important_rounded,
+                              const Color(0xFFFF6B6B),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _buildStatCard(
+                              '156',
+                              'Images',
+                              Icons.photo_library_rounded,
+                              const Color(0xFF45B7D1),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ] else ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildInputField(
+                            controller: _nameController,
+                            label: 'Full Name',
+                            icon: Icons.person_outline_rounded,
+                            hint: 'Enter your name',
+                          ),
+                          const SizedBox(height: 20),
+                          _buildInputField(
+                            controller: _emailController,
+                            label: 'Email Address',
+                            icon: Icons.email_outlined,
+                            hint: 'your.email@example.com',
+                            enabled: false,
+                          ),
+                          const SizedBox(height: 20),
+                          _buildInputField(
+                            controller: _roleController,
+                            label: 'Role',
+                            icon: Icons.badge_outlined,
+                            hint: 'Your role',
+                            enabled: false,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 32),
+
+                  if (_isEditing) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: Column(
+                        children: [
+                          Container(
+                            width: double.infinity,
+                            height: 60,
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [
+                                  Color(0xFFEC4899),
+                                  Color(0xFF8B5CF6),
+                                  Color(0xFF06B6D4),
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(
+                                    0xFFEC4899,
+                                  ).withOpacity(0.4),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 10),
                                 ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    width: double.infinity,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: const Color(0xFFEC4899).withOpacity(0.5),
-                        width: 2,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFFEC4899).withOpacity(0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () => setState(() {
-                          _isEditing = false;
-                          _loadUserData();
-                        }),
-                        borderRadius: BorderRadius.circular(20),
-                        child: Center(
-                          child: ShaderMask(
-                            shaderCallback: (bounds) => const LinearGradient(
-                              colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
-                            ).createShader(bounds),
-                            child: const Text(
-                              'Cancel',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                                letterSpacing: 0.5,
+                              ],
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: _loading ? null : _saveProfile,
+                                borderRadius: BorderRadius.circular(20),
+                                child: Center(
+                                  child: _loading
+                                      ? const SizedBox(
+                                          width: 26,
+                                          height: 26,
+                                          child: CircularProgressIndicator(
+                                            color: Colors.white,
+                                            strokeWidth: 3,
+                                          ),
+                                        )
+                                      : const Text(
+                                          'Save Changes',
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w800,
+                                            color: Colors.white,
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                ),
                               ),
                             ),
                           ),
-                        ),
+                          const SizedBox(height: 16),
+                          Container(
+                            width: double.infinity,
+                            height: 60,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: const Color(0xFFEC4899).withOpacity(0.5),
+                                width: 2,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(
+                                    0xFFEC4899,
+                                  ).withOpacity(0.1),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () => setState(() {
+                                  _isEditing = false;
+                                  _loadUserData();
+                                }),
+                                borderRadius: BorderRadius.circular(20),
+                                child: Center(
+                                  child: ShaderMask(
+                                    shaderCallback: (bounds) =>
+                                        const LinearGradient(
+                                          colors: [
+                                            Color(0xFFEC4899),
+                                            Color(0xFF8B5CF6),
+                                          ],
+                                        ).createShader(bounds),
+                                    child: const Text(
+                                      'Cancel',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w800,
+                                        color: Colors.white,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                ] else ...[
-                  _buildMenuItem(
-                    'Change Password',
-                    Icons.lock_outline_rounded,
-                    () =>
-                        Navigator.pushNamed(context, AppRoutes.changePassword),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildMenuItem(
-                    'Notifications',
-                    Icons.notifications_outlined,
-                    () => Navigator.pushNamed(context, AppRoutes.notifications),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildMenuItem(
-                    'Settings',
-                    Icons.settings_outlined,
-                    () => Navigator.pushNamed(context, AppRoutes.settings),
-                  ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),
@@ -557,6 +624,10 @@ class _ProfileScreenState extends State<ProfileScreen>
                   width: 2.5,
                 ),
               ),
+              disabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(20),
+                borderSide: BorderSide(color: Colors.grey.shade100, width: 2),
+              ),
             ),
           ),
         ),
@@ -612,63 +683,6 @@ class _ProfileScreenState extends State<ProfileScreen>
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildMenuItem(String title, IconData icon, VoidCallback onTap) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      const Color(0xFF06B6D4).withOpacity(0.1),
-                      const Color(0xFF8B5CF6).withOpacity(0.1),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(icon, color: const Color(0xFF06B6D4), size: 24),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF1F2937),
-                  ),
-                ),
-              ),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: Color(0xFF06B6D4),
-                size: 24,
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
