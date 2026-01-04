@@ -12,9 +12,9 @@ class _UserGuideScreenState extends State<UserGuideScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
-  
+
   int _selectedCategory = 0;
-  
+
   final List<GuideCategory> _categories = [
     GuideCategory(
       title: 'Getting Started',
@@ -39,10 +39,12 @@ class _UserGuideScreenState extends State<UserGuideScreen>
   ];
 
   final Map<int, List<GuideSection>> _guides = {
-    0: [ // Getting Started
+    0: [
+      // Getting Started
       GuideSection(
         title: 'Welcome to Vision Bot',
-        description: 'Vision Bot is an AI-powered surveillance system that helps you monitor your property with intelligent robots.',
+        description:
+            'Vision Bot is an AI-powered surveillance system that helps you monitor your property with intelligent robots.',
         steps: [
           'Create your account with email or Google',
           'Verify your email address',
@@ -53,7 +55,8 @@ class _UserGuideScreenState extends State<UserGuideScreen>
       ),
       GuideSection(
         title: 'Dashboard Overview',
-        description: 'The dashboard is your command center, showing real-time system status and key metrics.',
+        description:
+            'The dashboard is your command center, showing real-time system status and key metrics.',
         steps: [
           'View active alerts at the top',
           'Check robot status and battery levels',
@@ -64,7 +67,8 @@ class _UserGuideScreenState extends State<UserGuideScreen>
       ),
       GuideSection(
         title: 'Navigation',
-        description: 'Easily navigate through the app using the bottom navigation bar.',
+        description:
+            'Easily navigate through the app using the bottom navigation bar.',
         steps: [
           'Home - Main dashboard and system overview',
           'Alerts - View and manage all security alerts',
@@ -74,10 +78,12 @@ class _UserGuideScreenState extends State<UserGuideScreen>
         icon: Icons.menu_rounded,
       ),
     ],
-    1: [ // Features
+    1: [
+      // Features
       GuideSection(
         title: 'Real-Time Monitoring',
-        description: 'Monitor your property in real-time with multiple robots working simultaneously.',
+        description:
+            'Monitor your property in real-time with multiple robots working simultaneously.',
         steps: [
           'View live robot locations on GPS map',
           'Check robot battery and status',
@@ -88,7 +94,8 @@ class _UserGuideScreenState extends State<UserGuideScreen>
       ),
       GuideSection(
         title: 'Alert System',
-        description: 'Get notified immediately when the system detects potential threats or anomalies.',
+        description:
+            'Get notified immediately when the system detects potential threats or anomalies.',
         steps: [
           'Fire detection - Immediate critical alerts',
           'Smoke detection - Warning notifications',
@@ -99,7 +106,8 @@ class _UserGuideScreenState extends State<UserGuideScreen>
       ),
       GuideSection(
         title: 'GPS Tracking',
-        description: 'Track all robots in real-time with precise GPS coordinates.',
+        description:
+            'Track all robots in real-time with precise GPS coordinates.',
         steps: [
           'Open GPS Tracking from dashboard',
           'View all robots on interactive map',
@@ -110,20 +118,22 @@ class _UserGuideScreenState extends State<UserGuideScreen>
       ),
       GuideSection(
         title: 'Image Gallery',
-        description: 'Access and review all captured images from robot cameras.',
+        description:
+            'Access and review all captured images from robot cameras.',
         steps: [
           'Browse images in grid view',
-          'Tap to view full-size image',
-          'Filter by date or robot',
+          'Tap to view details',
           'Share or export images as needed',
         ],
         icon: Icons.photo_library_rounded,
       ),
     ],
-    2: [ // Alerts
+    2: [
+      // Alerts
       GuideSection(
         title: 'Understanding Alert Types',
-        description: 'Different alerts indicate various security situations requiring attention.',
+        description:
+            'Different alerts indicate various security situations requiring attention.',
         steps: [
           '🔥 Fire Alert (Critical) - Immediate action required',
           '💨 Smoke Alert (Warning) - Potential fire hazard',
@@ -135,7 +145,8 @@ class _UserGuideScreenState extends State<UserGuideScreen>
       ),
       GuideSection(
         title: 'Managing Alerts',
-        description: 'Learn how to effectively respond to and manage security alerts.',
+        description:
+            'Learn how to effectively respond to and manage security alerts.',
         steps: [
           'Tap on alert to view full details',
           'Review captured image evidence',
@@ -147,7 +158,8 @@ class _UserGuideScreenState extends State<UserGuideScreen>
       ),
       GuideSection(
         title: 'Alert Notifications',
-        description: 'Customize how you receive alert notifications on your device.',
+        description:
+            'Customize how you receive alert notifications on your device.',
         steps: [
           'Go to Settings > Notifications',
           'Enable/disable notification types',
@@ -157,7 +169,8 @@ class _UserGuideScreenState extends State<UserGuideScreen>
         icon: Icons.settings_rounded,
       ),
     ],
-    3: [ // Troubleshooting
+    3: [
+      // Troubleshooting
       GuideSection(
         title: 'Common Issues',
         description: 'Quick solutions for frequently encountered problems.',
@@ -171,7 +184,8 @@ class _UserGuideScreenState extends State<UserGuideScreen>
       ),
       GuideSection(
         title: 'Account & Security',
-        description: 'Manage your account security and recover access if needed.',
+        description:
+            'Manage your account security and recover access if needed.',
         steps: [
           'Change password regularly in Profile settings',
           'Enable two-factor authentication',
@@ -182,7 +196,8 @@ class _UserGuideScreenState extends State<UserGuideScreen>
       ),
       GuideSection(
         title: 'System Requirements',
-        description: 'Ensure your device meets the minimum requirements for optimal performance.',
+        description:
+            'Ensure your device meets the minimum requirements for optimal performance.',
         steps: [
           'Android 6.0+ or iOS 12.0+',
           'Stable internet connection required',
@@ -208,7 +223,7 @@ class _UserGuideScreenState extends State<UserGuideScreen>
   @override
   void initState() {
     super.initState();
-    
+
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
@@ -249,7 +264,10 @@ class _UserGuideScreenState extends State<UserGuideScreen>
             ],
           ),
           child: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF1F2937)),
+            icon: const Icon(
+              Icons.arrow_back_rounded,
+              color: Color(0xFF1F2937),
+            ),
             onPressed: () => Navigator.pop(context),
           ),
         ),
@@ -259,10 +277,7 @@ class _UserGuideScreenState extends State<UserGuideScreen>
           ).createShader(bounds),
           child: const Text(
             'User Guide',
-            style: TextStyle(
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-            ),
+            style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
           ),
         ),
       ),
@@ -275,7 +290,10 @@ class _UserGuideScreenState extends State<UserGuideScreen>
               height: 80,
               color: Colors.white,
               child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
                 scrollDirection: Axis.horizontal,
                 itemCount: _categories.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 12),
@@ -284,7 +302,7 @@ class _UserGuideScreenState extends State<UserGuideScreen>
                 },
               ),
             ),
-            
+
             // Guide Content
             Expanded(
               child: ListView.separated(
@@ -305,7 +323,7 @@ class _UserGuideScreenState extends State<UserGuideScreen>
   Widget _buildCategoryTab(int index) {
     final category = _categories[index];
     final isSelected = _selectedCategory == index;
-    
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -358,7 +376,7 @@ class _UserGuideScreenState extends State<UserGuideScreen>
 
   Widget _buildGuideCard(GuideSection section) {
     final categoryColor = _categories[_selectedCategory].color;
-    
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -406,11 +424,7 @@ class _UserGuideScreenState extends State<UserGuideScreen>
                       ),
                     ],
                   ),
-                  child: Icon(
-                    section.icon,
-                    color: Colors.white,
-                    size: 28,
-                  ),
+                  child: Icon(section.icon, color: Colors.white, size: 28),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -427,7 +441,7 @@ class _UserGuideScreenState extends State<UserGuideScreen>
               ],
             ),
           ),
-          
+
           // Content
           Padding(
             padding: const EdgeInsets.all(20),
@@ -444,7 +458,7 @@ class _UserGuideScreenState extends State<UserGuideScreen>
                   ),
                 ),
                 const SizedBox(height: 20),
-                
+
                 // Steps
                 ...section.steps.asMap().entries.map((entry) {
                   return Padding(
@@ -508,11 +522,7 @@ class GuideCategory {
   final IconData icon;
   final Color color;
 
-  GuideCategory({
-    required this.title,
-    required this.icon,
-    required this.color,
-  });
+  GuideCategory({required this.title, required this.icon, required this.color});
 }
 
 class GuideSection {
