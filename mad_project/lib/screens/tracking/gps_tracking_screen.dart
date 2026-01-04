@@ -1,5 +1,6 @@
 // lib/screens/tracking/gps_tracking_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:async';
 import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -11,6 +12,102 @@ class GPSTrackingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Check if running on web
+    if (kIsWeb) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8F9FA),
+        appBar: AppBar(
+          elevation: 0,
+          backgroundColor: Colors.white,
+          leading: Container(
+            margin: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF1F2937)),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+          title: ShaderMask(
+            shaderCallback: (bounds) => const LinearGradient(
+              colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
+            ).createShader(bounds),
+            child: const Text(
+              'GPS Tracking',
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      const Color(0xFF06B6D4).withOpacity(0.1),
+                      const Color(0xFF8B5CF6).withOpacity(0.1),
+                    ],
+                  ),
+                ),
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF06B6D4), Color(0xFF8B5CF6)],
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.phone_android_rounded,
+                    size: 64,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
+              const Text(
+                'GPS Tracking',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF1F2937),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 40),
+                child: Text(
+                  'GPS tracking is only available on mobile devices.\nPlease use the mobile app for this feature.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey.shade600,
+                    height: 1.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return const ProtectedRoute(
       permissionKey: 'gps_tracking',
       accessDeniedMessage: 'Only administrators can access GPS tracking.',
@@ -38,7 +135,6 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
   
   bool _isSendingLocation = false;
   String? _selectedRobotId;
-  bool _isMapReady = false;
   
   final LatLng _initialPosition = const LatLng(31.4504, 73.1350);
 
@@ -95,7 +191,7 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
         });
         
         if (mounted) {
-          _showSuccess('Location sent: ${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}');
+          _showSuccess('Location sent: ${position.latitude}, ${position.longitude}');
         }
       } catch (e) {
         debugPrint('Error sending location: $e');
@@ -116,8 +212,6 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
         .collection('device_locations')
         .snapshots()
         .listen((snapshot) {
-      if (!mounted) return;
-      
       setState(() {
         _robots.clear();
         _markers.clear();
@@ -196,7 +290,6 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
   }
 
   void _showSuccess(String message) {
-    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -222,7 +315,6 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
   }
 
   void _showError(String message) {
-    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -248,9 +340,7 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
   }
 
   void _onMapCreated(GoogleMapController controller) {
-    if (!mounted) return;
     _mapController = controller;
-    setState(() => _isMapReady = true);
   }
 
   @override
@@ -334,16 +424,6 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
             myLocationEnabled: true,
             zoomControlsEnabled: false,
             mapToolbarEnabled: false,
-            compassEnabled: true,
-            rotateGesturesEnabled: true,
-            scrollGesturesEnabled: true,
-            tiltGesturesEnabled: true,
-            zoomGesturesEnabled: true,
-            buildingsEnabled: true,
-            indoorViewEnabled: true,
-            trafficEnabled: false,
-            mapType: MapType.normal,
-            minMaxZoomPreference: const MinMaxZoomPreference(10, 20),
           ),
           
           // Status Banner
