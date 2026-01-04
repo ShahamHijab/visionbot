@@ -132,8 +132,9 @@ extension AlertTypeText on String {
     if (t == 'smoke') return '💨';
     if (t == 'unknown_face' ||
         t == 'unknownface' ||
-        t == 'alerttype.unknownface')
+        t == 'alerttype.unknownface') {
       return '👤';
+    }
     if (t == 'known_face' || t == 'knownface') return '🙂';
     if (t == 'motion') return '🏃';
     if (t == 'intruder') return '🛡️';

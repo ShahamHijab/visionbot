@@ -507,7 +507,7 @@ class _UserGuideScreenState extends State<UserGuideScreen>
                       ],
                     ),
                   );
-                }).toList(),
+                }),
               ],
             ),
           ),
