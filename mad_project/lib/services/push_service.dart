@@ -37,6 +37,6 @@ class PushService {
     debugPrint('REFRESHED SUBSCRIPTION alerts_all');
 
     final token = await _messaging.getToken();
-    debugPrint('FCM TOKEN: $token');
+    debugPrint('FCM TOKEn: $token');
   }
 }
