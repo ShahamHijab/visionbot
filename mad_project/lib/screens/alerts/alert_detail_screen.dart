@@ -102,11 +102,8 @@ class AlertDetailScreen extends StatelessWidget {
     String createdAtLocalText;
     if (createdAtLocalRaw == null) {
       createdAtLocalText = 'N/A';
-    } else if (createdAtLocalRaw is DateTime) {
-      createdAtLocalText = _formatDateTime(createdAtLocalRaw);
-    } else {
-      createdAtLocalText = createdAtLocalRaw.toString();
-    }
+    } else    createdAtLocalText = _formatDateTime(createdAtLocalRaw);
+  
 
     final thresholdText = _formatThreshold(alert.threshold);
 

@@ -421,7 +421,7 @@ class _SettingsScreenState extends State<SettingsScreen>
             child: Switch(
               value: value,
               onChanged: effectiveEnabled ? onChanged : null,
-              activeColor: const Color(0xFF06B6D4),
+              activeThumbColor: const Color(0xFF06B6D4),
               activeTrackColor: const Color(0xFF06B6D4).withOpacity(0.5),
             ),
           ),
