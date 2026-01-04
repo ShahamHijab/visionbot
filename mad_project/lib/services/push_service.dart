@@ -6,7 +6,11 @@ class PushService {
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
 
   Future<void> init() async {
-    if (kIsWeb) return;
+    // Don't initialize push notifications on web
+    if (kIsWeb) {
+      debugPrint('Push notifications disabled on web');
+      return;
+    }
 
     await _messaging.setAutoInitEnabled(true);
 
@@ -17,6 +21,7 @@ class PushService {
     );
 
     if (settings.authorizationStatus == AuthorizationStatus.denied) {
+      debugPrint('Push notification permission denied');
       return;
     }
 
@@ -29,7 +34,6 @@ class PushService {
     }
 
     await _messaging.subscribeToTopic('alerts_all');
-    await _messaging.subscribeToTopic('alerts_all');
     debugPrint('SUBSCRIBED alerts_all');
 
     await _messaging.unsubscribeFromTopic('alerts_all');
@@ -37,6 +41,6 @@ class PushService {
     debugPrint('REFRESHED SUBSCRIPTION alerts_all');
 
     final token = await _messaging.getToken();
-    debugPrint('FCM TOKEn: $token');
+    debugPrint('FCM TOKEN: $token');
   }
 }
