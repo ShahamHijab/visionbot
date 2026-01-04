@@ -501,7 +501,7 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
           {
             'title': 'Active Alerts',
             'value': alertsCount.toString(),
-            'icon': Icons.warning_amber_rounded,
+            'icon': Icons.notification_important_rounded,
             'color': const Color(0xFFFF6B6B),
           },
           {
