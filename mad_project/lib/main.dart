@@ -5,7 +5,7 @@ import 'firebase_options.dart';
 import 'routes/app_routes.dart';
 import 'theme/app_theme.dart';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
@@ -22,6 +22,8 @@ const AndroidNotificationChannel _alertsChannel = AndroidNotificationChannel(
 );
 
 Future<void> _initLocalNotifications() async {
+  if (kIsWeb) return; // Skip on web
+  
   const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
   const iosInit = DarwinInitializationSettings();
 
@@ -43,6 +45,8 @@ Future<void> _initLocalNotifications() async {
 }
 
 Future<void> _showLocalFromRemote(RemoteMessage message) async {
+  if (kIsWeb) return; // Skip on web
+  
   final title = message.notification?.title ?? 'Alert';
   final body = message.notification?.body ?? '';
 
@@ -77,30 +81,31 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  await _initLocalNotifications();
+  // Only initialize notifications and messaging on mobile
+  if (!kIsWeb) {
+    await _initLocalNotifications();
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    final fcm = FirebaseMessaging.instance;
+    final token = await fcm.getToken();
+    debugPrint('FCM TOKEN: $token');
 
-  final fcm = FirebaseMessaging.instance;
+    FirebaseMessaging.onMessage.listen((message) async {
+      debugPrint('FCM FOREGROUND: ${message.messageId}');
+      debugPrint(
+        'FCM FOREGROUND notification: ${message.notification?.title} | ${message.notification?.body}',
+      );
+      debugPrint('FCM FOREGROUND data: ${message.data}');
 
-  final token = await fcm.getToken();
-  debugPrint('FCM TOKEN: $token');
+      await _showLocalFromRemote(message);
+    });
 
-  FirebaseMessaging.onMessage.listen((message) async {
-    debugPrint('FCM FOREGROUND: ${message.messageId}');
-    debugPrint(
-      'FCM FOREGROUND notification: ${message.notification?.title} | ${message.notification?.body}',
-    );
-    debugPrint('FCM FOREGROUND data: ${message.data}');
+    FirebaseMessaging.onMessageOpenedApp.listen((message) {
+      debugPrint('FCM OPENED FROM NOTIF: ${message.messageId}');
+    });
 
-    await _showLocalFromRemote(message);
-  });
-
-  FirebaseMessaging.onMessageOpenedApp.listen((message) {
-    debugPrint('FCM OPENED FROM NOTIF: ${message.messageId}');
-  });
-
-  await PushService().init();
+    await PushService().init();
+  }
 
   runApp(const VisionBotApp());
 }
