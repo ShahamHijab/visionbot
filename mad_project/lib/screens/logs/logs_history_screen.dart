@@ -15,7 +15,7 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final AlertService _alertService = AlertService();
-  
+
   String _selectedFilter = 'All';
   final List<String> _filterOptions = [
     'All',
@@ -23,7 +23,7 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
     'Smoke',
     'Unknown Face',
     'Motion',
-    'System'
+    'System',
   ];
 
   @override
@@ -50,14 +50,14 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
 
   bool _matchesFilter(AlertModel alert) {
     if (_selectedFilter == 'All') return true;
-    
+
     final typeNorm = _normalizeType(alert.type.toString());
     final filterNorm = _selectedFilter.toLowerCase().replaceAll(' ', '');
-    
+
     if (filterNorm == 'unknownface') {
       return typeNorm == 'unknown_face' || typeNorm == 'unknownface';
     }
-    
+
     return typeNorm == filterNorm;
   }
 
@@ -85,7 +85,9 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
       return 'Unknown Person';
     }
     if (typeNorm.isEmpty) return 'Alert';
-    return typeNorm.replaceAll('_', ' ').split(' ')
+    return typeNorm
+        .replaceAll('_', ' ')
+        .split(' ')
         .map((word) => word[0].toUpperCase() + word.substring(1))
         .join(' ');
   }
@@ -120,7 +122,10 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
             ],
           ),
           child: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF1F2937)),
+            icon: const Icon(
+              Icons.arrow_back_rounded,
+              color: Color(0xFF1F2937),
+            ),
             onPressed: () => Navigator.pop(context),
           ),
         ),
@@ -130,10 +135,7 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
           ).createShader(bounds),
           child: const Text(
             'Logs & History',
-            style: TextStyle(
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-            ),
+            style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
           ),
         ),
         bottom: TabBar(
@@ -202,7 +204,7 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
             },
           ),
         ),
-        
+
         // Activity list
         Expanded(
           child: StreamBuilder<List<AlertModel>>(
@@ -236,7 +238,11 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                      const Icon(
+                        Icons.error_outline,
+                        size: 64,
+                        color: Colors.red,
+                      ),
                       const SizedBox(height: 16),
                       Text(
                         'Error loading alerts',
@@ -249,9 +255,7 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
                       Text(
                         '${snapshot.error}',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                        ),
+                        style: TextStyle(color: Colors.grey.shade600),
                       ),
                     ],
                   ),
@@ -283,7 +287,7 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
     final color = _getTypeColor(alert.type.toString());
     final icon = _getTypeIcon(alert.type.toString());
     final title = _formatType(alert.type.toString());
-    
+
     final lensText = alert.lens.isEmpty ? 'Unknown lens' : alert.lens;
     final location = alert.note.isEmpty
         ? 'Lens: $lensText'
@@ -293,11 +297,7 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
       color: Colors.transparent,
       child: InkWell(
         onTap: () {
-          Navigator.pushNamed(
-            context,
-            AppRoutes.alertDetail,
-            arguments: alert,
-          );
+          Navigator.pushNamed(context, AppRoutes.alertDetail, arguments: alert);
         },
         borderRadius: BorderRadius.circular(16),
         child: Container(
@@ -360,10 +360,7 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
                   ],
                 ),
               ),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: Colors.grey.shade400,
-              ),
+              Icon(Icons.chevron_right_rounded, color: Colors.grey.shade400),
             ],
           ),
         ),
@@ -384,28 +381,34 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
         }
 
         final alerts = snapshot.data ?? [];
-        
+
         // Calculate statistics
-        final fireCount = alerts.where((a) => _normalizeType(a.type.toString()) == 'fire').length;
-        final smokeCount = alerts.where((a) => _normalizeType(a.type.toString()) == 'smoke').length;
+        final fireCount = alerts
+            .where((a) => _normalizeType(a.type.toString()) == 'fire')
+            .length;
+        final smokeCount = alerts
+            .where((a) => _normalizeType(a.type.toString()) == 'smoke')
+            .length;
         final unknownCount = alerts.where((a) {
           final t = _normalizeType(a.type.toString());
           return t == 'unknown_face' || t == 'unknownface';
         }).length;
-        final motionCount = alerts.where((a) => _normalizeType(a.type.toString()) == 'motion').length;
-        
+        final motionCount = alerts
+            .where((a) => _normalizeType(a.type.toString()) == 'motion')
+            .length;
+
         final today = DateTime.now();
         final todayAlerts = alerts.where((a) {
           return a.createdAt.year == today.year &&
-                 a.createdAt.month == today.month &&
-                 a.createdAt.day == today.day;
+              a.createdAt.month == today.month &&
+              a.createdAt.day == today.day;
         }).length;
 
         final yesterday = today.subtract(const Duration(days: 1));
         final yesterdayAlerts = alerts.where((a) {
           return a.createdAt.year == yesterday.year &&
-                 a.createdAt.month == yesterday.month &&
-                 a.createdAt.day == yesterday.day;
+              a.createdAt.month == yesterday.month &&
+              a.createdAt.day == yesterday.day;
         }).length;
 
         // Show placeholder if no data
@@ -417,12 +420,17 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
           padding: const EdgeInsets.all(20),
           children: [
             // Overview Section
-            const Text(
-              'Overview',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
-                color: Color(0xFF1F2937),
+            ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
+              ).createShader(bounds),
+              child: const Text(
+                'Overview',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                ),
               ),
             ),
             const SizedBox(height: 12),
@@ -455,14 +463,19 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
               const Color(0xFF4ECDC4),
             ),
             const SizedBox(height: 24),
-            
+
             // Detection Breakdown Section
-            const Text(
-              'Detection Breakdown',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
-                color: Color(0xFF1F2937),
+            ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
+              ).createShader(bounds),
+              child: const Text(
+                'Detection Breakdown',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                ),
               ),
             ),
             const SizedBox(height: 12),
@@ -534,17 +547,19 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
           Text(
             'Statistics will appear once alerts are detected',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey.shade600,
-            ),
+            style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -564,9 +579,7 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [color, color.withOpacity(0.7)],
-              ),
+              gradient: LinearGradient(colors: [color, color.withOpacity(0.7)]),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(icon, color: Colors.white, size: 28),
@@ -759,14 +772,11 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
           ),
           const SizedBox(height: 8),
           Text(
-            _selectedFilter == 'All' 
+            _selectedFilter == 'All'
                 ? 'No alerts have been recorded yet'
                 : 'No logs match your selected filter',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey.shade600,
-            ),
+            style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
           ),
         ],
       ),
@@ -779,9 +789,5 @@ class SystemLog {
   final String message;
   final DateTime time;
 
-  SystemLog({
-    required this.type,
-    required this.message,
-    required this.time,
-  });
+  SystemLog({required this.type, required this.message, required this.time});
 }
