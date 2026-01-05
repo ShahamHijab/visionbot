@@ -197,7 +197,7 @@ class UserPermissions {
           canReceiveUnauthorizedPersonAlerts: true,
           canViewDetectedFaceImages: true,
           canPerformFaceVerification: true,
-          canAccessGPSTracking: true,
+          canAccessGPSTracking: false, // Admin only
           canViewAlertLogs: true,
         );
     }
