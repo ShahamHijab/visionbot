@@ -134,14 +134,17 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
   StreamSubscription<QuerySnapshot>? _locationSubscription;
   
   bool _isSendingLocation = false;
+  bool _isLoading = true;
+  bool _hasPermission = false;
   String? _selectedRobotId;
+  String? _errorMessage;
   
   final LatLng _initialPosition = const LatLng(31.4504, 73.1350);
 
   @override
   void initState() {
     super.initState();
-    _startListeningToLocations();
+    _initialize();
   }
 
   @override
@@ -152,26 +155,62 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
     super.dispose();
   }
 
-  Future<void> _checkPermissions() async {
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        if (!mounted) return;
-        _showError('Location permissions are denied');
-        return;
-      }
+  Future<void> _initialize() async {
+    try {
+      // Check permissions first
+      await _checkPermissions();
+      
+      // Start listening to locations
+      _startListeningToLocations();
+      
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Initialization error: $e');
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Failed to initialize GPS tracking: $e';
+      });
     }
-    
-    if (permission == LocationPermission.deniedForever) {
-      if (!mounted) return;
-      _showError('Location permissions are permanently denied');
-      return;
+  }
+
+  Future<void> _checkPermissions() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        throw Exception('Location services are disabled');
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          throw Exception('Location permissions are denied');
+        }
+      }
+      
+      if (permission == LocationPermission.deniedForever) {
+        throw Exception('Location permissions are permanently denied');
+      }
+
+      setState(() {
+        _hasPermission = true;
+      });
+    } catch (e) {
+      debugPrint('Permission error: $e');
+      setState(() {
+        _hasPermission = false;
+        _errorMessage = e.toString();
+      });
+      rethrow;
     }
   }
 
   Future<void> _startSendingLocation() async {
-    await _checkPermissions();
+    if (!_hasPermission) {
+      await _checkPermissions();
+    }
     
     setState(() => _isSendingLocation = true);
     
@@ -191,10 +230,13 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
         });
         
         if (mounted) {
-          _showSuccess('Location sent: ${position.latitude}, ${position.longitude}');
+          _showSuccess('Location sent: ${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}');
         }
       } catch (e) {
         debugPrint('Error sending location: $e');
+        if (mounted) {
+          _showError('Failed to send location: $e');
+        }
       }
     });
     
@@ -211,51 +253,65 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
     _locationSubscription = _db
         .collection('device_locations')
         .snapshots()
-        .listen((snapshot) {
-      setState(() {
-        _robots.clear();
-        _markers.clear();
-        
-        for (var doc in snapshot.docs) {
-          final data = doc.data();
-          final deviceId = data['device_id'] ?? doc.id;
-          final lat = (data['lat'] ?? 0).toDouble();
-          final lng = (data['lng'] ?? 0).toDouble();
-          final battery = (data['battery'] ?? 0).toInt();
-          final status = data['status'] ?? 'inactive';
-          
-          if (lat == 0 && lng == 0) continue;
-          
-          final robot = RobotLocation(
-            id: deviceId,
-            name: _getDeviceName(deviceId),
-            position: LatLng(lat, lng),
-            status: _parseStatus(status),
-            battery: battery,
-          );
-          
-          _robots[deviceId] = robot;
-          
-          _markers.add(
-            Marker(
-              markerId: MarkerId(deviceId),
-              position: LatLng(lat, lng),
-              infoWindow: InfoWindow(
-                title: robot.name,
-                snippet: '${robot.status.name} - $battery%',
-              ),
-              icon: BitmapDescriptor.defaultMarkerWithHue(
-                robot.status == RobotStatus.active
-                    ? BitmapDescriptor.hueGreen
-                    : robot.status == RobotStatus.charging
-                        ? BitmapDescriptor.hueYellow
-                        : BitmapDescriptor.hueRed,
-              ),
-            ),
-          );
-        }
-      });
-    });
+        .listen(
+          (snapshot) {
+            setState(() {
+              _robots.clear();
+              _markers.clear();
+              
+              for (var doc in snapshot.docs) {
+                try {
+                  final data = doc.data();
+                  final deviceId = data['device_id'] ?? doc.id;
+                  final lat = (data['lat'] ?? 0).toDouble();
+                  final lng = (data['lng'] ?? 0).toDouble();
+                  final battery = (data['battery'] ?? 0).toInt();
+                  final status = data['status'] ?? 'inactive';
+                  
+                  if (lat == 0 && lng == 0) continue;
+                  
+                  final robot = RobotLocation(
+                    id: deviceId,
+                    name: _getDeviceName(deviceId),
+                    position: LatLng(lat, lng),
+                    status: _parseStatus(status),
+                    battery: battery,
+                  );
+                  
+                  _robots[deviceId] = robot;
+                  
+                  _markers.add(
+                    Marker(
+                      markerId: MarkerId(deviceId),
+                      position: LatLng(lat, lng),
+                      infoWindow: InfoWindow(
+                        title: robot.name,
+                        snippet: '${robot.status.name} - $battery%',
+                      ),
+                      icon: BitmapDescriptor.defaultMarkerWithHue(
+                        robot.status == RobotStatus.active
+                            ? BitmapDescriptor.hueGreen
+                            : robot.status == RobotStatus.charging
+                                ? BitmapDescriptor.hueYellow
+                                : BitmapDescriptor.hueRed,
+                      ),
+                    ),
+                  );
+                } catch (e) {
+                  debugPrint('Error processing location doc: $e');
+                }
+              }
+            });
+          },
+          onError: (error) {
+            debugPrint('Location stream error: $error');
+            if (mounted) {
+              setState(() {
+                _errorMessage = 'Failed to load locations: $error';
+              });
+            }
+          },
+        );
   }
 
   String _getDeviceName(String deviceId) {
@@ -290,6 +346,7 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
   }
 
   void _showSuccess(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -315,6 +372,7 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
   }
 
   void _showError(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -345,6 +403,121 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8F9FA),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(
+                'Initializing GPS...',
+                style: TextStyle(
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_errorMessage != null && !_hasPermission) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8F9FA),
+        appBar: AppBar(
+          elevation: 0,
+          backgroundColor: Colors.white,
+          leading: Container(
+            margin: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF1F2937)),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+          title: ShaderMask(
+            shaderCallback: (bounds) => const LinearGradient(
+              colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
+            ).createShader(bounds),
+            child: const Text(
+              'GPS Tracking',
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(32),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFFFF6B6B).withOpacity(0.1),
+                  ),
+                  child: const Icon(
+                    Icons.location_off_rounded,
+                    size: 80,
+                    color: Color(0xFFFF6B6B),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Location Access Required',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  _errorMessage ?? 'Unable to access location',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    await Geolocator.openLocationSettings();
+                  },
+                  icon: const Icon(Icons.settings),
+                  label: const Text('Open Settings'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 16,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
