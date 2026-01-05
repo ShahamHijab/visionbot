@@ -1,17 +1,24 @@
+// UPDATED: lib/screens/tracking/gps_tracking_screen.dart
+// This implementation allows:
+// 1. Any user can SEND their device location
+// 2. Only ADMINS can VIEW other devices' locations
+// 3. Shared locations stored in Firestore in real-time
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:async';
 import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../widgets/protected_route.dart';
+import '../../services/permission_service.dart';
 
 class GPSTrackingScreen extends StatelessWidget {
   const GPSTrackingScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Check if running on web
     if (kIsWeb) {
       return Scaffold(
         backgroundColor: const Color(0xFFF8F9FA),
@@ -125,19 +132,23 @@ class _GPSTrackingContent extends StatefulWidget {
 class _GPSTrackingContentState extends State<_GPSTrackingContent> {
   GoogleMapController? _mapController;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
-  
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final PermissionService _permissionService = PermissionService();
+
   final Set<Marker> _markers = {};
-  final Map<String, RobotLocation> _robots = {};
-  
-  Timer? _locationTimer;
+  final Map<String, DeviceLocation> _devices = {};
+
+  Timer? _locationSendTimer;
   StreamSubscription<QuerySnapshot>? _locationSubscription;
-  
+
   bool _isSendingLocation = false;
   bool _isLoading = true;
   bool _hasPermission = false;
-  String? _selectedRobotId;
+  bool _canViewOtherLocations = false;
+  String? _selectedDeviceId;
   String? _errorMessage;
-  
+  String? _currentUserName;
+
   final LatLng _initialPosition = const LatLng(31.4504, 73.1350);
 
   @override
@@ -148,7 +159,7 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
 
   @override
   void dispose() {
-    _locationTimer?.cancel();
+    _locationSendTimer?.cancel();
     _locationSubscription?.cancel();
     _mapController?.dispose();
     super.dispose();
@@ -156,12 +167,14 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
 
   Future<void> _initialize() async {
     try {
-      // Check permissions first
       await _checkPermissions();
-      
-      // Start listening to locations
-      _startListeningToLocations();
-      
+      await _checkViewPermission();
+      await _getCurrentUserName();
+
+      if (_canViewOtherLocations) {
+        _startListeningToLocations();
+      }
+
       setState(() {
         _isLoading = false;
       });
@@ -188,7 +201,7 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
           throw Exception('Location permissions are denied');
         }
       }
-      
+
       if (permission == LocationPermission.deniedForever) {
         throw Exception('Location permissions are permanently denied');
       }
@@ -206,30 +219,68 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
     }
   }
 
+  Future<void> _checkViewPermission() async {
+    try {
+      final canView = await _permissionService.hasPermission('gps_tracking');
+      setState(() {
+        _canViewOtherLocations = canView;
+      });
+    } catch (e) {
+      debugPrint('Error checking view permission: $e');
+      setState(() {
+        _canViewOtherLocations = false;
+      });
+    }
+  }
+
+  Future<void> _getCurrentUserName() async {
+    try {
+      final user = _auth.currentUser;
+      if (user != null) {
+        setState(() {
+          _currentUserName = user.displayName ?? user.email ?? 'Unknown User';
+        });
+      }
+    } catch (e) {
+      debugPrint('Error getting user name: $e');
+    }
+  }
+
   Future<void> _startSendingLocation() async {
     if (!_hasPermission) {
       await _checkPermissions();
     }
-    
+
     setState(() => _isSendingLocation = true);
-    
-    _locationTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+
+    _locationSendTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
       try {
-        Position position = await Geolocator.getCurrentPosition(
+        final position = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high,
         );
-        
-        await _db.collection('device_locations').doc('current_device').set({
-          'device_id': 'current_device',
-          'lat': position.latitude,
-          'lng': position.longitude,
-          'battery': 85,
+
+        final user = _auth.currentUser;
+        if (user == null) return;
+
+        final deviceName = _currentUserName ?? 'My Device';
+
+        // Send location to Firestore - accessible to all, but only admins can view
+        await _db.collection('shared_locations').doc(user.uid).set({
+          'user_id': user.uid,
+          'device_name': deviceName,
+          'email': user.email,
+          'latitude': position.latitude,
+          'longitude': position.longitude,
+          'battery': 85, // You can get actual battery percentage
           'status': 'active',
-          'updated_at': FieldValue.serverTimestamp(),
+          'timestamp': FieldValue.serverTimestamp(),
+          'updated_at': DateTime.now().toIso8601String(),
         });
-        
+
         if (mounted) {
-          _showSuccess('Location sent: ${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}');
+          _showSuccess(
+            'Location sent: ${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}',
+          );
         }
       } catch (e) {
         debugPrint('Error sending location: $e');
@@ -238,64 +289,83 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
         }
       }
     });
-    
+
     _showSuccess('Started sending location every 5 seconds');
   }
 
   void _stopSendingLocation() {
-    _locationTimer?.cancel();
+    _locationSendTimer?.cancel();
     setState(() => _isSendingLocation = false);
+
+    // Clear own location from Firestore when stopping
+    try {
+      final user = _auth.currentUser;
+      if (user != null) {
+        _db.collection('shared_locations').doc(user.uid).delete();
+      }
+    } catch (e) {
+      debugPrint('Error clearing location: $e');
+    }
+
     _showSuccess('Stopped sending location');
   }
 
   void _startListeningToLocations() {
     _locationSubscription = _db
-        .collection('device_locations')
+        .collection('shared_locations')
         .snapshots()
         .listen(
           (snapshot) {
             setState(() {
-              _robots.clear();
+              _devices.clear();
               _markers.clear();
-              
+
+              final currentUserId = _auth.currentUser?.uid;
+
               for (var doc in snapshot.docs) {
                 try {
                   final data = doc.data();
-                  final deviceId = data['device_id'] ?? doc.id;
-                  final lat = (data['lat'] ?? 0).toDouble();
-                  final lng = (data['lng'] ?? 0).toDouble();
+                  final userId = data['user_id'] ?? doc.id;
+                  final deviceName = data['device_name'] ?? 'Unknown Device';
+                  final email = data['email'] ?? 'unknown@email.com';
+                  final lat = (data['latitude'] ?? 0).toDouble();
+                  final lng = (data['longitude'] ?? 0).toDouble();
                   final battery = (data['battery'] ?? 0).toInt();
                   final status = data['status'] ?? 'inactive';
-                  
+
                   if (lat == 0 && lng == 0) continue;
-                  
-                  final robot = RobotLocation(
-                    id: deviceId,
-                    name: _getDeviceName(deviceId),
-                    position: LatLng(lat, lng),
-                    status: _parseStatus(status),
-                    battery: battery,
-                  );
-                  
-                  _robots[deviceId] = robot;
-                  
-                  _markers.add(
-                    Marker(
-                      markerId: MarkerId(deviceId),
+
+                  // Only show other users' locations (not your own on map)
+                  if (userId != currentUserId) {
+                    final device = DeviceLocation(
+                      userId: userId,
+                      deviceName: deviceName,
+                      email: email,
                       position: LatLng(lat, lng),
-                      infoWindow: InfoWindow(
-                        title: robot.name,
-                        snippet: '${robot.status.name} - $battery%',
+                      status: _parseStatus(status),
+                      battery: battery,
+                    );
+
+                    _devices[userId] = device;
+
+                    _markers.add(
+                      Marker(
+                        markerId: MarkerId(userId),
+                        position: LatLng(lat, lng),
+                        infoWindow: InfoWindow(
+                          title: deviceName,
+                          snippet: '${device.status.name} - $battery% - $email',
+                        ),
+                        icon: BitmapDescriptor.defaultMarkerWithHue(
+                          device.status == DeviceStatus.active
+                              ? BitmapDescriptor.hueGreen
+                              : device.status == DeviceStatus.charging
+                                  ? BitmapDescriptor.hueYellow
+                                  : BitmapDescriptor.hueRed,
+                        ),
                       ),
-                      icon: BitmapDescriptor.defaultMarkerWithHue(
-                        robot.status == RobotStatus.active
-                            ? BitmapDescriptor.hueGreen
-                            : robot.status == RobotStatus.charging
-                                ? BitmapDescriptor.hueYellow
-                                : BitmapDescriptor.hueRed,
-                      ),
-                    ),
-                  );
+                    );
+                  }
                 } catch (e) {
                   debugPrint('Error processing location doc: $e');
                 }
@@ -313,35 +383,27 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
         );
   }
 
-  String _getDeviceName(String deviceId) {
-    if (deviceId == 'current_device') return 'My Device';
-    if (deviceId.startsWith('robot')) {
-      return 'Robot ${deviceId.replaceAll('robot', '')}';
-    }
-    return deviceId;
-  }
-
-  RobotStatus _parseStatus(String status) {
+  DeviceStatus _parseStatus(String status) {
     switch (status.toLowerCase()) {
       case 'active':
-        return RobotStatus.active;
+        return DeviceStatus.active;
       case 'charging':
-        return RobotStatus.charging;
+        return DeviceStatus.charging;
       default:
-        return RobotStatus.inactive;
+        return DeviceStatus.inactive;
     }
   }
 
-  void _focusOnRobot(RobotLocation robot) {
+  void _focusOnDevice(DeviceLocation device) {
     _mapController?.animateCamera(
       CameraUpdate.newCameraPosition(
         CameraPosition(
-          target: robot.position,
+          target: device.position,
           zoom: 16,
         ),
       ),
     );
-    setState(() => _selectedRobotId = robot.id);
+    setState(() => _selectedDeviceId = device.userId);
   }
 
   void _showSuccess(String message) {
@@ -584,7 +646,6 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
       ),
       body: Stack(
         children: [
-          // Google Map
           GoogleMap(
             onMapCreated: _onMapCreated,
             initialCameraPosition: CameraPosition(
@@ -597,8 +658,7 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
             zoomControlsEnabled: false,
             mapToolbarEnabled: false,
           ),
-          
-          // Status Banner
+
           if (_isSendingLocation)
             Positioned(
               top: 16,
@@ -631,7 +691,7 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
                     ),
                     const SizedBox(width: 12),
                     const Text(
-                      'Sending location every 5 seconds',
+                      'Sending your location every 5 seconds',
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w700,
@@ -642,150 +702,151 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
                 ),
               ),
             ),
-          
-          // Bottom Device List
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Container(
-              height: 160,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(30),
-                  topRight: Radius.circular(30),
+
+          if (_canViewOtherLocations)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                height: 160,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(30),
+                    topRight: Radius.circular(30),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 20,
+                      offset: const Offset(0, -5),
+                    ),
+                  ],
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 20,
-                    offset: const Offset(0, -5),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  Container(
-                    margin: const EdgeInsets.only(top: 12),
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(2),
+                child: Column(
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.only(top: 12),
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        ShaderMask(
-                          shaderCallback: (bounds) => const LinearGradient(
-                            colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
-                          ).createShader(bounds),
-                          child: const Text(
-                            'Tracked Devices',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.white,
+                    const SizedBox(height: 16),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          ShaderMask(
+                            shaderCallback: (bounds) => const LinearGradient(
+                              colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
+                            ).createShader(bounds),
+                            child: const Text(
+                              'Shared Locations',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
                             ),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            '${_robots.values.where((r) => r.status == RobotStatus.active).length}/${_robots.length}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 12,
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
+                              ),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              '${_devices.values.where((d) => d.status == DeviceStatus.active).length}/${_devices.length}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: _robots.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.location_off_rounded,
-                                  size: 48,
-                                  color: Colors.grey.shade400,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'No devices tracked yet',
-                                  style: TextStyle(
-                                    color: Colors.grey.shade600,
-                                    fontWeight: FontWeight.w600,
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: _devices.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.location_off_rounded,
+                                    size: 48,
+                                    color: Colors.grey.shade400,
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'No shared locations yet',
+                                    style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : ListView.separated(
+                              padding: const EdgeInsets.symmetric(horizontal: 20),
+                              scrollDirection: Axis.horizontal,
+                              itemCount: _devices.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(width: 12),
+                              itemBuilder: (context, index) {
+                                final device = _devices.values.elementAt(index);
+                                return _buildDeviceCard(device);
+                              },
                             ),
-                          )
-                        : ListView.separated(
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            scrollDirection: Axis.horizontal,
-                            itemCount: _robots.length,
-                            separatorBuilder: (_, __) => const SizedBox(width: 12),
-                            itemBuilder: (context, index) {
-                              final robot = _robots.values.elementAt(index);
-                              return _buildRobotCard(robot);
-                            },
-                          ),
-                  ),
-                  const SizedBox(height: 20),
-                ],
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildRobotCard(RobotLocation robot) {
+  Widget _buildDeviceCard(DeviceLocation device) {
     Color statusColor;
     IconData statusIcon;
-    
-    switch (robot.status) {
-      case RobotStatus.active:
+
+    switch (device.status) {
+      case DeviceStatus.active:
         statusColor = const Color(0xFF4ECDC4);
         statusIcon = Icons.check_circle_rounded;
         break;
-      case RobotStatus.charging:
+      case DeviceStatus.charging:
         statusColor = const Color(0xFFFF9800);
         statusIcon = Icons.battery_charging_full_rounded;
         break;
-      case RobotStatus.inactive:
+      case DeviceStatus.inactive:
         statusColor = const Color(0xFFFF6B6B);
         statusIcon = Icons.cancel_rounded;
         break;
     }
 
-    final isSelected = _selectedRobotId == robot.id;
+    final isSelected = _selectedDeviceId == device.userId;
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () => _focusOnRobot(robot),
+        onTap: () => _focusOnDevice(device),
         borderRadius: BorderRadius.circular(16),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 300),
@@ -832,10 +893,8 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
                       color: statusColor,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(
-                      robot.id == 'current_device'
-                          ? Icons.phone_android_rounded
-                          : Icons.smart_toy_rounded,
+                    child: const Icon(
+                      Icons.phone_android_rounded,
                       color: Colors.white,
                       size: 16,
                     ),
@@ -843,7 +902,7 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      robot.name,
+                      device.deviceName,
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
@@ -856,13 +915,24 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
                 ],
               ),
               const SizedBox(height: 8),
+              Text(
+                device.email,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade600,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 6),
               Row(
                 children: [
                   Icon(statusIcon, color: statusColor, size: 14),
                   const SizedBox(width: 4),
                   Flexible(
                     child: Text(
-                      robot.status.name.toUpperCase(),
+                      device.status.name.toUpperCase(),
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
@@ -879,48 +949,9 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
                 children: [
                   Icon(
                     Icons.battery_std_rounded,
-                    color: robot.battery < 20
+                    color: device.battery < 20
                         ? const Color(0xFFFF6B6B)
                         : Colors.grey.shade600,
                     size: 14,
                   ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${robot.battery}%',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey.shade600,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class RobotLocation {
-  final String id;
-  final String name;
-  final LatLng position;
-  final RobotStatus status;
-  final int battery;
-
-  RobotLocation({
-    required this.id,
-    required this.name,
-    required this.position,
-    required this.status,
-    required this.battery,
-  });
-}
-
-enum RobotStatus {
-  active,
-  charging,
-  inactive,
-}
+                  const SizedBox(width
