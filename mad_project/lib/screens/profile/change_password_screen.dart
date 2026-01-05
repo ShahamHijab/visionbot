@@ -417,12 +417,17 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen>
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 12),
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 15,
-              color: Color(0xFF1F2937),
+          child: ShaderMask(
+            shaderCallback: (bounds) => const LinearGradient(
+              colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
+            ).createShader(bounds),
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 15,
+                color: Colors.white,
+              ),
             ),
           ),
         ),
