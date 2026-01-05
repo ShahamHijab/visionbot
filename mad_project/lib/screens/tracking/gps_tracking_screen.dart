@@ -711,10 +711,9 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
               left: 0,
               right: 0,
               bottom: 0,
-              child: SingleChildScrollView(
-                child: Container(
-                  constraints: BoxConstraints(
-                    maxHeight: MediaQuery.of(context).size.height * 0.25,
+              child: Container(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.3,
                   ),
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -832,7 +831,6 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
                   ),
                 ),
               ),
-            ),
         ],
       ),
     );
