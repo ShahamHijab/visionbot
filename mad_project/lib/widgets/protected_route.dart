@@ -1,4 +1,3 @@
-// lib/widgets/protected_route.dart
 import 'package:flutter/material.dart';
 import '../services/permission_service.dart';
 
@@ -33,7 +32,7 @@ class _ProtectedRouteState extends State<ProtectedRoute> {
     final hasPermission = await _permissionService.hasPermission(
       widget.permissionKey,
     );
-    
+
     setState(() {
       _hasPermission = hasPermission;
       _loading = false;
@@ -64,9 +63,7 @@ class _ProtectedRouteState extends State<ProtectedRoute> {
               ],
             ),
           ),
-          child: const Center(
-            child: CircularProgressIndicator(),
-          ),
+          child: const Center(child: CircularProgressIndicator()),
         ),
       );
     }
@@ -104,10 +101,7 @@ class _ProtectedRouteState extends State<ProtectedRoute> {
                 const SizedBox(height: 24),
                 const Text(
                   'Access Denied',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
-                  ),
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
                 ),
                 const SizedBox(height: 8),
                 Padding(
@@ -116,10 +110,7 @@ class _ProtectedRouteState extends State<ProtectedRoute> {
                     widget.accessDeniedMessage ??
                         'You do not have permission to access this feature.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey.shade600,
-                    ),
+                    style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
                   ),
                 ),
               ],

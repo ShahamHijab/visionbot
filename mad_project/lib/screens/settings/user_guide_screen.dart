@@ -1,4 +1,3 @@
-// lib/screens/settings/user_guide_screen.dart
 import 'package:flutter/material.dart';
 
 class UserGuideScreen extends StatefulWidget {
