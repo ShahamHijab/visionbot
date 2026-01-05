@@ -843,16 +843,16 @@ Widget _buildDeviceCard(DeviceLocation device) {
       statusIcon = Icons.check_circle_rounded;
       break;
     case DeviceStatus.charging:
-        statusColor = const Color(0xFFFF9800);
-        statusIcon = Icons.battery_charging_full_rounded;
-        break;
-      case DeviceStatus.inactive:
-        statusColor = const Color(0xFFFF6B6B);
-        statusIcon = Icons.cancel_rounded;
-        break;
-    }
+      statusColor = const Color(0xFFFF9800);
+      statusIcon = Icons.battery_charging_full_rounded;
+      break;
+    case DeviceStatus.inactive:
+      statusColor = const Color(0xFFFF6B6B);
+      statusIcon = Icons.cancel_rounded;
+      break;
+  }
 
-    final isSelected = _selectedDeviceId == device.userId;
+  final isSelected = _selectedDeviceId == device.userId;
 
     return Material(
       color: Colors.transparent,
@@ -979,8 +979,9 @@ Widget _buildDeviceCard(DeviceLocation device) {
             ],
           ),
         ),
-      );
-    }
+      ),
+    );
+  }
 }
 
 class DeviceLocation {
