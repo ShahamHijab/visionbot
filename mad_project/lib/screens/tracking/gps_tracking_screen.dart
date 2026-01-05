@@ -142,17 +142,17 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
   bool _isLoading = true;
   bool _hasPermission = false;
   bool _canViewOtherLocations = false;
-String? _selectedDeviceId;
-String? _errorMessage;
-String? _currentUserName;
+  String? _selectedDeviceId;
+  String? _errorMessage;
+  String? _currentUserName;
 
-final LatLng _initialPosition = const LatLng(31.4504, 73.1350);
+  final LatLng _initialPosition = const LatLng(31.4504, 73.1350);
 
-@override
-void initState() {
-  super.initState();
-  _initialize();
-}
+  @override
+  void initState() {
+    super.initState();
+    _initialize();
+  }
 
   @override
   void dispose() {
@@ -243,137 +243,139 @@ void initState() {
     }
   }
 
-Future<void> _startSendingLocation() async {
-  if (!_hasPermission) {
-    await _checkPermissions();
-  }
+  Future<void> _startSendingLocation() async {
+    if (!_hasPermission) {
+      await _checkPermissions();
+    }
 
-  setState(() => _isSendingLocation = true);
+    setState(() => _isSendingLocation = true);
 
-  _locationSendTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
-    try {
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
+    _locationSendTimer = Timer.periodic(const Duration(seconds: 5), (
+      timer,
+    ) async {
+      try {
+        final position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+        );
 
-      final user = _auth.currentUser;
-      if (user == null) return;
+        final user = _auth.currentUser;
+        if (user == null) return;
 
-      final deviceName = _currentUserName ?? 'My Device';
+        final deviceName = _currentUserName ?? 'My Device';
 
-      await _db.collection('shared_locations').doc(user.uid).set({
-        'user_id': user.uid,
-        'device_name': deviceName,
-        'email': user.email,
-        'latitude': position.latitude,
-        'longitude': position.longitude,
-        'battery': 85,
-        'timestamp': FieldValue.serverTimestamp(),
-      });
+        await _db.collection('shared_locations').doc(user.uid).set({
+          'user_id': user.uid,
+          'device_name': deviceName,
+          'email': user.email,
+          'latitude': position.latitude,
+          'longitude': position.longitude,
+          'battery': 85,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
 
-      _showSuccess(
-        'Location sent: ${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}',
-      );
-    } catch (e) {
-      debugPrint('Error sending location: $e');
-      if (mounted) {
-        _showError('Failed to send location: $e');
+        _showSuccess(
+          'Location sent: ${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}',
+        );
+      } catch (e) {
+        debugPrint('Error sending location: $e');
+        if (mounted) {
+          _showError('Failed to send location: $e');
+        }
       }
-    }
-  });
+    });
 
-  _showSuccess('Started sending location every 5 seconds');
-}
-
-void _stopSendingLocation() {
-  _locationSendTimer?.cancel();
-  setState(() => _isSendingLocation = false);
-
-  // Clear own location from Firestore when stopping
-  try {
-    final user = _auth.currentUser;
-    if (user != null) {
-      _db.collection('shared_locations').doc(user.uid).delete();
-    }
-  } catch (e) {
-    debugPrint('Error clearing location: $e');
+    _showSuccess('Started sending location every 5 seconds');
   }
 
-  _showSuccess('Stopped sending location');
-}
+  void _stopSendingLocation() {
+    _locationSendTimer?.cancel();
+    setState(() => _isSendingLocation = false);
 
-void _startListeningToLocations() {
-  _locationSubscription = _db
-      .collection('shared_locations')
-      .snapshots()
-      .listen(
-        (snapshot) {
-          setState(() {
-            _devices.clear();
-            _markers.clear();
+    // Clear own location from Firestore when stopping
+    try {
+      final user = _auth.currentUser;
+      if (user != null) {
+        _db.collection('shared_locations').doc(user.uid).delete();
+      }
+    } catch (e) {
+      debugPrint('Error clearing location: $e');
+    }
 
-            final currentUserId = _auth.currentUser?.uid;
+    _showSuccess('Stopped sending location');
+  }
 
-            for (var doc in snapshot.docs) {
-              try {
-                final data = doc.data();
-                final userId = data['user_id'] ?? doc.id;
-                final deviceName = data['device_name'] ?? 'Unknown Device';
-                final email = data['email'] ?? 'unknown@email.com';
-                final lat = (data['latitude'] ?? 0).toDouble();
-                final lng = (data['longitude'] ?? 0).toDouble();
-                final battery = (data['battery'] ?? 0).toInt();
-                final status = data['status'] ?? 'inactive';
-
-                if (lat == 0 && lng == 0) continue;
-
-                // Only show other users' locations (not your own on map)
-                if (userId != currentUserId) {
-                  final device = DeviceLocation(
-                    userId: userId,
-                    deviceName: deviceName,
-                    email: email,
-                    position: LatLng(lat, lng),
-                    status: _parseStatus(status),
-                    battery: battery,
-                  );
-
-                  _devices[userId] = device;
-
-                  _markers.add(
-                    Marker(
-                      markerId: MarkerId(userId),
-                      position: LatLng(lat, lng),
-                      infoWindow: InfoWindow(
-                        title: deviceName,
-                        snippet: '${device.status.name} - $battery% - $email',
-                      ),
-                      icon: BitmapDescriptor.defaultMarkerWithHue(
-                        device.status == DeviceStatus.active
-                            ? BitmapDescriptor.hueGreen
-                            : device.status == DeviceStatus.charging
-                                ? BitmapDescriptor.hueYellow
-                                : BitmapDescriptor.hueRed,
-                      ),
-                    ),
-                  );
-                }
-              } catch (e) {
-                debugPrint('Error processing location doc: $e');
-              }
-            }
-          });
-        },
-        onError: (error) {
-          debugPrint('Location stream error: $error');
-          if (mounted) {
+  void _startListeningToLocations() {
+    _locationSubscription = _db
+        .collection('shared_locations')
+        .snapshots()
+        .listen(
+          (snapshot) {
             setState(() {
-              _errorMessage = 'Failed to load locations: $error';
+              _devices.clear();
+              _markers.clear();
+
+              final currentUserId = _auth.currentUser?.uid;
+
+              for (var doc in snapshot.docs) {
+                try {
+                  final data = doc.data();
+                  final userId = data['user_id'] ?? doc.id;
+                  final deviceName = data['device_name'] ?? 'Unknown Device';
+                  final email = data['email'] ?? 'unknown@email.com';
+                  final lat = (data['latitude'] ?? 0).toDouble();
+                  final lng = (data['longitude'] ?? 0).toDouble();
+                  final battery = (data['battery'] ?? 0).toInt();
+                  final status = data['status'] ?? 'inactive';
+
+                  if (lat == 0 && lng == 0) continue;
+
+                  // Only show other users' locations (not your own on map)
+                  if (userId != currentUserId) {
+                    final device = DeviceLocation(
+                      userId: userId,
+                      deviceName: deviceName,
+                      email: email,
+                      position: LatLng(lat, lng),
+                      status: _parseStatus(status),
+                      battery: battery,
+                    );
+
+                    _devices[userId] = device;
+
+                    _markers.add(
+                      Marker(
+                        markerId: MarkerId(userId),
+                        position: LatLng(lat, lng),
+                        infoWindow: InfoWindow(
+                          title: deviceName,
+                          snippet: '${device.status.name} - $battery% - $email',
+                        ),
+                        icon: BitmapDescriptor.defaultMarkerWithHue(
+                          device.status == DeviceStatus.active
+                              ? BitmapDescriptor.hueGreen
+                              : device.status == DeviceStatus.charging
+                              ? BitmapDescriptor.hueYellow
+                              : BitmapDescriptor.hueRed,
+                        ),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  debugPrint('Error processing location doc: $e');
+                }
+              }
             });
-          }
-        },
-      );
-}
+          },
+          onError: (error) {
+            debugPrint('Location stream error: $error');
+            if (mounted) {
+              setState(() {
+                _errorMessage = 'Failed to load locations: $error';
+              });
+            }
+          },
+        );
+  }
 
   DeviceStatus _parseStatus(String status) {
     switch (status.toLowerCase()) {
@@ -386,17 +388,14 @@ void _startListeningToLocations() {
     }
   }
 
-void _focusOnDevice(DeviceLocation device) {
-  _mapController?.animateCamera(
-    CameraUpdate.newCameraPosition(
-      CameraPosition(
-        target: device.position,
-        zoom: 16,
+  void _focusOnDevice(DeviceLocation device) {
+    _mapController?.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(target: device.position, zoom: 16),
       ),
-    ),
-  );
-  setState(() => _selectedDeviceId = device.userId);
-}
+    );
+    setState(() => _selectedDeviceId = device.userId);
+  }
 
   void _showSuccess(String message) {
     if (!mounted) return;
@@ -707,135 +706,141 @@ void _focusOnDevice(DeviceLocation device) {
               ),
             ),
 
-
-  if (_canViewOtherLocations)
-    Positioned(
-      left: 0,
-      right: 0,
-      bottom: 0,
-      child: SingleChildScrollView(
-        child: Container(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.25,
-          ),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(30),
-              topRight: Radius.circular(30),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 20,
-                offset: const Offset(0, -5),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                margin: const EdgeInsets.only(top: 12),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    ShaderMask(
-                      shaderCallback: (bounds) => const LinearGradient(
-                        colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
-                      ).createShader(bounds),
-                      child: const Text(
-                        'Shared Locations',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                        ),
-                      ),
+          if (_canViewOtherLocations)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: SingleChildScrollView(
+                child: Container(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.25,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(30),
+                      topRight: Radius.circular(30),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 20,
+                        offset: const Offset(0, -5),
                       ),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        margin: const EdgeInsets.only(top: 12),
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(2),
                         ),
-                        borderRadius: BorderRadius.circular(20),
                       ),
-                      child: Text(
-                        '${_devices.values.where((d) => d.status == DeviceStatus.active).length}/${_devices.length}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                height: 120,
-                child: _devices.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                      const SizedBox(height: 16),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Icon(
-                              Icons.location_off_rounded,
-                              size: 48,
-                              color: Colors.grey.shade400,
+                            ShaderMask(
+                              shaderCallback: (bounds) => const LinearGradient(
+                                colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
+                              ).createShader(bounds),
+                              child: const Text(
+                                'Shared Locations',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white,
+                                ),
+                              ),
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'No shared locations yet',
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
-                                fontWeight: FontWeight.w600,
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    Color(0xFFEC4899),
+                                    Color(0xFF8B5CF6),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                '${_devices.values.where((d) => d.status == DeviceStatus.active).length}/${_devices.length}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12,
+                                ),
                               ),
                             ),
                           ],
                         ),
-                      )
-                    : ListView.separated(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _devices.length,
-                        separatorBuilder: (_, __) =>
-                            const SizedBox(width: 12),
-                        itemBuilder: (context, index) {
-                          final device = _devices.values.elementAt(index);
-                          return _buildDeviceCard(device);
-                        },
                       ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        height: 120,
+                        child: _devices.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.location_off_rounded,
+                                      size: 48,
+                                      color: Colors.grey.shade400,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'No shared locations yet',
+                                      style: TextStyle(
+                                        color: Colors.grey.shade600,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : ListView.separated(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                ),
+                                scrollDirection: Axis.horizontal,
+                                itemCount: _devices.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(width: 12),
+                                itemBuilder: (context, index) {
+                                  final device = _devices.values.elementAt(
+                                    index,
+                                  );
+                                  return _buildDeviceCard(device);
+                                },
+                              ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
               ),
-              const SizedBox(height: 20),
-            ],
-          ),
-        ),
-      ),
-    ),
-],
+            ),
+        ],
       ),
     );
   }
 
-Widget _buildDeviceCard(DeviceLocation device) {
-  Color statusColor;
-  IconData statusIcon;
+  Widget _buildDeviceCard(DeviceLocation device) {
+    Color statusColor;
+    IconData statusIcon;
 
   switch (device.status) {
     case DeviceStatus.active:
