@@ -820,9 +820,58 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
                                 return _buildDeviceCard(device);
                               },
                             ),
+<<<<<<< HEAD
                     ),
                     const SizedBox(height: 20),
                   ],
+=======
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        height: 140,
+                        child: _devices.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.location_off_rounded,
+                                      size: 48,
+                                      color: Colors.grey.shade400,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'No shared locations yet',
+                                      style: TextStyle(
+                                        color: Colors.grey.shade600,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : ListView.separated(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                ),
+                                scrollDirection: Axis.horizontal,
+                                itemCount: _devices.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(width: 12),
+                                itemBuilder: (context, index) {
+                                  final device = _devices.values.elementAt(
+                                    index,
+                                  );
+                                  return _buildDeviceCard(device);
+                                },
+                              ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+>>>>>>> 23279c0ab1791c7897bdcee6798d130c4c32dff0
                 ),
               ),
             ),
@@ -860,7 +909,7 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 300),
           width: 140,
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             gradient: isSelected
                 ? LinearGradient(
@@ -923,7 +972,7 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Text(
                 device.email,
                 style: TextStyle(
