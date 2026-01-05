@@ -39,10 +39,56 @@ class _ProtectedRouteState extends State<ProtectedRoute> {
     });
 
     if (!hasPermission && mounted) {
-      // Show dialog and navigate back
+      // Show dialog and navigate back after dialog closes
       Future.delayed(Duration.zero, () {
-        _permissionService.showPermissionDeniedDialog(context);
-        Navigator.pop(context);
+        showDialog(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF6B6B).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.block_rounded,
+                    color: Color(0xFFFF6B6B),
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  'Access Denied',
+                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20),
+                ),
+              ],
+            ),
+            content: Text(
+              widget.accessDeniedMessage ??
+                  'You do not have permission to access this feature. Please contact your administrator.',
+              style: const TextStyle(fontSize: 15, height: 1.5),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(dialogContext); // Close dialog
+                  if (mounted && context.mounted) {
+                    Navigator.pop(context); // Navigate back
+                  }
+                },
+                child: const Text(
+                  'OK',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                ),
+              ),
+            ],
+          ),
+        );
       });
     }
   }
