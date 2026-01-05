@@ -1,4 +1,3 @@
-// lib/screens/settings/user_guide_screen.dart
 import 'package:flutter/material.dart';
 
 class UserGuideScreen extends StatefulWidget {
@@ -135,11 +134,11 @@ class _UserGuideScreenState extends State<UserGuideScreen>
         description:
             'Different alerts indicate various security situations requiring attention.',
         steps: [
-          '🔥 Fire Alert (Critical) - Immediate action required',
-          '💨 Smoke Alert (Warning) - Potential fire hazard',
-          '👤 Human Detection - Unauthorized person detected',
-          '🏃 Motion Alert - Movement in monitored area',
-          '🚫 Restricted Area - Entry to prohibited zone',
+          'Fire Alert (Critical) - Immediate action required',
+          'Smoke Alert (Warning) - Potential fire hazard',
+          'Human Detection - Unauthorized person detected',
+          'Motion Alert - Movement in monitored area',
+          'Restricted Area - Entry to prohibited zone',
         ],
         icon: Icons.warning_amber_rounded,
       ),

@@ -23,15 +23,16 @@ class UserModel {
     this.notificationsEnabled = true,
     Map<String, bool>? notificationPreferences,
     UserPermissions? permissions,
-  })  : notificationPreferences = notificationPreferences ??
-            {
-              'fire': true,
-              'smoke': true,
-              'human': true,
-              'motion': true,
-              'restricted': true,
-            },
-        permissions = permissions ?? UserPermissions.fromRole(role);
+  }) : notificationPreferences =
+           notificationPreferences ??
+           {
+             'fire': true,
+             'smoke': true,
+             'human': true,
+             'motion': true,
+             'restricted': true,
+           },
+       permissions = permissions ?? UserPermissions.fromRole(role);
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     final role = UserRole.values.firstWhere(
@@ -117,10 +118,7 @@ class UserModel {
   }
 }
 
-enum UserRole {
-  admin,
-  securityOfficer,
-}
+enum UserRole { admin, securityOfficer }
 
 extension UserRoleExtension on UserRole {
   String get displayName {
@@ -145,25 +143,25 @@ extension UserRoleExtension on UserRole {
 class UserPermissions {
   // Login & Dashboard
   final bool canAccessDashboard;
-  
+
   // Live Camera Feed
   final bool canViewLiveCameraFeed;
-  
+
   // Smoke Detection Alerts
   final bool canReceiveSmokeAlerts;
-  
+
   // Unauthorized Person Alerts
   final bool canReceiveUnauthorizedPersonAlerts;
-  
+
   // View Detected Face Images
   final bool canViewDetectedFaceImages;
-  
+
   // Face Verification Review
   final bool canPerformFaceVerification;
-  
+
   // GPS Location Tracking
   final bool canAccessGPSTracking;
-  
+
   // Alert & Event Logs
   final bool canViewAlertLogs;
 
@@ -199,7 +197,7 @@ class UserPermissions {
           canReceiveUnauthorizedPersonAlerts: true,
           canViewDetectedFaceImages: true,
           canPerformFaceVerification: true,
-          canAccessGPSTracking: true, // Changed to true
+          canAccessGPSTracking: true,
           canViewAlertLogs: true,
         );
     }
@@ -214,7 +212,8 @@ class UserPermissions {
           json['canReceiveUnauthorizedPersonAlerts'] ?? true,
       canViewDetectedFaceImages: json['canViewDetectedFaceImages'] ?? true,
       canPerformFaceVerification: json['canPerformFaceVerification'] ?? true,
-      canAccessGPSTracking: json['canAccessGPSTracking'] ?? true, // Default to true
+      canAccessGPSTracking:
+          json['canAccessGPSTracking'] ?? true, // Default to true
       canViewAlertLogs: json['canViewAlertLogs'] ?? true,
     );
   }

@@ -144,11 +144,16 @@ class AuthService {
     final snap = await docRef.get();
     if (snap.exists) return;
 
+    // Set default role and permissions for new user
+    final defaultRole = UserRole.securityOfficer;
+    final defaultPermissions = UserPermissions.fromRole(defaultRole);
+
     await docRef.set({
       'id': refreshed.uid,
       'name': (refreshed.displayName ?? '').trim(),
       'email': (refreshed.email ?? '').trim().toLowerCase(),
-      'role': '',
+      'role': defaultRole.toString().split('.').last,
+      'permissions': defaultPermissions.toJson(),
       'createdAt': FieldValue.serverTimestamp(),
       'verifiedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
@@ -196,12 +201,17 @@ class AuthService {
       final userDoc = await _db.collection('users').doc(user.uid).get();
       if (userDoc.exists) return;
 
+      // Set default role and permissions for new Google user
+      final defaultRole = UserRole.securityOfficer;
+      final defaultPermissions = UserPermissions.fromRole(defaultRole);
+
       await _db.collection('users').doc(user.uid).set({
         'id': user.uid,
         'name': (user.displayName ?? '').trim(),
         'email': (user.email ?? '').trim(),
         'avatarUrl': user.photoURL ?? '',
-        'role': '',
+        'role': defaultRole.toString().split('.').last,
+        'permissions': defaultPermissions.toJson(),
         'createdAt': FieldValue.serverTimestamp(),
         'verifiedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
@@ -249,8 +259,21 @@ class AuthService {
       final user = _auth.currentUser;
       if (user == null) return;
 
+      // Convert string role to UserRole enum and get permissions
+      UserRole userRole;
+      try {
+        userRole = UserRole.values.firstWhere(
+          (e) => e.toString().split('.').last == role.toLowerCase(),
+        );
+      } catch (_) {
+        userRole = UserRole.securityOfficer;
+      }
+
+      final permissions = UserPermissions.fromRole(userRole);
+
       await _db.collection('users').doc(user.uid).set({
         'role': role,
+        'permissions': permissions.toJson(),
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     } catch (e) {

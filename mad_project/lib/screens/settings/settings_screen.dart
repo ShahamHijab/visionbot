@@ -1,4 +1,3 @@
-// lib/screens/settings/settings_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -296,39 +295,6 @@ class _SettingsScreenState extends State<SettingsScreen>
               'Vibrate for notifications',
               _vibrationEnabled,
               disabled ? null : (value) => _setVibrationEnabled(value),
-            ),
-
-            const SizedBox(height: 32),
-
-            _buildSectionHeader('App', Icons.phone_android_rounded),
-            const SizedBox(height: 16),
-
-            _buildNavigationTile(
-              'About',
-              'App version and information',
-              Icons.info_outline_rounded,
-              () => Navigator.pushNamed(context, AppRoutes.about),
-            ),
-            const SizedBox(height: 12),
-
-            _buildNavigationTile(
-              'User Guide',
-              'Learn how to use the app',
-              Icons.help_outline_rounded,
-              () => Navigator.pushNamed(context, AppRoutes.userGuide),
-            ),
-
-            const SizedBox(height: 32),
-
-            _buildSectionHeader('Account', Icons.person_outline_rounded),
-            const SizedBox(height: 16),
-
-            _buildNavigationTile(
-              'Logout',
-              'Sign out of your account',
-              Icons.logout_rounded,
-              () => _showLogoutDialog(),
-              isDestructive: true,
             ),
 
             const SizedBox(height: 32),

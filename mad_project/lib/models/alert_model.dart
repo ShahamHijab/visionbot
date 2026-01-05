@@ -47,11 +47,9 @@ class AlertModel {
     this.createdAtLocal,
   });
 
-  // Backward compatible alias (your dashboard code uses alert.createdAt)
+  // Backward compatible alias
   DateTime get createdAt => timestamp;
 
-  // Firestore parsing for your current schema:
-  // created_at, created_at_local, lens, note, threshold, type
   factory AlertModel.fromFirestore(DocumentSnapshot doc) {
     final data = (doc.data() as Map<String, dynamic>?) ?? {};
 
@@ -121,7 +119,6 @@ class AlertModel {
     );
   }
 
-  // Keep your old json factory working too
   factory AlertModel.fromJson(Map<String, dynamic> json) {
     return AlertModel(
       id: (json['id'] ?? '').toString(),
@@ -244,7 +241,6 @@ enum AlertType {
   restricted,
   other,
 
-  // New types for your schema
   unknownFace,
   knownFace,
   intruder,
@@ -323,7 +319,6 @@ class AlertTypeX {
     if (t == 'motion') return AlertType.motion;
     if (t == 'restricted') return AlertType.restricted;
 
-    // Your Firestore types
     if (t == 'unknown_face') return AlertType.unknownFace;
     if (t == 'known_face') return AlertType.knownFace;
     if (t == 'intruder') return AlertType.intruder;

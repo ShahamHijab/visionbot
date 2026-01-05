@@ -1,4 +1,3 @@
-// lib/screens/gallery/image_detail_screen.dart
 import 'package:flutter/material.dart';
 
 class ImageDetailScreen extends StatelessWidget {

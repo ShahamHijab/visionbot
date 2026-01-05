@@ -1,4 +1,3 @@
-// lib/screens/settings/about_screen.dart
 import 'package:flutter/material.dart';
 
 class AboutScreen extends StatelessWidget {
@@ -25,7 +24,10 @@ class AboutScreen extends StatelessWidget {
             ],
           ),
           child: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF1F2937)),
+            icon: const Icon(
+              Icons.arrow_back_rounded,
+              color: Color(0xFF1F2937),
+            ),
             onPressed: () => Navigator.pop(context),
           ),
         ),
@@ -35,10 +37,7 @@ class AboutScreen extends StatelessWidget {
           ).createShader(bounds),
           child: const Text(
             'About',
-            style: TextStyle(
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-            ),
+            style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
           ),
         ),
       ),
@@ -69,14 +68,11 @@ class AboutScreen extends StatelessWidget {
               ),
               child: Padding(
                 padding: const EdgeInsets.all(20),
-                child: Image.asset(
-                  "assets/logobg.png",
-                  fit: BoxFit.contain,
-                ),
+                child: Image.asset("assets/logobg.png", fit: BoxFit.contain),
               ),
             ),
             const SizedBox(height: 24),
-            
+
             ShaderMask(
               shaderCallback: (bounds) => const LinearGradient(
                 colors: [
@@ -104,7 +100,7 @@ class AboutScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 32),
-            
+
             // Info Cards
             _buildInfoCard(
               'Mission',
@@ -127,7 +123,7 @@ class AboutScreen extends StatelessWidget {
               const Color(0xFFEC4899),
             ),
             const SizedBox(height: 32),
-            
+
             Text(
               '© 2025 Vision Bot. All rights reserved.',
               textAlign: TextAlign.center,
@@ -143,7 +139,12 @@ class AboutScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoCard(String title, String content, IconData icon, Color color) {
+  Widget _buildInfoCard(
+    String title,
+    String content,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -225,7 +226,10 @@ class UserGuideScreen extends StatelessWidget {
             ],
           ),
           child: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF1F2937)),
+            icon: const Icon(
+              Icons.arrow_back_rounded,
+              color: Color(0xFF1F2937),
+            ),
             onPressed: () => Navigator.pop(context),
           ),
         ),
@@ -235,10 +239,7 @@ class UserGuideScreen extends StatelessWidget {
           ).createShader(bounds),
           child: const Text(
             'User Guide',
-            style: TextStyle(
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-            ),
+            style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
           ),
         ),
       ),
@@ -284,7 +285,12 @@ class UserGuideScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildGuideSection(String title, String description, IconData icon, Color color) {
+  Widget _buildGuideSection(
+    String title,
+    String description,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -371,7 +377,10 @@ class ImageGalleryScreen extends StatelessWidget {
             ],
           ),
           child: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF1F2937)),
+            icon: const Icon(
+              Icons.arrow_back_rounded,
+              color: Color(0xFF1F2937),
+            ),
             onPressed: () => Navigator.pop(context),
           ),
         ),
@@ -381,10 +390,7 @@ class ImageGalleryScreen extends StatelessWidget {
           ).createShader(bounds),
           child: const Text(
             'Gallery',
-            style: TextStyle(
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-            ),
+            style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
           ),
         ),
       ),
@@ -420,9 +426,7 @@ class ImageGalleryScreen extends StatelessWidget {
                     if (progress == null) return child;
                     return Container(
                       color: Colors.grey.shade200,
-                      child: const Center(
-                        child: CircularProgressIndicator(),
-                      ),
+                      child: const Center(child: CircularProgressIndicator()),
                     );
                   },
                 ),
@@ -490,7 +494,10 @@ class LogsHistoryScreen extends StatelessWidget {
             ],
           ),
           child: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF1F2937)),
+            icon: const Icon(
+              Icons.arrow_back_rounded,
+              color: Color(0xFF1F2937),
+            ),
             onPressed: () => Navigator.pop(context),
           ),
         ),
@@ -500,10 +507,7 @@ class LogsHistoryScreen extends StatelessWidget {
           ).createShader(bounds),
           child: const Text(
             'Activity Logs',
-            style: TextStyle(
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-            ),
+            style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
           ),
         ),
       ),
