@@ -788,7 +788,7 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
                       ),
                       const SizedBox(height: 16),
                       SizedBox(
-                        height: 120,
+                        height: 140,
                         child: _devices.isEmpty
                             ? Center(
                                 child: Column(
@@ -865,7 +865,7 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 300),
           width: 140,
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             gradient: isSelected
                 ? LinearGradient(
@@ -928,7 +928,7 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Text(
                 device.email,
                 style: TextStyle(
