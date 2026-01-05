@@ -1,9 +1,3 @@
-// UPDATED: lib/screens/tracking/gps_tracking_screen.dart
-// This implementation allows:
-// 1. Any user can SEND their device location
-// 2. Only ADMINS can VIEW other devices' locations
-// 3. Shared locations stored in Firestore in real-time
-
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:async';
@@ -39,7 +33,10 @@ class GPSTrackingScreen extends StatelessWidget {
               ],
             ),
             child: IconButton(
-              icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF1F2937)),
+              icon: const Icon(
+                Icons.arrow_back_rounded,
+                color: Color(0xFF1F2937),
+              ),
               onPressed: () => Navigator.pop(context),
             ),
           ),
@@ -145,17 +142,17 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
   bool _isLoading = true;
   bool _hasPermission = false;
   bool _canViewOtherLocations = false;
-  String? _selectedDeviceId;
-  String? _errorMessage;
-  String? _currentUserName;
+String? _selectedDeviceId;
+String? _errorMessage;
+String? _currentUserName;
 
-  final LatLng _initialPosition = const LatLng(31.4504, 73.1350);
+final LatLng _initialPosition = const LatLng(31.4504, 73.1350);
 
-  @override
-  void initState() {
-    super.initState();
-    _initialize();
-  }
+@override
+void initState() {
+  super.initState();
+  _initialize();
+}
 
   @override
   void dispose() {
@@ -246,142 +243,137 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
     }
   }
 
-  Future<void> _startSendingLocation() async {
-    if (!_hasPermission) {
-      await _checkPermissions();
-    }
-
-    setState(() => _isSendingLocation = true);
-
-    _locationSendTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
-      try {
-        final position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high,
-        );
-
-        final user = _auth.currentUser;
-        if (user == null) return;
-
-        final deviceName = _currentUserName ?? 'My Device';
-
-        // Send location to Firestore - accessible to all, but only admins can view
-        await _db.collection('shared_locations').doc(user.uid).set({
-          'user_id': user.uid,
-          'device_name': deviceName,
-          'email': user.email,
-          'latitude': position.latitude,
-          'longitude': position.longitude,
-          'battery': 85, // You can get actual battery percentage
-          'status': 'active',
-          'timestamp': FieldValue.serverTimestamp(),
-          'updated_at': DateTime.now().toIso8601String(),
-        });
-
-        if (mounted) {
-          _showSuccess(
-            'Location sent: ${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}',
-          );
-        }
-      } catch (e) {
-        debugPrint('Error sending location: $e');
-        if (mounted) {
-          _showError('Failed to send location: $e');
-        }
-      }
-    });
-
-    _showSuccess('Started sending location every 5 seconds');
+Future<void> _startSendingLocation() async {
+  if (!_hasPermission) {
+    await _checkPermissions();
   }
 
-  void _stopSendingLocation() {
-    _locationSendTimer?.cancel();
-    setState(() => _isSendingLocation = false);
+  setState(() => _isSendingLocation = true);
 
-    // Clear own location from Firestore when stopping
+  _locationSendTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
     try {
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
       final user = _auth.currentUser;
-      if (user != null) {
-        _db.collection('shared_locations').doc(user.uid).delete();
-      }
+      if (user == null) return;
+
+      final deviceName = _currentUserName ?? 'My Device';
+
+      await _db.collection('shared_locations').doc(user.uid).set({
+        'user_id': user.uid,
+        'device_name': deviceName,
+        'email': user.email,
+        'latitude': position.latitude,
+        'longitude': position.longitude,
+        'battery': 85,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+
+      _showSuccess(
+        'Location sent: ${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}',
+      );
     } catch (e) {
-      debugPrint('Error clearing location: $e');
+      debugPrint('Error sending location: $e');
+      if (mounted) {
+        _showError('Failed to send location: $e');
+      }
     }
+  });
 
-    _showSuccess('Stopped sending location');
+  _showSuccess('Started sending location every 5 seconds');
+}
+
+void _stopSendingLocation() {
+  _locationSendTimer?.cancel();
+  setState(() => _isSendingLocation = false);
+
+  // Clear own location from Firestore when stopping
+  try {
+    final user = _auth.currentUser;
+    if (user != null) {
+      _db.collection('shared_locations').doc(user.uid).delete();
+    }
+  } catch (e) {
+    debugPrint('Error clearing location: $e');
   }
 
-  void _startListeningToLocations() {
-    _locationSubscription = _db
-        .collection('shared_locations')
-        .snapshots()
-        .listen(
-          (snapshot) {
-            setState(() {
-              _devices.clear();
-              _markers.clear();
+  _showSuccess('Stopped sending location');
+}
 
-              final currentUserId = _auth.currentUser?.uid;
+void _startListeningToLocations() {
+  _locationSubscription = _db
+      .collection('shared_locations')
+      .snapshots()
+      .listen(
+        (snapshot) {
+          setState(() {
+            _devices.clear();
+            _markers.clear();
 
-              for (var doc in snapshot.docs) {
-                try {
-                  final data = doc.data();
-                  final userId = data['user_id'] ?? doc.id;
-                  final deviceName = data['device_name'] ?? 'Unknown Device';
-                  final email = data['email'] ?? 'unknown@email.com';
-                  final lat = (data['latitude'] ?? 0).toDouble();
-                  final lng = (data['longitude'] ?? 0).toDouble();
-                  final battery = (data['battery'] ?? 0).toInt();
-                  final status = data['status'] ?? 'inactive';
+            final currentUserId = _auth.currentUser?.uid;
 
-                  if (lat == 0 && lng == 0) continue;
+            for (var doc in snapshot.docs) {
+              try {
+                final data = doc.data();
+                final userId = data['user_id'] ?? doc.id;
+                final deviceName = data['device_name'] ?? 'Unknown Device';
+                final email = data['email'] ?? 'unknown@email.com';
+                final lat = (data['latitude'] ?? 0).toDouble();
+                final lng = (data['longitude'] ?? 0).toDouble();
+                final battery = (data['battery'] ?? 0).toInt();
+                final status = data['status'] ?? 'inactive';
 
-                  // Only show other users' locations (not your own on map)
-                  if (userId != currentUserId) {
-                    final device = DeviceLocation(
-                      userId: userId,
-                      deviceName: deviceName,
-                      email: email,
+                if (lat == 0 && lng == 0) continue;
+
+                // Only show other users' locations (not your own on map)
+                if (userId != currentUserId) {
+                  final device = DeviceLocation(
+                    userId: userId,
+                    deviceName: deviceName,
+                    email: email,
+                    position: LatLng(lat, lng),
+                    status: _parseStatus(status),
+                    battery: battery,
+                  );
+
+                  _devices[userId] = device;
+
+                  _markers.add(
+                    Marker(
+                      markerId: MarkerId(userId),
                       position: LatLng(lat, lng),
-                      status: _parseStatus(status),
-                      battery: battery,
-                    );
-
-                    _devices[userId] = device;
-
-                    _markers.add(
-                      Marker(
-                        markerId: MarkerId(userId),
-                        position: LatLng(lat, lng),
-                        infoWindow: InfoWindow(
-                          title: deviceName,
-                          snippet: '${device.status.name} - $battery% - $email',
-                        ),
-                        icon: BitmapDescriptor.defaultMarkerWithHue(
-                          device.status == DeviceStatus.active
-                              ? BitmapDescriptor.hueGreen
-                              : device.status == DeviceStatus.charging
-                                  ? BitmapDescriptor.hueYellow
-                                  : BitmapDescriptor.hueRed,
-                        ),
+                      infoWindow: InfoWindow(
+                        title: deviceName,
+                        snippet: '${device.status.name} - $battery% - $email',
                       ),
-                    );
-                  }
-                } catch (e) {
-                  debugPrint('Error processing location doc: $e');
+                      icon: BitmapDescriptor.defaultMarkerWithHue(
+                        device.status == DeviceStatus.active
+                            ? BitmapDescriptor.hueGreen
+                            : device.status == DeviceStatus.charging
+                                ? BitmapDescriptor.hueYellow
+                                : BitmapDescriptor.hueRed,
+                      ),
+                    ),
+                  );
                 }
+              } catch (e) {
+                debugPrint('Error processing location doc: $e');
               }
-            });
-          },
-          onError: (error) {
-            debugPrint('Location stream error: $error');
-            if (mounted) {
-              setState(() {
-                _errorMessage = 'Failed to load locations: $error';
-              });
             }
-          },
-        );
-  }
+          });
+        },
+        onError: (error) {
+          debugPrint('Location stream error: $error');
+          if (mounted) {
+            setState(() {
+              _errorMessage = 'Failed to load locations: $error';
+            });
+          }
+        },
+      );
+}
 
   DeviceStatus _parseStatus(String status) {
     switch (status.toLowerCase()) {
@@ -394,17 +386,17 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
     }
   }
 
-  void _focusOnDevice(DeviceLocation device) {
-    _mapController?.animateCamera(
-      CameraUpdate.newCameraPosition(
-        CameraPosition(
-          target: device.position,
-          zoom: 16,
-        ),
+void _focusOnDevice(DeviceLocation device) {
+  _mapController?.animateCamera(
+    CameraUpdate.newCameraPosition(
+      CameraPosition(
+        target: device.position,
+        zoom: 16,
       ),
-    );
-    setState(() => _selectedDeviceId = device.userId);
-  }
+    ),
+  );
+  setState(() => _selectedDeviceId = device.userId);
+}
 
   void _showSuccess(String message) {
     if (!mounted) return;
@@ -412,12 +404,19 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
       SnackBar(
         content: Row(
           children: [
-            const Icon(Icons.check_circle_outline, color: Colors.white, size: 22),
+            const Icon(
+              Icons.check_circle_outline,
+              color: Colors.white,
+              size: 22,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
                 message,
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ],
@@ -443,7 +442,10 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
             Expanded(
               child: Text(
                 message,
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ],
@@ -506,7 +508,10 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
               ],
             ),
             child: IconButton(
-              icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF1F2937)),
+              icon: const Icon(
+                Icons.arrow_back_rounded,
+                color: Color(0xFF1F2937),
+              ),
               onPressed: () => Navigator.pop(context),
             ),
           ),
@@ -544,19 +549,13 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
                 const SizedBox(height: 24),
                 const Text(
                   'Location Access Required',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
-                  ),
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
                 ),
                 const SizedBox(height: 16),
                 Text(
                   _errorMessage ?? 'Unable to access location',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey.shade600,
-                  ),
+                  style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
                 ),
                 const SizedBox(height: 32),
                 ElevatedButton.icon(
@@ -598,7 +597,10 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
             ],
           ),
           child: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF1F2937)),
+            icon: const Icon(
+              Icons.arrow_back_rounded,
+              color: Color(0xFF1F2937),
+            ),
             onPressed: () => Navigator.pop(context),
           ),
         ),
@@ -608,10 +610,7 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
           ).createShader(bounds),
           child: const Text(
             'GPS Tracking',
-            style: TextStyle(
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-            ),
+            style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
           ),
         ),
         actions: [
@@ -628,7 +627,9 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
               ),
               child: IconButton(
                 icon: Icon(
-                  _isSendingLocation ? Icons.stop_rounded : Icons.play_arrow_rounded,
+                  _isSendingLocation
+                      ? Icons.stop_rounded
+                      : Icons.play_arrow_rounded,
                   color: Colors.white,
                 ),
                 onPressed: () {
@@ -665,7 +666,10 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
               left: 20,
               right: 20,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     colors: [Color(0xFF06B6D4), Color(0xFF8B5CF6)],
@@ -703,135 +707,142 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
               ),
             ),
 
-          if (_canViewOtherLocations)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: Container(
-                height: 160,
+
+  if (_canViewOtherLocations)
+    Positioned(
+      left: 0,
+      right: 0,
+      bottom: 0,
+      child: SingleChildScrollView(
+        child: Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.25,
+          ),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(30),
+              topRight: Radius.circular(30),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 20,
+                offset: const Offset(0, -5),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 40,
+                height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(30),
-                    topRight: Radius.circular(30),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 20,
-                      offset: const Offset(0, -5),
-                    ),
-                  ],
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
                 ),
-                child: Column(
+              ),
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    ShaderMask(
+                      shaderCallback: (bounds) => const LinearGradient(
+                        colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
+                      ).createShader(bounds),
+                      child: const Text(
+                        'Shared Locations',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
                     Container(
-                      margin: const EdgeInsets.only(top: 12),
-                      width: 40,
-                      height: 4,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(2),
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '${_devices.values.where((d) => d.status == DeviceStatus.active).length}/${_devices.length}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          ShaderMask(
-                            shaderCallback: (bounds) => const LinearGradient(
-                              colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
-                            ).createShader(bounds),
-                            child: const Text(
-                              'Shared Locations',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
-                              ),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              '${_devices.values.where((d) => d.status == DeviceStatus.active).length}/${_devices.length}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Expanded(
-                      child: _devices.isEmpty
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.location_off_rounded,
-                                    size: 48,
-                                    color: Colors.grey.shade400,
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'No shared locations yet',
-                                    style: TextStyle(
-                                      color: Colors.grey.shade600,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : ListView.separated(
-                              padding: const EdgeInsets.symmetric(horizontal: 20),
-                              scrollDirection: Axis.horizontal,
-                              itemCount: _devices.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(width: 12),
-                              itemBuilder: (context, index) {
-                                final device = _devices.values.elementAt(index);
-                                return _buildDeviceCard(device);
-                              },
-                            ),
-                    ),
-                    const SizedBox(height: 20),
                   ],
                 ),
               ),
-            ),
-        ],
+              const SizedBox(height: 16),
+              SizedBox(
+                height: 120,
+                child: _devices.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.location_off_rounded,
+                              size: 48,
+                              color: Colors.grey.shade400,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'No shared locations yet',
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _devices.length,
+                        separatorBuilder: (_, __) =>
+                            const SizedBox(width: 12),
+                        itemBuilder: (context, index) {
+                          final device = _devices.values.elementAt(index);
+                          return _buildDeviceCard(device);
+                        },
+                      ),
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        ),
+      ),
+    ),
+],
       ),
     );
   }
 
-  Widget _buildDeviceCard(DeviceLocation device) {
-    Color statusColor;
-    IconData statusIcon;
+Widget _buildDeviceCard(DeviceLocation device) {
+  Color statusColor;
+  IconData statusIcon;
 
-    switch (device.status) {
-      case DeviceStatus.active:
-        statusColor = const Color(0xFF4ECDC4);
-        statusIcon = Icons.check_circle_rounded;
-        break;
-      case DeviceStatus.charging:
+  switch (device.status) {
+    case DeviceStatus.active:
+      statusColor = const Color(0xFF4ECDC4);
+      statusIcon = Icons.check_circle_rounded;
+      break;
+    case DeviceStatus.charging:
         statusColor = const Color(0xFFFF9800);
         statusIcon = Icons.battery_charging_full_rounded;
         break;
@@ -954,4 +965,40 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
                         : Colors.grey.shade600,
                     size: 14,
                   ),
-                  const SizedBox(width
+                  const SizedBox(width: 4),
+                  Text(
+                    '${device.battery}%',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+}
+
+class DeviceLocation {
+  final String userId;
+  final String deviceName;
+  final String email;
+  final LatLng position;
+  final DeviceStatus status;
+  final int battery;
+
+  DeviceLocation({
+    required this.userId,
+    required this.deviceName,
+    required this.email,
+    required this.position,
+    required this.status,
+    required this.battery,
+  });
+}
+
+enum DeviceStatus { active, charging, inactive }
