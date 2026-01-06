@@ -835,22 +835,22 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
     Color statusColor;
     IconData statusIcon;
 
-    switch (device.status) {
-      case DeviceStatus.active:
-        statusColor = const Color(0xFF4ECDC4);
-        statusIcon = Icons.check_circle_rounded;
-        break;
-      case DeviceStatus.charging:
-        statusColor = const Color(0xFFFF9800);
-        statusIcon = Icons.battery_charging_full_rounded;
-        break;
-      case DeviceStatus.inactive:
-        statusColor = const Color(0xFFFF6B6B);
-        statusIcon = Icons.cancel_rounded;
-        break;
-    }
+  switch (device.status) {
+    case DeviceStatus.active:
+      statusColor = const Color(0xFF4ECDC4);
+      statusIcon = Icons.check_circle_rounded;
+      break;
+    case DeviceStatus.charging:
+      statusColor = const Color(0xFFFF9800);
+      statusIcon = Icons.battery_charging_full_rounded;
+      break;
+    case DeviceStatus.inactive:
+      statusColor = const Color(0xFFFF6B6B);
+      statusIcon = Icons.cancel_rounded;
+      break;
+  }
 
-    final isSelected = _selectedDeviceId == device.userId;
+  final isSelected = _selectedDeviceId == device.userId;
 
     return Material(
       color: Colors.transparent,
@@ -954,26 +954,26 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent> {
                 ],
               ),
               const SizedBox(height: 6),
-              // Row(
-              //   children: [
-              //     Icon(
-              //       Icons.battery_std_rounded,
-              //       color: device.battery < 20
-              //           ? const Color(0xFFFF6B6B)
-              //           : Colors.grey.shade600,
-              //       size: 14,
-              //     ),
-              //     const SizedBox(width: 4),
-              //     Text(
-              //       '${device.battery}%',
-              //       style: TextStyle(
-              //         fontSize: 12,
-              //         fontWeight: FontWeight.w600,
-              //         color: Colors.grey.shade600,
-              //       ),
-              //     ),
-              //   ],
-              // ),
+              Row(
+                children: [
+                  Icon(
+                    Icons.battery_std_rounded,
+                    color: device.battery < 20
+                        ? const Color(0xFFFF6B6B)
+                        : Colors.grey.shade600,
+                    size: 14,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${device.battery}%',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
