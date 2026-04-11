@@ -3,7 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class AlertModel {
   final String id;
 
-  // Existing UI fields (used by alert_card, alert_detail, etc)
   final AlertType type;
   final AlertSeverity severity;
   final String title;
@@ -13,17 +12,17 @@ class AlertModel {
   final String location;
   final double? latitude;
   final double? longitude;
+  final String? locationName;   // ← NEW: from location.location_name
   final String robotId;
   final bool isRead;
   final bool isResolved;
   final String? resolvedBy;
   final DateTime? resolvedAt;
 
-  // New fields that match your Firestore alerts document
-  final String lens; // "back"
-  final String note; // "Unknown face detected"
-  final double? threshold; // 0.45
-  final DateTime? createdAtLocal; // from created_at_local (string)
+  final String lens;
+  final String note;
+  final double? threshold;
+  final DateTime? createdAtLocal;
 
   AlertModel({
     required this.id,
@@ -36,6 +35,7 @@ class AlertModel {
     required this.location,
     this.latitude,
     this.longitude,
+    this.locationName,
     required this.robotId,
     this.isRead = false,
     this.isResolved = false,
@@ -47,8 +47,10 @@ class AlertModel {
     this.createdAtLocal,
   });
 
-  // Backward compatible alias
   DateTime get createdAt => timestamp;
+
+  /// Whether this alert has valid GPS coordinates
+  bool get hasLocation => latitude != null && longitude != null;
 
   factory AlertModel.fromFirestore(DocumentSnapshot doc) {
     final data = (doc.data() as Map<String, dynamic>?) ?? {};
@@ -75,7 +77,7 @@ class AlertModel {
     final title =
         data['title'] != null && (data['title'].toString().trim().isNotEmpty)
         ? data['title'].toString()
-        : parsedType.displayName; // unknown_face -> Unknown person
+        : parsedType.displayName;
 
     final description =
         data['description'] != null &&
@@ -85,11 +87,31 @@ class AlertModel {
 
     final imageUrl = (data['imageUrl'] ?? data['image_url'] ?? '').toString();
 
-    final location =
-        data['location'] != null &&
-            (data['location'].toString().trim().isNotEmpty)
-        ? data['location'].toString()
-        : (lens.isEmpty ? '' : 'Lens: $lens');
+    // ── Parse nested location map ──────────────────────────────────────────
+    // Firestore structure:
+    //   location: { latitude: 31.5, longitude: 73.2, location_name: "...", timestamp: "..." }
+    double? lat;
+    double? lng;
+    String? locationName;
+
+    final locField = data['location'];
+    if (locField is Map) {
+      lat = _toDoubleOrNull(locField['latitude']);
+      lng = _toDoubleOrNull(locField['longitude']);
+      locationName = (locField['location_name'] ?? '').toString();
+      if (locationName!.isEmpty) locationName = null;
+    } else {
+      // Fallback: flat fields (old schema)
+      lat = _toDoubleOrNull(data['latitude']);
+      lng = _toDoubleOrNull(data['longitude']);
+    }
+    // ───────────────────────────────────────────────────────────────────────
+
+    final locationStr =
+        locationName ??
+        (data['location'] is String && (data['location'] as String).trim().isNotEmpty
+            ? (data['location'] as String).trim()
+            : (lens.isEmpty ? '' : 'Lens: $lens'));
 
     final robotId = (data['robotId'] ?? data['robot_id'] ?? '').toString();
 
@@ -101,9 +123,10 @@ class AlertModel {
       description: description,
       imageUrl: imageUrl,
       timestamp: createdAt,
-      location: location,
-      latitude: _toDoubleOrNull(data['latitude']),
-      longitude: _toDoubleOrNull(data['longitude']),
+      location: locationStr,
+      latitude: lat,
+      longitude: lng,
+      locationName: locationName,
       robotId: robotId,
       isRead: (data['isRead'] ?? data['is_read'] ?? false) == true,
       isResolved: (data['isResolved'] ?? data['is_resolved'] ?? false) == true,
@@ -131,6 +154,7 @@ class AlertModel {
       location: (json['location'] ?? '').toString(),
       latitude: _toDoubleOrNull(json['latitude']),
       longitude: _toDoubleOrNull(json['longitude']),
+      locationName: json['locationName']?.toString(),
       robotId: (json['robotId'] ?? '').toString(),
       isRead: json['isRead'] == true,
       isResolved: json['isResolved'] == true,
@@ -155,6 +179,7 @@ class AlertModel {
       'location': location,
       'latitude': latitude,
       'longitude': longitude,
+      'locationName': locationName,
       'robotId': robotId,
       'isRead': isRead,
       'isResolved': isResolved,
@@ -178,6 +203,7 @@ class AlertModel {
     String? location,
     double? latitude,
     double? longitude,
+    String? locationName,
     String? robotId,
     bool? isRead,
     bool? isResolved,
@@ -199,6 +225,7 @@ class AlertModel {
       location: location ?? this.location,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
+      locationName: locationName ?? this.locationName,
       robotId: robotId ?? this.robotId,
       isRead: isRead ?? this.isRead,
       isResolved: isResolved ?? this.isResolved,
@@ -240,7 +267,6 @@ enum AlertType {
   motion,
   restricted,
   other,
-
   unknownFace,
   knownFace,
   intruder,
@@ -251,47 +277,29 @@ enum AlertSeverity { critical, warning, info }
 extension AlertTypeExtension on AlertType {
   String get displayName {
     switch (this) {
-      case AlertType.fire:
-        return 'Fire detected';
-      case AlertType.smoke:
-        return 'Smoke detected';
-      case AlertType.human:
-        return 'Person detected';
-      case AlertType.motion:
-        return 'Motion detected';
-      case AlertType.restricted:
-        return 'Restricted area entry';
-      case AlertType.unknownFace:
-        return 'Unknown person';
-      case AlertType.knownFace:
-        return 'Known person';
-      case AlertType.intruder:
-        return 'Intruder detected';
-      case AlertType.other:
-        return 'Alert';
+      case AlertType.fire:        return 'Fire detected';
+      case AlertType.smoke:       return 'Smoke detected';
+      case AlertType.human:       return 'Person detected';
+      case AlertType.motion:      return 'Motion detected';
+      case AlertType.restricted:  return 'Restricted area entry';
+      case AlertType.unknownFace: return 'Unknown person';
+      case AlertType.knownFace:   return 'Known person';
+      case AlertType.intruder:    return 'Intruder detected';
+      case AlertType.other:       return 'Alert';
     }
   }
 
   String get icon {
     switch (this) {
-      case AlertType.fire:
-        return '🔥';
-      case AlertType.smoke:
-        return '💨';
-      case AlertType.human:
-        return '👤';
-      case AlertType.motion:
-        return '🏃';
-      case AlertType.restricted:
-        return '🚫';
-      case AlertType.unknownFace:
-        return '❓';
-      case AlertType.knownFace:
-        return '✅';
-      case AlertType.intruder:
-        return '🛡️';
-      case AlertType.other:
-        return '⚠️';
+      case AlertType.fire:        return '🔥';
+      case AlertType.smoke:       return '💨';
+      case AlertType.human:       return '👤';
+      case AlertType.motion:      return '🏃';
+      case AlertType.restricted:  return '🚫';
+      case AlertType.unknownFace: return '❓';
+      case AlertType.knownFace:   return '✅';
+      case AlertType.intruder:    return '🛡️';
+      case AlertType.other:       return '⚠️';
     }
   }
 }
@@ -299,12 +307,9 @@ extension AlertTypeExtension on AlertType {
 extension AlertSeverityExtension on AlertSeverity {
   String get displayName {
     switch (this) {
-      case AlertSeverity.critical:
-        return 'Critical';
-      case AlertSeverity.warning:
-        return 'Warning';
-      case AlertSeverity.info:
-        return 'Info';
+      case AlertSeverity.critical: return 'Critical';
+      case AlertSeverity.warning:  return 'Warning';
+      case AlertSeverity.info:     return 'Info';
     }
   }
 }
@@ -312,19 +317,15 @@ extension AlertSeverityExtension on AlertSeverity {
 class AlertTypeX {
   static AlertType fromString(String raw) {
     final t = raw.toLowerCase().trim();
-
-    if (t == 'fire') return AlertType.fire;
-    if (t == 'smoke') return AlertType.smoke;
-    if (t == 'human') return AlertType.human;
-    if (t == 'motion') return AlertType.motion;
-    if (t == 'restricted') return AlertType.restricted;
-
+    if (t == 'fire')         return AlertType.fire;
+    if (t == 'smoke')        return AlertType.smoke;
+    if (t == 'human')        return AlertType.human;
+    if (t == 'motion')       return AlertType.motion;
+    if (t == 'restricted')   return AlertType.restricted;
     if (t == 'unknown_face') return AlertType.unknownFace;
-    if (t == 'known_face') return AlertType.knownFace;
-    if (t == 'intruder') return AlertType.intruder;
-
-    if (t == 'other') return AlertType.other;
-
+    if (t == 'known_face')   return AlertType.knownFace;
+    if (t == 'intruder')     return AlertType.intruder;
+    if (t == 'other')        return AlertType.other;
     return AlertType.other;
   }
 }
@@ -333,7 +334,7 @@ class AlertSeverityX {
   static AlertSeverity fromString(String raw) {
     final s = raw.toLowerCase().trim();
     if (s == 'critical') return AlertSeverity.critical;
-    if (s == 'warning') return AlertSeverity.warning;
+    if (s == 'warning')  return AlertSeverity.warning;
     return AlertSeverity.info;
   }
 
@@ -341,17 +342,9 @@ class AlertSeverityX {
     if (type == AlertType.fire || type == AlertType.intruder) {
       return AlertSeverity.critical;
     }
-
     if (type == AlertType.smoke || type == AlertType.unknownFace) {
       return AlertSeverity.warning;
     }
-
-    if (threshold != null &&
-        threshold <= 0.5 &&
-        type == AlertType.unknownFace) {
-      return AlertSeverity.warning;
-    }
-
     return AlertSeverity.info;
   }
 }
