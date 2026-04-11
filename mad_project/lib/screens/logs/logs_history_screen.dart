@@ -40,65 +40,61 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
 
   String _normalizeType(String raw) {
     var t = raw.trim().toLowerCase();
-    if (t.contains('.')) {
-      t = t.split('.').last;
-    }
-    t = t.replaceAll(' ', '');
-    t = t.replaceAll('-', '');
+    if (t.contains('.')) t = t.split('.').last;
+    t = t.replaceAll(' ', '').replaceAll('-', '');
     return t;
   }
 
   bool _matchesFilter(AlertModel alert) {
     if (_selectedFilter == 'All') return true;
-
     final typeNorm = _normalizeType(alert.type.toString());
-    final filterNorm = _selectedFilter.toLowerCase().replaceAll(' ', '');
-
+    final filterNorm =
+        _selectedFilter.toLowerCase().replaceAll(' ', '');
     if (filterNorm == 'unknownface') {
       return typeNorm == 'unknown_face' || typeNorm == 'unknownface';
     }
-
     return typeNorm == filterNorm;
   }
 
   Color _getTypeColor(String type) {
-    final typeNorm = _normalizeType(type);
-    if (typeNorm == 'fire') return const Color(0xFFFF6B6B);
-    if (typeNorm == 'smoke') return const Color(0xFFF59E0B);
-    if (typeNorm.contains('unknown')) return const Color(0xFFEC4899);
-    if (typeNorm == 'motion') return const Color(0xFF45B7D1);
+    final t = _normalizeType(type);
+    if (t == 'fire') return const Color(0xFFFF6B6B);
+    if (t == 'smoke') return const Color(0xFFF59E0B);
+    if (t.contains('unknown')) return const Color(0xFFEC4899);
+    if (t == 'motion') return const Color(0xFF45B7D1);
     return const Color(0xFF8B5CF6);
   }
 
   IconData _getTypeIcon(String type) {
-    final typeNorm = _normalizeType(type);
-    if (typeNorm == 'fire') return Icons.local_fire_department_rounded;
-    if (typeNorm == 'smoke') return Icons.cloud_rounded;
-    if (typeNorm.contains('unknown')) return Icons.person_off_rounded;
-    if (typeNorm == 'motion') return Icons.directions_run_rounded;
+    final t = _normalizeType(type);
+    if (t == 'fire') return Icons.local_fire_department_rounded;
+    if (t == 'smoke') return Icons.cloud_rounded;
+    if (t.contains('unknown')) return Icons.person_off_rounded;
+    if (t == 'motion') return Icons.directions_run_rounded;
     return Icons.info_rounded;
   }
 
   String _formatType(String type) {
-    final typeNorm = _normalizeType(type);
-    if (typeNorm == 'unknown_face' || typeNorm == 'unknownface') {
+    final t = _normalizeType(type);
+    if (t == 'unknown_face' || t == 'unknownface') {
       return 'Unknown Person';
     }
-    if (typeNorm.isEmpty) return 'Alert';
-    return typeNorm
+    if (t.isEmpty) return 'Alert';
+    return t
         .replaceAll('_', ' ')
         .split(' ')
-        .map((word) => word[0].toUpperCase() + word.substring(1))
+        .map((w) => w[0].toUpperCase() + w.substring(1))
         .join(' ');
   }
 
-  String _formatDateTime(DateTime dt) {
-    final y = dt.year.toString().padLeft(4, '0');
-    final m = dt.month.toString().padLeft(2, '0');
-    final d = dt.day.toString().padLeft(2, '0');
-    final hh = dt.hour.toString().padLeft(2, '0');
-    final mm = dt.minute.toString().padLeft(2, '0');
-    return '$y-$m-$d $hh:$mm';
+  /// Whether this alert type should show a face image thumbnail
+  bool _isFaceAlert(String type) {
+    final t = _normalizeType(type);
+    return t == 'unknown_face' ||
+        t == 'unknownface' ||
+        t == 'known_face' ||
+        t == 'knownface' ||
+        t == 'intruder';
   }
 
   @override
@@ -122,10 +118,8 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
             ],
           ),
           child: IconButton(
-            icon: const Icon(
-              Icons.arrow_back_rounded,
-              color: Color(0xFF1F2937),
-            ),
+            icon: const Icon(Icons.arrow_back_rounded,
+                color: Color(0xFF1F2937)),
             onPressed: () => Navigator.pop(context),
           ),
         ),
@@ -135,7 +129,8 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
           ).createShader(bounds),
           child: const Text(
             'Logs & History',
-            style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
+            style: TextStyle(
+                fontWeight: FontWeight.w900, color: Colors.white),
           ),
         ),
         bottom: TabBar(
@@ -163,6 +158,7 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
     );
   }
 
+  // ── Activity Tab ──────────────────────────────────────────────────────────
   Widget _buildActivityTab() {
     return Column(
       children: [
@@ -181,16 +177,18 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
               return FilterChip(
                 label: Text(option),
                 selected: isSelected,
-                onSelected: (selected) {
-                  setState(() {
-                    _selectedFilter = option;
-                  });
-                },
+                onSelected: (_) =>
+                    setState(() => _selectedFilter = option),
                 backgroundColor: Colors.white,
-                selectedColor: const Color(0xFFEC4899).withOpacity(0.2),
+                selectedColor:
+                    const Color(0xFFEC4899).withOpacity(0.2),
                 labelStyle: TextStyle(
-                  color: isSelected ? const Color(0xFFEC4899) : Colors.grey,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: isSelected
+                      ? const Color(0xFFEC4899)
+                      : Colors.grey,
+                  fontWeight: isSelected
+                      ? FontWeight.w700
+                      : FontWeight.w500,
                 ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
@@ -214,20 +212,18 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
               orderField: 'created_at',
             ),
             builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
+              if (snapshot.connectionState ==
+                  ConnectionState.waiting) {
                 return Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const CircularProgressIndicator(),
                       const SizedBox(height: 16),
-                      Text(
-                        'Loading activity logs...',
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      Text('Loading activity logs…',
+                          style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontWeight: FontWeight.w600)),
                     ],
                   ),
                 );
@@ -238,43 +234,34 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(
-                        Icons.error_outline,
-                        size: 64,
-                        color: Colors.red,
-                      ),
+                      const Icon(Icons.error_outline,
+                          size: 64, color: Colors.red),
                       const SizedBox(height: 16),
-                      Text(
-                        'Error loading alerts',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+                      const Text('Error loading alerts',
+                          style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700)),
                       const SizedBox(height: 8),
-                      Text(
-                        '${snapshot.error}',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey.shade600),
-                      ),
+                      Text('${snapshot.error}',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              color: Colors.grey.shade600)),
                     ],
                   ),
                 );
               }
 
-              final allAlerts = snapshot.data ?? [];
-              final filteredAlerts = allAlerts.where(_matchesFilter).toList();
+              final all = snapshot.data ?? [];
+              final filtered =
+                  all.where(_matchesFilter).toList();
 
-              if (filteredAlerts.isEmpty) {
-                return _buildEmptyState();
-              }
+              if (filtered.isEmpty) return _buildEmptyState();
 
               return ListView.builder(
                 padding: const EdgeInsets.all(20),
-                itemCount: filteredAlerts.length,
-                itemBuilder: (context, index) {
-                  return _buildActivityCard(filteredAlerts[index]);
-                },
+                itemCount: filtered.length,
+                itemBuilder: (context, i) =>
+                    _buildActivityCard(filtered[i]),
               );
             },
           ),
@@ -283,12 +270,17 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
     );
   }
 
+  // ── Activity card with face image ─────────────────────────────────────────
   Widget _buildActivityCard(AlertModel alert) {
     final color = _getTypeColor(alert.type.toString());
     final icon = _getTypeIcon(alert.type.toString());
     final title = _formatType(alert.type.toString());
+    final isFace = _isFaceAlert(alert.type.toString());
+    final hasImage =
+        isFace && alert.imageUrl.isNotEmpty;
 
-    final lensText = alert.lens.isEmpty ? 'Unknown lens' : alert.lens;
+    final lensText =
+        alert.lens.isEmpty ? 'Unknown lens' : alert.lens;
     final location = alert.note.isEmpty
         ? 'Lens: $lensText'
         : 'Lens: $lensText • ${alert.note}';
@@ -296,17 +288,18 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () {
-          Navigator.pushNamed(context, AppRoutes.alertDetail, arguments: alert);
-        },
+        onTap: () => Navigator.pushNamed(
+            context, AppRoutes.alertDetail,
+            arguments: alert),
         borderRadius: BorderRadius.circular(16),
         child: Container(
           margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: color.withOpacity(0.2)),
+            border:
+                Border.all(color: color.withOpacity(0.2)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.05),
@@ -317,32 +310,60 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
           ),
           child: Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: color, size: 24),
-              ),
-              const SizedBox(width: 16),
+              // ── Avatar: face image OR icon ──────────────────────
+              _buildAvatar(
+                  hasImage: hasImage,
+                  imageUrl: alert.imageUrl,
+                  icon: icon,
+                  color: color,
+                  isFace: isFace),
+
+              const SizedBox(width: 14),
+
+              // ── Text info ────────────────────────────────────────
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF1F2937),
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1F2937),
+                            ),
+                          ),
+                        ),
+                        // Badge for face alerts
+                        if (isFace)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 7, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: color.withOpacity(0.12),
+                              borderRadius:
+                                  BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              hasImage ? 'PHOTO' : 'NO IMG',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                color: color,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Text(
                       location,
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 13,
                         color: Colors.grey.shade600,
                       ),
                       maxLines: 1,
@@ -360,7 +381,10 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right_rounded, color: Colors.grey.shade400),
+
+              const SizedBox(width: 8),
+              Icon(Icons.chevron_right_rounded,
+                  color: Colors.grey.shade400),
             ],
           ),
         ),
@@ -368,6 +392,104 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
     );
   }
 
+  // ── Avatar widget ─────────────────────────────────────────────────────────
+  Widget _buildAvatar({
+    required bool hasImage,
+    required String imageUrl,
+    required IconData icon,
+    required Color color,
+    required bool isFace,
+  }) {
+    if (hasImage) {
+      // Show actual face image from detection app
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: SizedBox(
+          width: 54,
+          height: 54,
+          child: Image.network(
+            imageUrl,
+            fit: BoxFit.cover,
+            loadingBuilder: (context, child, progress) {
+              if (progress == null) return child;
+              return Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Center(
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: color,
+                      value: progress.expectedTotalBytes != null
+                          ? progress.cumulativeBytesLoaded /
+                              progress.expectedTotalBytes!
+                          : null,
+                    ),
+                  ),
+                ),
+              );
+            },
+            errorBuilder: (_, __, ___) =>
+                _iconAvatar(icon, color),
+          ),
+        ),
+      );
+    }
+
+    // For face alerts with no image — show a styled placeholder
+    if (isFace) {
+      return Container(
+        width: 54,
+        height: 54,
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.10),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+              color: color.withOpacity(0.3), width: 1.5),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.face_retouching_off_rounded,
+                color: color, size: 22),
+            const SizedBox(height: 2),
+            Text(
+              'No\nPhoto',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 8,
+                color: color,
+                fontWeight: FontWeight.w700,
+                height: 1.1,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return _iconAvatar(icon, color);
+  }
+
+  Widget _iconAvatar(IconData icon, Color color) {
+    return Container(
+      width: 54,
+      height: 54,
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Icon(icon, color: color, size: 26),
+    );
+  }
+
+  // ── Statistics Tab ────────────────────────────────────────────────────────
   Widget _buildStatisticsTab() {
     return StreamBuilder<List<AlertModel>>(
       stream: _alertService.streamAlerts(
@@ -381,136 +503,123 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
         }
 
         final alerts = snapshot.data ?? [];
+        if (alerts.isEmpty) return _buildStatisticsPlaceholder();
 
-        // Calculate statistics
         final fireCount = alerts
-            .where((a) => _normalizeType(a.type.toString()) == 'fire')
+            .where((a) =>
+                _normalizeType(a.type.toString()) == 'fire')
             .length;
         final smokeCount = alerts
-            .where((a) => _normalizeType(a.type.toString()) == 'smoke')
+            .where((a) =>
+                _normalizeType(a.type.toString()) == 'smoke')
             .length;
         final unknownCount = alerts.where((a) {
           final t = _normalizeType(a.type.toString());
           return t == 'unknown_face' || t == 'unknownface';
         }).length;
         final motionCount = alerts
-            .where((a) => _normalizeType(a.type.toString()) == 'motion')
+            .where((a) =>
+                _normalizeType(a.type.toString()) == 'motion')
             .length;
 
         final today = DateTime.now();
-        final todayAlerts = alerts.where((a) {
-          return a.createdAt.year == today.year &&
-              a.createdAt.month == today.month &&
-              a.createdAt.day == today.day;
-        }).length;
+        final todayAlerts = alerts
+            .where((a) =>
+                a.createdAt.year == today.year &&
+                a.createdAt.month == today.month &&
+                a.createdAt.day == today.day)
+            .length;
+        final yesterday =
+            today.subtract(const Duration(days: 1));
+        final yesterdayAlerts = alerts
+            .where((a) =>
+                a.createdAt.year == yesterday.year &&
+                a.createdAt.month == yesterday.month &&
+                a.createdAt.day == yesterday.day)
+            .length;
 
-        final yesterday = today.subtract(const Duration(days: 1));
-        final yesterdayAlerts = alerts.where((a) {
-          return a.createdAt.year == yesterday.year &&
-              a.createdAt.month == yesterday.month &&
-              a.createdAt.day == yesterday.day;
-        }).length;
-
-        // Show placeholder if no data
-        if (alerts.isEmpty) {
-          return _buildStatisticsPlaceholder();
-        }
+        // Face alerts with images
+        final faceWithImg = alerts
+            .where((a) =>
+                _isFaceAlert(a.type.toString()) &&
+                a.imageUrl.isNotEmpty)
+            .length;
 
         return ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            // Overview Section
-            ShaderMask(
-              shaderCallback: (bounds) => const LinearGradient(
-                colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
-              ).createShader(bounds),
-              child: const Text(
-                'Overview',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white,
+            _statSectionTitle('Overview'),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildStatCard('Total Alerts',
+                      alerts.length.toString(),
+                      Icons.notifications_rounded,
+                      const Color(0xFF8B5CF6)),
                 ),
-              ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildStatCard('Today',
+                      todayAlerts.toString(),
+                      Icons.today_rounded,
+                      const Color(0xFF45B7D1)),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
-                  child: _buildStatCard(
-                    'Total Alerts',
-                    alerts.length.toString(),
-                    Icons.notifications_rounded,
-                    const Color(0xFF8B5CF6),
-                  ),
+                  child: _buildStatCard('Yesterday',
+                      yesterdayAlerts.toString(),
+                      Icons.calendar_today_rounded,
+                      const Color(0xFF4ECDC4)),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: _buildStatCard(
-                    'Today',
-                    todayAlerts.toString(),
-                    Icons.today_rounded,
-                    const Color(0xFF45B7D1),
-                  ),
+                  child: _buildStatCard('Face Photos',
+                      faceWithImg.toString(),
+                      Icons.face_rounded,
+                      const Color(0xFFEC4899)),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            _buildStatCard(
-              'Yesterday\'s Alerts',
-              yesterdayAlerts.toString(),
-              Icons.calendar_today_rounded,
-              const Color(0xFF4ECDC4),
-            ),
             const SizedBox(height: 24),
-
-            // Detection Breakdown Section
-            ShaderMask(
-              shaderCallback: (bounds) => const LinearGradient(
-                colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
-              ).createShader(bounds),
-              child: const Text(
-                'Detection Breakdown',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white,
-                ),
-              ),
-            ),
+            _statSectionTitle('Detection Breakdown'),
             const SizedBox(height: 12),
-            _buildStatCard(
-              'Fire Detected',
-              fireCount.toString(),
-              Icons.local_fire_department_rounded,
-              const Color(0xFFFF6B6B),
-            ),
+            _buildStatCard('Fire Detected', fireCount.toString(),
+                Icons.local_fire_department_rounded,
+                const Color(0xFFFF6B6B)),
             const SizedBox(height: 12),
-            _buildStatCard(
-              'Smoke Detected',
-              smokeCount.toString(),
-              Icons.cloud_rounded,
-              const Color(0xFFF59E0B),
-            ),
+            _buildStatCard('Smoke Detected', smokeCount.toString(),
+                Icons.cloud_rounded,
+                const Color(0xFFF59E0B)),
             const SizedBox(height: 12),
-            _buildStatCard(
-              'Unknown Persons',
-              unknownCount.toString(),
-              Icons.person_off_rounded,
-              const Color(0xFFEC4899),
-            ),
+            _buildStatCard('Unknown Persons',
+                unknownCount.toString(),
+                Icons.person_off_rounded,
+                const Color(0xFFEC4899)),
             const SizedBox(height: 12),
-            _buildStatCard(
-              'Motion Events',
-              motionCount.toString(),
-              Icons.directions_run_rounded,
-              const Color(0xFF4ECDC4),
-            ),
+            _buildStatCard('Motion Events', motionCount.toString(),
+                Icons.directions_run_rounded,
+                const Color(0xFF4ECDC4)),
           ],
         );
       },
     );
   }
+
+  Widget _statSectionTitle(String t) => ShaderMask(
+        shaderCallback: (b) => const LinearGradient(
+          colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
+        ).createShader(b),
+        child: Text(t,
+            style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                color: Colors.white)),
+      );
 
   Widget _buildStatisticsPlaceholder() {
     return Center(
@@ -521,45 +630,31 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
             padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: LinearGradient(
-                colors: [
-                  const Color(0xFF8B5CF6).withOpacity(0.1),
-                  const Color(0xFF06B6D4).withOpacity(0.1),
-                ],
-              ),
+              gradient: LinearGradient(colors: [
+                const Color(0xFF8B5CF6).withOpacity(0.1),
+                const Color(0xFF06B6D4).withOpacity(0.1),
+              ]),
             ),
-            child: const Icon(
-              Icons.bar_chart_rounded,
-              size: 64,
-              color: Color(0xFF8B5CF6),
-            ),
+            child: const Icon(Icons.bar_chart_rounded,
+                size: 64, color: Color(0xFF8B5CF6)),
           ),
           const SizedBox(height: 24),
-          const Text(
-            'No Data Available',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w900,
-              color: Color(0xFF1F2937),
-            ),
-          ),
+          const Text('No Data Available',
+              style: TextStyle(
+                  fontSize: 24, fontWeight: FontWeight.w900,
+                  color: Color(0xFF1F2937))),
           const SizedBox(height: 8),
-          Text(
-            'Statistics will appear once alerts are detected',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
-          ),
+          Text('Statistics will appear once alerts are detected',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  fontSize: 16, color: Colors.grey.shade600)),
         ],
       ),
     );
   }
 
   Widget _buildStatCard(
-    String title,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
+      String title, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -568,10 +663,9 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
         border: Border.all(color: color.withOpacity(0.2)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4)),
         ],
       ),
       child: Row(
@@ -579,7 +673,8 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [color, color.withOpacity(0.7)]),
+              gradient: LinearGradient(
+                  colors: [color, color.withOpacity(0.7)]),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(icon, color: Colors.white, size: 28),
@@ -589,23 +684,17 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
+                Text(title,
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade600)),
                 const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.w900,
-                    color: Color(0xFF1F2937),
-                  ),
-                ),
+                Text(value,
+                    style: const TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF1F2937))),
               ],
             ),
           ),
@@ -614,6 +703,7 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
     );
   }
 
+  // ── System Tab ────────────────────────────────────────────────────────────
   Widget _buildSystemTab() {
     final systemLogs = [
       SystemLog(
@@ -656,16 +746,13 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
     return ListView.builder(
       padding: const EdgeInsets.all(20),
       itemCount: systemLogs.length,
-      itemBuilder: (context, index) {
-        return _buildSystemLogCard(systemLogs[index]);
-      },
+      itemBuilder: (_, i) => _buildSystemLogCard(systemLogs[i]),
     );
   }
 
   Widget _buildSystemLogCard(SystemLog log) {
     Color color;
     IconData icon;
-
     switch (log.type) {
       case 'error':
         color = const Color(0xFFFF6B6B);
@@ -693,10 +780,9 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
         border: Border.all(color: color.withOpacity(0.2)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4)),
         ],
       ),
       child: Row(
@@ -714,23 +800,17 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  log.message,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1F2937),
-                  ),
-                ),
+                Text(log.message,
+                    style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1F2937))),
                 const SizedBox(height: 4),
-                Text(
-                  timeago.format(log.time),
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
-                ),
+                Text(timeago.format(log.time),
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade400)),
               ],
             ),
           ),
@@ -739,6 +819,7 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
     );
   }
 
+  // ── Empty state ───────────────────────────────────────────────────────────
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -748,35 +829,28 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
             padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: LinearGradient(
-                colors: [
-                  const Color(0xFF06B6D4).withOpacity(0.1),
-                  const Color(0xFF8B5CF6).withOpacity(0.1),
-                ],
-              ),
+              gradient: LinearGradient(colors: [
+                const Color(0xFF06B6D4).withOpacity(0.1),
+                const Color(0xFF8B5CF6).withOpacity(0.1),
+              ]),
             ),
-            child: const Icon(
-              Icons.history_rounded,
-              size: 64,
-              color: Color(0xFF8B5CF6),
-            ),
+            child: const Icon(Icons.history_rounded,
+                size: 64, color: Color(0xFF8B5CF6)),
           ),
           const SizedBox(height: 24),
-          const Text(
-            'No Activity Found',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w900,
-              color: Color(0xFF1F2937),
-            ),
-          ),
+          const Text('No Activity Found',
+              style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF1F2937))),
           const SizedBox(height: 8),
           Text(
             _selectedFilter == 'All'
                 ? 'No alerts have been recorded yet'
                 : 'No logs match your selected filter',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+            style: TextStyle(
+                fontSize: 16, color: Colors.grey.shade600),
           ),
         ],
       ),
@@ -788,6 +862,8 @@ class SystemLog {
   final String type;
   final String message;
   final DateTime time;
-
-  SystemLog({required this.type, required this.message, required this.time});
+  SystemLog(
+      {required this.type,
+      required this.message,
+      required this.time});
 }

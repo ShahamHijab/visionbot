@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AlertModel {
   final String id;
-
   final AlertType type;
   final AlertSeverity severity;
   final String title;
@@ -12,13 +11,12 @@ class AlertModel {
   final String location;
   final double? latitude;
   final double? longitude;
-  final String? locationName;   // ← NEW: from location.location_name
+  final String? locationName;
   final String robotId;
   final bool isRead;
   final bool isResolved;
   final String? resolvedBy;
   final DateTime? resolvedAt;
-
   final String lens;
   final String note;
   final double? threshold;
@@ -49,9 +47,9 @@ class AlertModel {
 
   DateTime get createdAt => timestamp;
 
-  /// Whether this alert has valid GPS coordinates
   bool get hasLocation => latitude != null && longitude != null;
 
+  // ── fromFirestore ──────────────────────────────────────────────────────────
   factory AlertModel.fromFirestore(DocumentSnapshot doc) {
     final data = (doc.data() as Map<String, dynamic>?) ?? {};
 
@@ -75,21 +73,43 @@ class AlertModel {
     );
 
     final title =
-        data['title'] != null && (data['title'].toString().trim().isNotEmpty)
-        ? data['title'].toString()
-        : parsedType.displayName;
+        data['title'] != null &&
+                (data['title'].toString().trim().isNotEmpty)
+            ? data['title'].toString()
+            : parsedType.displayName;
 
     final description =
         data['description'] != null &&
-            (data['description'].toString().trim().isNotEmpty)
-        ? data['description'].toString()
-        : note;
+                (data['description'].toString().trim().isNotEmpty)
+            ? data['description'].toString()
+            : note;
 
-    final imageUrl = (data['imageUrl'] ?? data['image_url'] ?? '').toString();
+    // ── Image URL: try every possible field name ─────────────────────────────
+    // Your detection app may store the image under different keys.
+    // We try all common variants and pick the first non-empty one.
+    final imageUrl = _firstNonEmpty([
+      data['imageUrl'],
+      data['image_url'],
+      data['image'],
+      data['photo_url'],
+      data['photoUrl'],
+      data['face_image'],
+      data['face_image_url'],
+      data['detected_image'],
+      data['capture_url'],
+      data['snapshot_url'],
+      // Also check inside nested maps e.g. data['detection']['image_url']
+      if (data['detection'] is Map)
+        (data['detection'] as Map)['image_url'],
+      if (data['detection'] is Map)
+        (data['detection'] as Map)['imageUrl'],
+      if (data['face'] is Map)
+        (data['face'] as Map)['image_url'],
+      if (data['face'] is Map)
+        (data['face'] as Map)['imageUrl'],
+    ]);
 
-    // ── Parse nested location map ──────────────────────────────────────────
-    // Firestore structure:
-    //   location: { latitude: 31.5, longitude: 73.2, location_name: "...", timestamp: "..." }
+    // ── Location ──────────────────────────────────────────────────────────────
     double? lat;
     double? lng;
     String? locationName;
@@ -98,22 +118,23 @@ class AlertModel {
     if (locField is Map) {
       lat = _toDoubleOrNull(locField['latitude']);
       lng = _toDoubleOrNull(locField['longitude']);
-      locationName = (locField['location_name'] ?? '').toString();
+      locationName =
+          (locField['location_name'] ?? '').toString();
       if (locationName!.isEmpty) locationName = null;
     } else {
-      // Fallback: flat fields (old schema)
       lat = _toDoubleOrNull(data['latitude']);
       lng = _toDoubleOrNull(data['longitude']);
     }
-    // ───────────────────────────────────────────────────────────────────────
 
     final locationStr =
         locationName ??
-        (data['location'] is String && (data['location'] as String).trim().isNotEmpty
+        (data['location'] is String &&
+                (data['location'] as String).trim().isNotEmpty
             ? (data['location'] as String).trim()
             : (lens.isEmpty ? '' : 'Lens: $lens'));
 
-    final robotId = (data['robotId'] ?? data['robot_id'] ?? '').toString();
+    final robotId =
+        (data['robotId'] ?? data['robot_id'] ?? '').toString();
 
     return AlertModel(
       id: doc.id,
@@ -128,29 +149,43 @@ class AlertModel {
       longitude: lng,
       locationName: locationName,
       robotId: robotId,
-      isRead: (data['isRead'] ?? data['is_read'] ?? false) == true,
-      isResolved: (data['isResolved'] ?? data['is_resolved'] ?? false) == true,
+      isRead:
+          (data['isRead'] ?? data['is_read'] ?? false) == true,
+      isResolved:
+          (data['isResolved'] ?? data['is_resolved'] ?? false) ==
+              true,
       resolvedBy:
-          data['resolvedBy']?.toString() ?? data['resolved_by']?.toString(),
+          data['resolvedBy']?.toString() ??
+          data['resolved_by']?.toString(),
       resolvedAt:
           _parseFirestoreDateTime(data['resolvedAt']) ??
           _parseFirestoreDateTime(data['resolved_at']),
       lens: lens,
       note: note,
       threshold: thresholdVal,
-      createdAtLocal: _parseIsoDateTime(data['created_at_local']),
+      createdAtLocal:
+          _parseIsoDateTime(data['created_at_local']),
     );
   }
 
+  // ── fromJson ───────────────────────────────────────────────────────────────
   factory AlertModel.fromJson(Map<String, dynamic> json) {
     return AlertModel(
       id: (json['id'] ?? '').toString(),
-      type: AlertTypeX.fromString((json['type'] ?? '').toString()),
-      severity: AlertSeverityX.fromString((json['severity'] ?? '').toString()),
+      type: AlertTypeX.fromString(
+          (json['type'] ?? '').toString()),
+      severity: AlertSeverityX.fromString(
+          (json['severity'] ?? '').toString()),
       title: (json['title'] ?? '').toString(),
       description: (json['description'] ?? '').toString(),
-      imageUrl: (json['imageUrl'] ?? '').toString(),
-      timestamp: _parseIsoDateTime(json['timestamp']) ?? DateTime.now(),
+      imageUrl: _firstNonEmpty([
+        json['imageUrl'],
+        json['image_url'],
+        json['image'],
+        json['photo_url'],
+      ]),
+      timestamp:
+          _parseIsoDateTime(json['timestamp']) ?? DateTime.now(),
       location: (json['location'] ?? '').toString(),
       latitude: _toDoubleOrNull(json['latitude']),
       longitude: _toDoubleOrNull(json['longitude']),
@@ -163,7 +198,8 @@ class AlertModel {
       lens: (json['lens'] ?? '').toString(),
       note: (json['note'] ?? '').toString(),
       threshold: _toDoubleOrNull(json['threshold']),
-      createdAtLocal: _parseIsoDateTime(json['created_at_local']),
+      createdAtLocal:
+          _parseIsoDateTime(json['created_at_local']),
     );
   }
 
@@ -238,6 +274,18 @@ class AlertModel {
     );
   }
 
+  // ── Private helpers ────────────────────────────────────────────────────────
+
+  /// Returns the first non-null, non-empty string from the list.
+  static String _firstNonEmpty(List<dynamic?> candidates) {
+    for (final c in candidates) {
+      if (c == null) continue;
+      final s = c.toString().trim();
+      if (s.isNotEmpty) return s;
+    }
+    return '';
+  }
+
   static double? _toDoubleOrNull(dynamic v) {
     if (v == null) return null;
     if (v is num) return v.toDouble();
@@ -259,6 +307,8 @@ class AlertModel {
     return _parseIsoDateTime(v);
   }
 }
+
+// ── Enums ──────────────────────────────────────────────────────────────────
 
 enum AlertType {
   fire,
@@ -317,15 +367,15 @@ extension AlertSeverityExtension on AlertSeverity {
 class AlertTypeX {
   static AlertType fromString(String raw) {
     final t = raw.toLowerCase().trim();
-    if (t == 'fire')         return AlertType.fire;
-    if (t == 'smoke')        return AlertType.smoke;
-    if (t == 'human')        return AlertType.human;
-    if (t == 'motion')       return AlertType.motion;
-    if (t == 'restricted')   return AlertType.restricted;
-    if (t == 'unknown_face') return AlertType.unknownFace;
-    if (t == 'known_face')   return AlertType.knownFace;
-    if (t == 'intruder')     return AlertType.intruder;
-    if (t == 'other')        return AlertType.other;
+    if (t == 'fire')          return AlertType.fire;
+    if (t == 'smoke')         return AlertType.smoke;
+    if (t == 'human')         return AlertType.human;
+    if (t == 'motion')        return AlertType.motion;
+    if (t == 'restricted')    return AlertType.restricted;
+    if (t == 'unknown_face')  return AlertType.unknownFace;
+    if (t == 'known_face')    return AlertType.knownFace;
+    if (t == 'intruder')      return AlertType.intruder;
+    if (t == 'other')         return AlertType.other;
     return AlertType.other;
   }
 }
@@ -338,11 +388,15 @@ class AlertSeverityX {
     return AlertSeverity.info;
   }
 
-  static AlertSeverity infer({required AlertType type, double? threshold}) {
+  static AlertSeverity infer({
+    required AlertType type,
+    double? threshold,
+  }) {
     if (type == AlertType.fire || type == AlertType.intruder) {
       return AlertSeverity.critical;
     }
-    if (type == AlertType.smoke || type == AlertType.unknownFace) {
+    if (type == AlertType.smoke ||
+        type == AlertType.unknownFace) {
       return AlertSeverity.warning;
     }
     return AlertSeverity.info;
