@@ -524,33 +524,45 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
           },
         ];
 
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-            maxCrossAxisExtent: 260,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 1.1,
-          ),
-          itemCount: stats.length,
-          itemBuilder: (context, index) {
-            return TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0.0, end: 1.0),
-              duration: Duration(milliseconds: 600 + (index * 100)),
-              curve: Curves.easeOutCubic,
-              builder: (context, value, child) {
-                return Transform.translate(
-                  offset: Offset(0, 30 * (1 - value)),
-                  child: Opacity(opacity: value, child: child),
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.maxWidth;
+            final crossAxisCount = width >= 1000
+                ? 4
+                : width >= 680
+                ? 2
+                : 1;
+            final childAspectRatio = crossAxisCount == 1 ? 2.2 : 1.1;
+
+            return GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: crossAxisCount,
+                crossAxisSpacing: 14,
+                mainAxisSpacing: 14,
+                childAspectRatio: childAspectRatio,
+              ),
+              itemCount: stats.length,
+              itemBuilder: (context, index) {
+                return TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0.0, end: 1.0),
+                  duration: Duration(milliseconds: 600 + (index * 100)),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, value, child) {
+                    return Transform.translate(
+                      offset: Offset(0, 30 * (1 - value)),
+                      child: Opacity(opacity: value, child: child),
+                    );
+                  },
+                  child: _buildStatCard(
+                    stats[index]['title'] as String,
+                    stats[index]['value'] as String,
+                    stats[index]['icon'] as IconData,
+                    stats[index]['color'] as Color,
+                  ),
                 );
               },
-              child: _buildStatCard(
-                stats[index]['title'] as String,
-                stats[index]['value'] as String,
-                stats[index]['icon'] as IconData,
-                stats[index]['color'] as Color,
-              ),
             );
           },
         );
@@ -634,28 +646,55 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
           ),
         ),
         const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: _buildActionButton(
-                context,
-                'GPS Tracking',
-                Icons.location_on_rounded,
-                const Color(0xFF4ECDC4),
-                AppRoutes.tracking,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildActionButton(
-                context,
-                'View Logs',
-                Icons.history_rounded,
-                const Color(0xFF45B7D1),
-                AppRoutes.logs,
-              ),
-            ),
-          ],
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final useColumn = constraints.maxWidth < 640;
+            if (useColumn) {
+              return Column(
+                children: [
+                  _buildActionButton(
+                    context,
+                    'GPS Tracking',
+                    Icons.location_on_rounded,
+                    const Color(0xFF4ECDC4),
+                    AppRoutes.tracking,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildActionButton(
+                    context,
+                    'View Logs',
+                    Icons.history_rounded,
+                    const Color(0xFF45B7D1),
+                    AppRoutes.logs,
+                  ),
+                ],
+              );
+            }
+
+            return Row(
+              children: [
+                Expanded(
+                  child: _buildActionButton(
+                    context,
+                    'GPS Tracking',
+                    Icons.location_on_rounded,
+                    const Color(0xFF4ECDC4),
+                    AppRoutes.tracking,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildActionButton(
+                    context,
+                    'View Logs',
+                    Icons.history_rounded,
+                    const Color(0xFF45B7D1),
+                    AppRoutes.logs,
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ],
     );
@@ -683,43 +722,47 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
         child: InkWell(
           onTap: () => Navigator.pushNamed(context, route),
           borderRadius: BorderRadius.circular(20),
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: color.withOpacity(0.3), width: 2),
-              boxShadow: [
-                BoxShadow(
-                  color: color.withOpacity(0.15),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [color, color.withOpacity(0.7)],
+          child: SizedBox(
+            height: 170,
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: color.withOpacity(0.3), width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withOpacity(0.15),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [color, color.withOpacity(0.7)],
+                      ),
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    borderRadius: BorderRadius.circular(16),
+                    child: Icon(icon, color: Colors.white, size: 32),
                   ),
-                  child: Icon(icon, color: Colors.white, size: 32),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  label,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: color,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
+                  const SizedBox(height: 12),
+                  Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: color,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 class AlertModel {
   final String id;
@@ -53,6 +54,18 @@ class AlertModel {
   factory AlertModel.fromFirestore(DocumentSnapshot doc) {
     final data = (doc.data() as Map<String, dynamic>?) ?? {};
 
+    // Debug: print all keys so you can see what your detection app sends
+    if (kDebugMode) {
+      debugPrint('=== Alert Doc [${doc.id}] keys: ${data.keys.toList()}');
+      // Print any key that might contain an image URL
+      for (final key in data.keys) {
+        final val = data[key]?.toString() ?? '';
+        if (val.startsWith('http') || key.toLowerCase().contains('image') || key.toLowerCase().contains('photo') || key.toLowerCase().contains('face') || key.toLowerCase().contains('url')) {
+          debugPrint('  KEY: $key => $val');
+        }
+      }
+    }
+
     final rawType = (data['type'] ?? '').toString();
     final parsedType = AlertTypeX.fromString(rawType);
 
@@ -85,29 +98,70 @@ class AlertModel {
             : note;
 
     // ── Image URL: try every possible field name ─────────────────────────────
-    // Your detection app may store the image under different keys.
-    // We try all common variants and pick the first non-empty one.
+    // Extended list covering common detection app naming conventions
     final imageUrl = _firstNonEmpty([
+      // Direct image fields
       data['imageUrl'],
       data['image_url'],
       data['image'],
       data['photo_url'],
       data['photoUrl'],
+      // Face-specific fields (detection apps often use these)
       data['face_image'],
       data['face_image_url'],
+      data['face_img'],
+      data['face_img_url'],
+      data['face_photo'],
+      data['face_photo_url'],
+      data['faceImageUrl'],
+      data['faceImage'],
+      // Detection result fields
       data['detected_image'],
+      data['detected_face'],
+      data['detected_face_url'],
+      data['detectedImageUrl'],
+      // Snapshot / capture fields
       data['capture_url'],
       data['snapshot_url'],
-      // Also check inside nested maps e.g. data['detection']['image_url']
+      data['snapshot'],
+      data['capture'],
+      data['frame_url'],
+      data['frameUrl'],
+      // Download URL (Firebase Storage)
+      data['downloadUrl'],
+      data['download_url'],
+      data['storageUrl'],
+      data['storage_url'],
+      // Firebase Storage direct
+      data['gsUrl'],
+      data['gs_url'],
+      // Also check nested maps
       if (data['detection'] is Map)
         (data['detection'] as Map)['image_url'],
       if (data['detection'] is Map)
         (data['detection'] as Map)['imageUrl'],
+      if (data['detection'] is Map)
+        (data['detection'] as Map)['face_image'],
+      if (data['detection'] is Map)
+        (data['detection'] as Map)['face_url'],
       if (data['face'] is Map)
         (data['face'] as Map)['image_url'],
       if (data['face'] is Map)
         (data['face'] as Map)['imageUrl'],
+      if (data['face'] is Map)
+        (data['face'] as Map)['url'],
+      if (data['result'] is Map)
+        (data['result'] as Map)['image_url'],
+      if (data['result'] is Map)
+        (data['result'] as Map)['imageUrl'],
     ]);
+
+    if (kDebugMode && imageUrl.isNotEmpty) {
+      debugPrint('  => Found imageUrl for ${doc.id}: $imageUrl');
+    }
+    if (kDebugMode && imageUrl.isEmpty && (parsedType == AlertType.unknownFace || parsedType == AlertType.knownFace)) {
+      debugPrint('  => WARNING: No imageUrl found for face alert ${doc.id}. Available data: $data');
+    }
 
     // ── Location ──────────────────────────────────────────────────────────────
     double? lat;
@@ -183,6 +237,8 @@ class AlertModel {
         json['image_url'],
         json['image'],
         json['photo_url'],
+        json['face_image_url'],
+        json['face_image'],
       ]),
       timestamp:
           _parseIsoDateTime(json['timestamp']) ?? DateTime.now(),
@@ -281,7 +337,7 @@ class AlertModel {
     for (final c in candidates) {
       if (c == null) continue;
       final s = c.toString().trim();
-      if (s.isNotEmpty) return s;
+      if (s.isNotEmpty && s != 'null') return s;
     }
     return '';
   }
@@ -372,8 +428,10 @@ class AlertTypeX {
     if (t == 'human')         return AlertType.human;
     if (t == 'motion')        return AlertType.motion;
     if (t == 'restricted')    return AlertType.restricted;
-    if (t == 'unknown_face')  return AlertType.unknownFace;
-    if (t == 'known_face')    return AlertType.knownFace;
+    if (t == 'unknown_face' || t == 'unknownface' || t == 'unknown')
+                              return AlertType.unknownFace;
+    if (t == 'known_face' || t == 'knownface' || t == 'known')
+                              return AlertType.knownFace;
     if (t == 'intruder')      return AlertType.intruder;
     if (t == 'other')         return AlertType.other;
     return AlertType.other;

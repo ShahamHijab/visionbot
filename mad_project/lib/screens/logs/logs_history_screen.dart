@@ -87,7 +87,6 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
         .join(' ');
   }
 
-  /// Whether this alert type should show a face image thumbnail
   bool _isFaceAlert(String type) {
     final t = _normalizeType(type);
     return t == 'unknown_face' ||
@@ -270,14 +269,13 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
     );
   }
 
-  // ── Activity card with face image ─────────────────────────────────────────
+  // ── Activity card ─────────────────────────────────────────────────────────
   Widget _buildActivityCard(AlertModel alert) {
     final color = _getTypeColor(alert.type.toString());
     final icon = _getTypeIcon(alert.type.toString());
     final title = _formatType(alert.type.toString());
     final isFace = _isFaceAlert(alert.type.toString());
-    final hasImage =
-        isFace && alert.imageUrl.isNotEmpty;
+    final hasImage = isFace && alert.imageUrl.isNotEmpty;
 
     final lensText =
         alert.lens.isEmpty ? 'Unknown lens' : alert.lens;
@@ -312,11 +310,12 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
             children: [
               // ── Avatar: face image OR icon ──────────────────────
               _buildAvatar(
-                  hasImage: hasImage,
-                  imageUrl: alert.imageUrl,
-                  icon: icon,
-                  color: color,
-                  isFace: isFace),
+                hasImage: hasImage,
+                imageUrl: alert.imageUrl,
+                icon: icon,
+                color: color,
+                isFace: isFace,
+              ),
 
               const SizedBox(width: 14),
 
@@ -401,20 +400,20 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
     required bool isFace,
   }) {
     if (hasImage) {
-      // Show actual face image from detection app
       return ClipRRect(
         borderRadius: BorderRadius.circular(14),
         child: SizedBox(
-          width: 54,
-          height: 54,
+          width: 56,
+          height: 56,
           child: Image.network(
             imageUrl,
             fit: BoxFit.cover,
+            headers: const {'Cache-Control': 'max-age=3600'},
             loadingBuilder: (context, child, progress) {
               if (progress == null) return child;
               return Container(
-                width: 54,
-                height: 54,
+                width: 56,
+                height: 56,
                 decoration: BoxDecoration(
                   color: color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(14),
@@ -435,52 +434,70 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
                 ),
               );
             },
-            errorBuilder: (_, __, ___) =>
-                _iconAvatar(icon, color),
+            errorBuilder: (context, error, stackTrace) {
+              // Image URL exists but failed to load
+              return _styledPlaceholder(
+                color: color,
+                icon: Icons.broken_image_rounded,
+                label: 'Error',
+              );
+            },
           ),
         ),
       );
     }
 
-    // For face alerts with no image — show a styled placeholder
+    // Face alert with no image stored
     if (isFace) {
-      return Container(
-        width: 54,
-        height: 54,
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.10),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-              color: color.withOpacity(0.3), width: 1.5),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.face_retouching_off_rounded,
-                color: color, size: 22),
-            const SizedBox(height: 2),
-            Text(
-              'No\nPhoto',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 8,
-                color: color,
-                fontWeight: FontWeight.w700,
-                height: 1.1,
-              ),
-            ),
-          ],
-        ),
+      return _styledPlaceholder(
+        color: color,
+        icon: Icons.face_retouching_off_rounded,
+        label: 'No\nPhoto',
       );
     }
 
+    // Non-face alert icon
     return _iconAvatar(icon, color);
+  }
+
+  Widget _styledPlaceholder({
+    required Color color,
+    required IconData icon,
+    required String label,
+  }) {
+    return Container(
+      width: 56,
+      height: 56,
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+            color: color.withOpacity(0.3), width: 1.5),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: color, size: 22),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 8,
+              color: color,
+              fontWeight: FontWeight.w700,
+              height: 1.1,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _iconAvatar(IconData icon, Color color) {
     return Container(
-      width: 54,
-      height: 54,
+      width: 56,
+      height: 56,
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(14),
@@ -538,7 +555,6 @@ class _LogsHistoryScreenState extends State<LogsHistoryScreen>
                 a.createdAt.day == yesterday.day)
             .length;
 
-        // Face alerts with images
         final faceWithImg = alerts
             .where((a) =>
                 _isFaceAlert(a.type.toString()) &&

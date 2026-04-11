@@ -70,7 +70,7 @@ class AlertCard extends StatelessWidget {
                             ),
                           ),
                         ),
-                        // PHOTO badge for face alerts
+                        // Badge for face alerts
                         if (_isFaceAlert) ...[
                           const SizedBox(width: 6),
                           Container(
@@ -122,13 +122,24 @@ class AlertCard extends StatelessWidget {
               ),
 
               const SizedBox(width: 10),
-              Text(
-                timeText,
-                style: TextStyle(
-                  color: Colors.grey.shade500,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    timeText,
+                    style: TextStyle(
+                      color: Colors.grey.shade500,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: Colors.grey.shade400,
+                    size: 18,
+                  ),
+                ],
               ),
             ],
           ),
@@ -139,57 +150,24 @@ class AlertCard extends StatelessWidget {
 
   // ── Avatar builder ────────────────────────────────────────────────────────
   Widget _buildAvatar(Color color) {
-    // Face alert with an actual image URL — show the photo
+    // Face alert with actual image URL — show the photo
     if (_isFaceAlert && _hasImage) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(14),
-        child: SizedBox(
-          width: 54,
-          height: 54,
-          child: Image.network(
-            alert.imageUrl,
-            fit: BoxFit.cover,
-            loadingBuilder: (context, child, progress) {
-              if (progress == null) return child;
-              return Container(
-                width: 54,
-                height: 54,
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Center(
-                  child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: color,
-                      value: progress.expectedTotalBytes != null
-                          ? progress.cumulativeBytesLoaded /
-                              progress.expectedTotalBytes!
-                          : null,
-                    ),
-                  ),
-                ),
-              );
-            },
-            errorBuilder: (_, __, ___) =>
-                _noPhotoPlaceholder(color),
-          ),
-        ),
+      return _FaceImageAvatar(
+        imageUrl: alert.imageUrl,
+        color: color,
+        size: 56,
       );
     }
 
-    // Face alert but no image
+    // Face alert but no image stored in Firestore
     if (_isFaceAlert && !_hasImage) {
       return _noPhotoPlaceholder(color);
     }
 
-    // Non-face alert — original emoji icon
+    // Non-face alert — emoji icon
     return Container(
-      width: 54,
-      height: 54,
+      width: 56,
+      height: 56,
       decoration: BoxDecoration(
         color: color.withOpacity(0.12),
         borderRadius: BorderRadius.circular(14),
@@ -205,8 +183,8 @@ class AlertCard extends StatelessWidget {
   // ── No-photo placeholder ──────────────────────────────────────────────────
   Widget _noPhotoPlaceholder(Color color) {
     return Container(
-      width: 54,
-      height: 54,
+      width: 56,
+      height: 56,
       decoration: BoxDecoration(
         color: color.withOpacity(0.08),
         borderRadius: BorderRadius.circular(14),
@@ -215,8 +193,7 @@ class AlertCard extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.face_retouching_off_rounded,
-              color: color, size: 20),
+          Icon(Icons.face_retouching_off_rounded, color: color, size: 20),
           const SizedBox(height: 2),
           Text(
             'No\nPhoto',
@@ -246,6 +223,95 @@ class AlertCard extends StatelessWidget {
   }
 }
 
+// ── Reusable face image widget with loading + error states ─────────────────
+class _FaceImageAvatar extends StatelessWidget {
+  final String imageUrl;
+  final Color color;
+  final double size;
+
+  const _FaceImageAvatar({
+    required this.imageUrl,
+    required this.color,
+    this.size = 56,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: Image.network(
+          imageUrl,
+          fit: BoxFit.cover,
+          // Cache headers help with repeated loads
+          headers: const {
+            'Cache-Control': 'max-age=3600',
+          },
+          loadingBuilder: (context, child, progress) {
+            if (progress == null) return child;
+            return Container(
+              width: size,
+              height: size,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Center(
+                child: SizedBox(
+                  width: size * 0.35,
+                  height: size * 0.35,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: color,
+                    value: progress.expectedTotalBytes != null
+                        ? progress.cumulativeBytesLoaded /
+                            progress.expectedTotalBytes!
+                        : null,
+                  ),
+                ),
+              ),
+            );
+          },
+          errorBuilder: (context, error, stackTrace) {
+            // On error, show a styled placeholder with the error hint
+            return Container(
+              width: size,
+              height: size,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                    color: color.withOpacity(0.25), width: 1.5),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.broken_image_rounded,
+                      color: color.withOpacity(0.6), size: size * 0.35),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Load\nFailed',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 7,
+                      color: color.withOpacity(0.7),
+                      fontWeight: FontWeight.w700,
+                      height: 1.1,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+// ── Extensions ────────────────────────────────────────────────────────────
 extension AlertTypeText on String {
   String get displayName {
     final t = toLowerCase().trim();
