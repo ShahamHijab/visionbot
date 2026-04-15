@@ -7,7 +7,8 @@ class AlertModel {
   final AlertSeverity severity;
   final String title;
   final String description;
-  final String imageUrl;
+  final String imageUrl;           // Full frame image (image_path)
+  final List<String> faceImageUrls; // Cropped face images (face_image_paths)
   final DateTime timestamp;
   final String location;
   final double? latitude;
@@ -30,6 +31,7 @@ class AlertModel {
     required this.title,
     required this.description,
     required this.imageUrl,
+    this.faceImageUrls = const [],
     required this.timestamp,
     required this.location,
     this.latitude,
@@ -50,17 +52,28 @@ class AlertModel {
 
   bool get hasLocation => latitude != null && longitude != null;
 
+  /// Returns the best image to show as the primary thumbnail.
+  /// Prefers first face crop, falls back to full frame.
+  String get primaryImageUrl {
+    if (faceImageUrls.isNotEmpty) return faceImageUrls.first;
+    return imageUrl;
+  }
+
+  bool get hasAnyImage => imageUrl.isNotEmpty || faceImageUrls.isNotEmpty;
+
   // ── fromFirestore ──────────────────────────────────────────────────────────
   factory AlertModel.fromFirestore(DocumentSnapshot doc) {
     final data = (doc.data() as Map<String, dynamic>?) ?? {};
 
-    // Debug: print all keys so you can see what your detection app sends
     if (kDebugMode) {
       debugPrint('=== Alert Doc [${doc.id}] keys: ${data.keys.toList()}');
-      // Print any key that might contain an image URL
       for (final key in data.keys) {
         final val = data[key]?.toString() ?? '';
-        if (val.startsWith('http') || key.toLowerCase().contains('image') || key.toLowerCase().contains('photo') || key.toLowerCase().contains('face') || key.toLowerCase().contains('url')) {
+        if (val.startsWith('http') ||
+            key.toLowerCase().contains('image') ||
+            key.toLowerCase().contains('face') ||
+            key.toLowerCase().contains('url') ||
+            key.toLowerCase().contains('path')) {
           debugPrint('  KEY: $key => $val');
         }
       }
@@ -68,7 +81,6 @@ class AlertModel {
 
     final rawType = (data['type'] ?? '').toString();
     final parsedType = AlertTypeX.fromString(rawType);
-
     final thresholdVal = _toDoubleOrNull(data['threshold']);
 
     final createdAt =
@@ -85,82 +97,56 @@ class AlertModel {
       threshold: thresholdVal,
     );
 
-    final title =
-        data['title'] != null &&
-                (data['title'].toString().trim().isNotEmpty)
-            ? data['title'].toString()
-            : parsedType.displayName;
+    final title = (data['title'] != null &&
+            data['title'].toString().trim().isNotEmpty)
+        ? data['title'].toString()
+        : parsedType.displayName;
 
-    final description =
-        data['description'] != null &&
-                (data['description'].toString().trim().isNotEmpty)
-            ? data['description'].toString()
-            : note;
+    final description = (data['description'] != null &&
+            data['description'].toString().trim().isNotEmpty)
+        ? data['description'].toString()
+        : note;
 
-    // ── Image URL: try every possible field name ─────────────────────────────
-    // Extended list covering common detection app naming conventions
+    // ── Full-frame image URL (image_path field from your detection app) ──────
     final imageUrl = _firstNonEmpty([
-      // Direct image fields
+      data['image_path'],       // Your Supabase full-frame field
       data['imageUrl'],
       data['image_url'],
       data['image'],
       data['photo_url'],
       data['photoUrl'],
-      // Face-specific fields (detection apps often use these)
-      data['face_image'],
-      data['face_image_url'],
-      data['face_img'],
-      data['face_img_url'],
-      data['face_photo'],
-      data['face_photo_url'],
-      data['faceImageUrl'],
-      data['faceImage'],
-      // Detection result fields
-      data['detected_image'],
-      data['detected_face'],
-      data['detected_face_url'],
-      data['detectedImageUrl'],
-      // Snapshot / capture fields
       data['capture_url'],
       data['snapshot_url'],
       data['snapshot'],
-      data['capture'],
-      data['frame_url'],
-      data['frameUrl'],
-      // Download URL (Firebase Storage)
       data['downloadUrl'],
       data['download_url'],
-      data['storageUrl'],
-      data['storage_url'],
-      // Firebase Storage direct
-      data['gsUrl'],
-      data['gs_url'],
-      // Also check nested maps
       if (data['detection'] is Map)
         (data['detection'] as Map)['image_url'],
-      if (data['detection'] is Map)
-        (data['detection'] as Map)['imageUrl'],
-      if (data['detection'] is Map)
-        (data['detection'] as Map)['face_image'],
-      if (data['detection'] is Map)
-        (data['detection'] as Map)['face_url'],
-      if (data['face'] is Map)
-        (data['face'] as Map)['image_url'],
-      if (data['face'] is Map)
-        (data['face'] as Map)['imageUrl'],
-      if (data['face'] is Map)
-        (data['face'] as Map)['url'],
       if (data['result'] is Map)
         (data['result'] as Map)['image_url'],
-      if (data['result'] is Map)
-        (data['result'] as Map)['imageUrl'],
     ]);
 
-    if (kDebugMode && imageUrl.isNotEmpty) {
-      debugPrint('  => Found imageUrl for ${doc.id}: $imageUrl');
-    }
-    if (kDebugMode && imageUrl.isEmpty && (parsedType == AlertType.unknownFace || parsedType == AlertType.knownFace)) {
-      debugPrint('  => WARNING: No imageUrl found for face alert ${doc.id}. Available data: $data');
+    // ── Cropped face images (face_image_paths list from your detection app) ──
+    final faceImageUrls = _extractFaceImageUrls(data);
+
+    if (kDebugMode) {
+      if (imageUrl.isNotEmpty) {
+        debugPrint('  => Full frame imageUrl for ${doc.id}: $imageUrl');
+      }
+      if (faceImageUrls.isNotEmpty) {
+        debugPrint(
+            '  => Face image URLs for ${doc.id}: ${faceImageUrls.length} images');
+        for (final url in faceImageUrls) {
+          debugPrint('     - $url');
+        }
+      }
+      if (imageUrl.isEmpty &&
+          faceImageUrls.isEmpty &&
+          (parsedType == AlertType.unknownFace ||
+              parsedType == AlertType.knownFace)) {
+        debugPrint(
+            '  => WARNING: No images found for face alert ${doc.id}. Data: $data');
+      }
     }
 
     // ── Location ──────────────────────────────────────────────────────────────
@@ -172,16 +158,21 @@ class AlertModel {
     if (locField is Map) {
       lat = _toDoubleOrNull(locField['latitude']);
       lng = _toDoubleOrNull(locField['longitude']);
-      locationName =
-          (locField['location_name'] ?? '').toString();
+      locationName = (locField['location_name'] ?? '').toString();
       if (locationName!.isEmpty) locationName = null;
     } else {
       lat = _toDoubleOrNull(data['latitude']);
       lng = _toDoubleOrNull(data['longitude']);
     }
 
-    final locationStr =
-        locationName ??
+    // location_name field from Firestore (your detection app may send this)
+    locationName ??= _firstNonEmpty([
+      data['location_name'],
+      data['locationName'],
+    ]);
+    if (locationName != null && locationName.isEmpty) locationName = null;
+
+    final locationStr = locationName ??
         (data['location'] is String &&
                 (data['location'] as String).trim().isNotEmpty
             ? (data['location'] as String).trim()
@@ -197,55 +188,104 @@ class AlertModel {
       title: title,
       description: description,
       imageUrl: imageUrl,
+      faceImageUrls: faceImageUrls,
       timestamp: createdAt,
       location: locationStr,
       latitude: lat,
       longitude: lng,
       locationName: locationName,
       robotId: robotId,
-      isRead:
-          (data['isRead'] ?? data['is_read'] ?? false) == true,
+      isRead: (data['isRead'] ?? data['is_read'] ?? false) == true,
       isResolved:
-          (data['isResolved'] ?? data['is_resolved'] ?? false) ==
-              true,
-      resolvedBy:
-          data['resolvedBy']?.toString() ??
+          (data['isResolved'] ?? data['is_resolved'] ?? false) == true,
+      resolvedBy: data['resolvedBy']?.toString() ??
           data['resolved_by']?.toString(),
-      resolvedAt:
-          _parseFirestoreDateTime(data['resolvedAt']) ??
+      resolvedAt: _parseFirestoreDateTime(data['resolvedAt']) ??
           _parseFirestoreDateTime(data['resolved_at']),
       lens: lens,
       note: note,
       threshold: thresholdVal,
-      createdAtLocal:
-          _parseIsoDateTime(data['created_at_local']),
+      createdAtLocal: _parseIsoDateTime(data['created_at_local']),
     );
+  }
+
+  // ── Extract face image URLs from various possible field structures ─────────
+  static List<String> _extractFaceImageUrls(Map<String, dynamic> data) {
+    final urls = <String>[];
+
+    // Primary: face_image_paths list (your Supabase field)
+    final facePathsRaw = data['face_image_paths'];
+    if (facePathsRaw is List) {
+      for (final item in facePathsRaw) {
+        if (item == null) continue;
+        final s = item.toString().trim();
+        if (s.isNotEmpty && s != 'null') urls.add(s);
+      }
+    }
+
+    // Also check face_images list
+    final faceImagesRaw = data['face_images'];
+    if (faceImagesRaw is List) {
+      for (final item in faceImagesRaw) {
+        if (item == null) continue;
+        final s = item.toString().trim();
+        if (s.isNotEmpty && s != 'null' && !urls.contains(s)) urls.add(s);
+      }
+    }
+
+    // Single face_image_path string
+    final singlePath = _firstNonEmpty([
+      data['face_image_path'],
+      data['face_image_url'],
+      data['face_image'],
+      data['faceImageUrl'],
+      data['faceImage'],
+      data['detected_face'],
+      data['detected_face_url'],
+    ]);
+    if (singlePath.isNotEmpty && !urls.contains(singlePath)) {
+      urls.add(singlePath);
+    }
+
+    // Nested face map
+    if (data['face'] is Map) {
+      final faceMap = data['face'] as Map;
+      final nested = _firstNonEmpty([
+        faceMap['image_url'],
+        faceMap['imageUrl'],
+        faceMap['url'],
+        faceMap['image'],
+      ]);
+      if (nested.isNotEmpty && !urls.contains(nested)) urls.add(nested);
+    }
+
+    return urls;
   }
 
   // ── fromJson ───────────────────────────────────────────────────────────────
   factory AlertModel.fromJson(Map<String, dynamic> json) {
     return AlertModel(
       id: (json['id'] ?? '').toString(),
-      type: AlertTypeX.fromString(
-          (json['type'] ?? '').toString()),
-      severity: AlertSeverityX.fromString(
-          (json['severity'] ?? '').toString()),
+      type: AlertTypeX.fromString((json['type'] ?? '').toString()),
+      severity:
+          AlertSeverityX.fromString((json['severity'] ?? '').toString()),
       title: (json['title'] ?? '').toString(),
       description: (json['description'] ?? '').toString(),
       imageUrl: _firstNonEmpty([
+        json['image_path'],
         json['imageUrl'],
         json['image_url'],
         json['image'],
         json['photo_url'],
-        json['face_image_url'],
-        json['face_image'],
       ]),
+      faceImageUrls: _extractFaceImageUrlsFromJson(json),
       timestamp:
           _parseIsoDateTime(json['timestamp']) ?? DateTime.now(),
       location: (json['location'] ?? '').toString(),
       latitude: _toDoubleOrNull(json['latitude']),
       longitude: _toDoubleOrNull(json['longitude']),
-      locationName: json['locationName']?.toString(),
+      locationName: json['locationName']?.toString() ??
+          json['location_name']?.toString(),
       robotId: (json['robotId'] ?? '').toString(),
       isRead: json['isRead'] == true,
       isResolved: json['isResolved'] == true,
@@ -254,9 +294,22 @@ class AlertModel {
       lens: (json['lens'] ?? '').toString(),
       note: (json['note'] ?? '').toString(),
       threshold: _toDoubleOrNull(json['threshold']),
-      createdAtLocal:
-          _parseIsoDateTime(json['created_at_local']),
+      createdAtLocal: _parseIsoDateTime(json['created_at_local']),
     );
+  }
+
+  static List<String> _extractFaceImageUrlsFromJson(
+      Map<String, dynamic> json) {
+    final urls = <String>[];
+    final raw = json['face_image_paths'] ?? json['faceImageUrls'];
+    if (raw is List) {
+      for (final item in raw) {
+        if (item == null) continue;
+        final s = item.toString().trim();
+        if (s.isNotEmpty && s != 'null') urls.add(s);
+      }
+    }
+    return urls;
   }
 
   Map<String, dynamic> toJson() {
@@ -267,6 +320,8 @@ class AlertModel {
       'title': title,
       'description': description,
       'imageUrl': imageUrl,
+      'image_path': imageUrl,
+      'face_image_paths': faceImageUrls,
       'timestamp': timestamp.toIso8601String(),
       'location': location,
       'latitude': latitude,
@@ -291,6 +346,7 @@ class AlertModel {
     String? title,
     String? description,
     String? imageUrl,
+    List<String>? faceImageUrls,
     DateTime? timestamp,
     String? location,
     double? latitude,
@@ -313,6 +369,7 @@ class AlertModel {
       title: title ?? this.title,
       description: description ?? this.description,
       imageUrl: imageUrl ?? this.imageUrl,
+      faceImageUrls: faceImageUrls ?? this.faceImageUrls,
       timestamp: timestamp ?? this.timestamp,
       location: location ?? this.location,
       latitude: latitude ?? this.latitude,
@@ -331,8 +388,6 @@ class AlertModel {
   }
 
   // ── Private helpers ────────────────────────────────────────────────────────
-
-  /// Returns the first non-null, non-empty string from the list.
   static String _firstNonEmpty(List<dynamic?> candidates) {
     for (final c in candidates) {
       if (c == null) continue;
@@ -383,29 +438,47 @@ enum AlertSeverity { critical, warning, info }
 extension AlertTypeExtension on AlertType {
   String get displayName {
     switch (this) {
-      case AlertType.fire:        return 'Fire detected';
-      case AlertType.smoke:       return 'Smoke detected';
-      case AlertType.human:       return 'Person detected';
-      case AlertType.motion:      return 'Motion detected';
-      case AlertType.restricted:  return 'Restricted area entry';
-      case AlertType.unknownFace: return 'Unknown person';
-      case AlertType.knownFace:   return 'Known person';
-      case AlertType.intruder:    return 'Intruder detected';
-      case AlertType.other:       return 'Alert';
+      case AlertType.fire:
+        return 'Fire detected';
+      case AlertType.smoke:
+        return 'Smoke detected';
+      case AlertType.human:
+        return 'Person detected';
+      case AlertType.motion:
+        return 'Motion detected';
+      case AlertType.restricted:
+        return 'Restricted area entry';
+      case AlertType.unknownFace:
+        return 'Unknown person';
+      case AlertType.knownFace:
+        return 'Known person';
+      case AlertType.intruder:
+        return 'Intruder detected';
+      case AlertType.other:
+        return 'Alert';
     }
   }
 
   String get icon {
     switch (this) {
-      case AlertType.fire:        return '🔥';
-      case AlertType.smoke:       return '💨';
-      case AlertType.human:       return '👤';
-      case AlertType.motion:      return '🏃';
-      case AlertType.restricted:  return '🚫';
-      case AlertType.unknownFace: return '❓';
-      case AlertType.knownFace:   return '✅';
-      case AlertType.intruder:    return '🛡️';
-      case AlertType.other:       return '⚠️';
+      case AlertType.fire:
+        return '🔥';
+      case AlertType.smoke:
+        return '💨';
+      case AlertType.human:
+        return '👤';
+      case AlertType.motion:
+        return '🏃';
+      case AlertType.restricted:
+        return '🚫';
+      case AlertType.unknownFace:
+        return '❓';
+      case AlertType.knownFace:
+        return '✅';
+      case AlertType.intruder:
+        return '🛡️';
+      case AlertType.other:
+        return '⚠️';
     }
   }
 }
@@ -413,9 +486,12 @@ extension AlertTypeExtension on AlertType {
 extension AlertSeverityExtension on AlertSeverity {
   String get displayName {
     switch (this) {
-      case AlertSeverity.critical: return 'Critical';
-      case AlertSeverity.warning:  return 'Warning';
-      case AlertSeverity.info:     return 'Info';
+      case AlertSeverity.critical:
+        return 'Critical';
+      case AlertSeverity.warning:
+        return 'Warning';
+      case AlertSeverity.info:
+        return 'Info';
     }
   }
 }
@@ -423,17 +499,17 @@ extension AlertSeverityExtension on AlertSeverity {
 class AlertTypeX {
   static AlertType fromString(String raw) {
     final t = raw.toLowerCase().trim();
-    if (t == 'fire')          return AlertType.fire;
-    if (t == 'smoke')         return AlertType.smoke;
-    if (t == 'human')         return AlertType.human;
-    if (t == 'motion')        return AlertType.motion;
-    if (t == 'restricted')    return AlertType.restricted;
+    if (t == 'fire') return AlertType.fire;
+    if (t == 'smoke') return AlertType.smoke;
+    if (t == 'human') return AlertType.human;
+    if (t == 'motion') return AlertType.motion;
+    if (t == 'restricted') return AlertType.restricted;
     if (t == 'unknown_face' || t == 'unknownface' || t == 'unknown')
-                              return AlertType.unknownFace;
+      return AlertType.unknownFace;
     if (t == 'known_face' || t == 'knownface' || t == 'known')
-                              return AlertType.knownFace;
-    if (t == 'intruder')      return AlertType.intruder;
-    if (t == 'other')         return AlertType.other;
+      return AlertType.knownFace;
+    if (t == 'intruder') return AlertType.intruder;
+    if (t == 'other') return AlertType.other;
     return AlertType.other;
   }
 }
@@ -442,7 +518,7 @@ class AlertSeverityX {
   static AlertSeverity fromString(String raw) {
     final s = raw.toLowerCase().trim();
     if (s == 'critical') return AlertSeverity.critical;
-    if (s == 'warning')  return AlertSeverity.warning;
+    if (s == 'warning') return AlertSeverity.warning;
     return AlertSeverity.info;
   }
 
@@ -453,8 +529,7 @@ class AlertSeverityX {
     if (type == AlertType.fire || type == AlertType.intruder) {
       return AlertSeverity.critical;
     }
-    if (type == AlertType.smoke ||
-        type == AlertType.unknownFace) {
+    if (type == AlertType.smoke || type == AlertType.unknownFace) {
       return AlertSeverity.warning;
     }
     return AlertSeverity.info;

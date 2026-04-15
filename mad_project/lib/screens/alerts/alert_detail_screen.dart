@@ -17,12 +17,12 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
   bool _loadingAddress = false;
   String? _addressError;
 
-  // ── Parsed lens fields ────────────────────────────────────────────────────
-  // lens field may be "front", "back", "front_camera", "back_camera", etc.
-  // OR it may be a JSON-like string: {"front":"...", "back":"..."}
-  // We store both sides after parsing.
+  // ── Lens parsed fields ────────────────────────────────────────────────────
   String? _frontLens;
   String? _backLens;
+
+  // ── Selected image index (for face gallery) ───────────────────────────────
+  int _selectedFaceIndex = 0;
 
   @override
   void didChangeDependencies() {
@@ -39,10 +39,8 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
   // ── Lens parser ───────────────────────────────────────────────────────────
   void _parseLens(String raw) {
     if (raw.isEmpty) return;
-
     final trimmed = raw.trim();
 
-    // Try JSON map first: {"front": "...", "back": "..."}
     if (trimmed.startsWith('{')) {
       try {
         final map = jsonDecode(trimmed) as Map<String, dynamic>;
@@ -58,17 +56,12 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
       } catch (_) {}
     }
 
-    // Try comma-separated: "front_camera,back_camera"
     if (trimmed.contains(',')) {
       final parts = trimmed.split(',').map((e) => e.trim()).toList();
       final front = parts.firstWhere(
-        (p) => p.toLowerCase().contains('front'),
-        orElse: () => '',
-      );
+          (p) => p.toLowerCase().contains('front'), orElse: () => '');
       final back = parts.firstWhere(
-        (p) => p.toLowerCase().contains('back'),
-        orElse: () => '',
-      );
+          (p) => p.toLowerCase().contains('back'), orElse: () => '');
       if (front.isNotEmpty || back.isNotEmpty) {
         setState(() {
           _frontLens = front.isEmpty ? null : front;
@@ -78,14 +71,12 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
       }
     }
 
-    // Single value — assign to front or back by keyword
     final lower = trimmed.toLowerCase();
     if (lower.contains('front')) {
       setState(() => _frontLens = trimmed);
     } else if (lower.contains('back')) {
       setState(() => _backLens = trimmed);
     } else {
-      // Unknown — show as "front" camera by default
       setState(() => _frontLens = trimmed);
     }
   }
@@ -112,10 +103,8 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
         final json = jsonDecode(response.body) as Map<String, dynamic>;
         final addr = json['address'] as Map<String, dynamic>? ?? {};
 
-        // Build a detailed, human-readable address
         final parts = <String>[];
 
-        // Specific building / amenity / place name
         final amenity = (addr['amenity'] ??
                 addr['building'] ??
                 addr['tourism'] ??
@@ -128,9 +117,7 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
             .trim();
         if (amenity.isNotEmpty) parts.add(amenity);
 
-        // House number + road
-        final houseNumber =
-            (addr['house_number'] ?? '').toString().trim();
+        final houseNumber = (addr['house_number'] ?? '').toString().trim();
         final road =
             (addr['road'] ?? addr['street'] ?? addr['footway'] ?? '')
                 .toString()
@@ -143,7 +130,6 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
           parts.add('House $houseNumber');
         }
 
-        // Neighbourhood / suburb / quarter
         final neighbourhood = (addr['neighbourhood'] ??
                 addr['quarter'] ??
                 addr['suburb'] ??
@@ -154,7 +140,6 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
             .trim();
         if (neighbourhood.isNotEmpty) parts.add(neighbourhood);
 
-        // City / town
         final city = (addr['city'] ??
                 addr['town'] ??
                 addr['municipality'] ??
@@ -164,22 +149,18 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
             .trim();
         if (city.isNotEmpty) parts.add(city);
 
-        // State + country
         final state = (addr['state'] ?? '').toString().trim();
         final country = (addr['country'] ?? '').toString().trim();
         if (state.isNotEmpty) parts.add(state);
         if (country.isNotEmpty) parts.add(country);
 
-        // Fallback to display_name from Nominatim
-        final displayName =
-            (json['display_name'] ?? '').toString().trim();
+        final displayName = (json['display_name'] ?? '').toString().trim();
         final formatted =
             parts.isNotEmpty ? parts.join(', ') : displayName;
 
         if (mounted) {
           setState(() {
-            _address =
-                formatted.isNotEmpty ? formatted : displayName;
+            _address = formatted.isNotEmpty ? formatted : displayName;
             _loadingAddress = false;
           });
         }
@@ -242,6 +223,15 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
         accent: const Color(0xFF45B7D1));
   }
 
+  bool get _isFaceAlert {
+    final alert =
+        ModalRoute.of(context)?.settings.arguments as AlertModel?;
+    if (alert == null) return false;
+    return alert.type == AlertType.unknownFace ||
+        alert.type == AlertType.knownFace ||
+        alert.type == AlertType.intruder;
+  }
+
   // ── Build ─────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
@@ -273,7 +263,7 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
         children: [
-          // ── Header ────────────────────────────────────────────────────
+          // ── Header ────────────────────────────────────────────────
           _headerCard(
             icon: style.icon,
             title: style.title,
@@ -283,7 +273,15 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
 
           const SizedBox(height: 20),
 
-          // ── Camera / Lens Section ─────────────────────────────────────
+          // ── Face Images Section ───────────────────────────────────
+          if (_isFaceAlert && alert.hasAnyImage) ...[
+            _sectionTitle('Detected Person'),
+            const SizedBox(height: 10),
+            _faceImagesSection(alert),
+            const SizedBox(height: 20),
+          ],
+
+          // ── Camera / Lens Section ─────────────────────────────────
           if (hasAnyLens) ...[
             _sectionTitle('Camera Information'),
             const SizedBox(height: 10),
@@ -291,12 +289,12 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
             const SizedBox(height: 20),
           ],
 
-          // ── Detection Details ─────────────────────────────────────────
+          // ── Detection Details ─────────────────────────────────────
           _sectionTitle('Detection Details'),
           const SizedBox(height: 10),
           _infoCard(children: [
-            _infoRow(Icons.schedule_rounded, 'Timestamp (UTC)',
-                createdAtText),
+            _infoRow(
+                Icons.schedule_rounded, 'Timestamp (UTC)', createdAtText),
             _divider(),
             _infoRow(Icons.access_time_rounded, 'Local Time',
                 createdAtLocalText),
@@ -304,8 +302,8 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
             _infoRow(Icons.tune_rounded, 'Threshold',
                 _formatThreshold(alert.threshold)),
             _divider(),
-            _infoRow(Icons.category_outlined, 'Alert Type',
-                style.title),
+            _infoRow(
+                Icons.category_outlined, 'Alert Type', style.title),
             if (alert.note.isNotEmpty) ...[
               _divider(),
               _infoRow(Icons.notes_rounded, 'Note', alert.note,
@@ -313,7 +311,7 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
             ],
           ]),
 
-          // ── Location Section ──────────────────────────────────────────
+          // ── Location Section ──────────────────────────────────────
           if (alert.hasLocation) ...[
             const SizedBox(height: 20),
             _sectionTitle('Location'),
@@ -325,15 +323,285 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
     );
   }
 
-  // ── Lens card (front + back) ──────────────────────────────────────────────
-  Widget _lensCard(AlertModel alert) {
-    // Determine what to display
-    final front =
-        _frontLens?.isNotEmpty == true ? _frontLens! : null;
-    final back =
-        _backLens?.isNotEmpty == true ? _backLens! : null;
+  // ── Face images section ───────────────────────────────────────────────────
+  Widget _faceImagesSection(AlertModel alert) {
+    final faceUrls = alert.faceImageUrls;
+    final hasFullFrame = alert.imageUrl.isNotEmpty;
 
-    // If we couldn't split, fall back to raw lens string
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.shade200, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 12,
+              offset: const Offset(0, 6)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Section header
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color:
+                        const Color(0xFFFF9800).withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.face_rounded,
+                      color: Color(0xFFFF9800), size: 18),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Captured Images',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                            color: Color(0xFF1F2937)),
+                      ),
+                      if (faceUrls.isNotEmpty)
+                        Text(
+                          '${faceUrls.length} face crop${faceUrls.length > 1 ? 's' : ''}'
+                          '${hasFullFrame ? ' + full frame' : ''}',
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey.shade500),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(height: 1, color: Colors.grey.shade100),
+
+          // ── Main large preview ──────────────────────────────────
+          if (faceUrls.isNotEmpty) ...[
+            _largeImagePreview(faceUrls[_selectedFaceIndex]),
+
+            // Thumbnail strip if multiple face images
+            if (faceUrls.length > 1) ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 64,
+                child: ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  scrollDirection: Axis.horizontal,
+                  itemCount: faceUrls.length,
+                  separatorBuilder: (_, __) =>
+                      const SizedBox(width: 8),
+                  itemBuilder: (context, index) {
+                    final isSelected = index == _selectedFaceIndex;
+                    return GestureDetector(
+                      onTap: () =>
+                          setState(() => _selectedFaceIndex = index),
+                      child: AnimatedContainer(
+                        duration:
+                            const Duration(milliseconds: 200),
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: isSelected
+                                ? const Color(0xFFFF9800)
+                                : Colors.grey.shade200,
+                            width: isSelected ? 2.5 : 1.5,
+                          ),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            faceUrls[index],
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: Colors.grey.shade100,
+                              child: const Icon(
+                                  Icons.broken_image_rounded,
+                                  size: 20),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ] else if (hasFullFrame)
+            _largeImagePreview(alert.imageUrl),
+
+          // ── Full frame image (separate if we have face crops) ────
+          if (faceUrls.isNotEmpty && hasFullFrame) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+              child: Row(
+                children: [
+                  Icon(Icons.panorama_rounded,
+                      size: 14, color: Colors.grey.shade500),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Full frame',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade500),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: _buildNetworkImage(
+                      alert.imageUrl, const Color(0xFF45B7D1)),
+                ),
+              ),
+            ),
+          ] else
+            const SizedBox(height: 12),
+        ],
+      ),
+    );
+  }
+
+  Widget _largeImagePreview(String url) {
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: GestureDetector(
+        onTap: () => _showFullScreenImage(url),
+        child: Stack(
+          alignment: Alignment.bottomRight,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: AspectRatio(
+                aspectRatio: 4 / 3,
+                child: _buildNetworkImage(url, const Color(0xFFFF9800)),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.fullscreen_rounded,
+                    color: Colors.white, size: 18),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNetworkImage(String url, Color color) {
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      headers: const {'Cache-Control': 'max-age=3600'},
+      loadingBuilder: (context, child, progress) {
+        if (progress == null) return child;
+        return Container(
+          color: color.withOpacity(0.08),
+          child: Center(
+            child: CircularProgressIndicator(
+              strokeWidth: 2.5,
+              color: color,
+              value: progress.expectedTotalBytes != null
+                  ? progress.cumulativeBytesLoaded /
+                      progress.expectedTotalBytes!
+                  : null,
+            ),
+          ),
+        );
+      },
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          color: color.withOpacity(0.08),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.broken_image_rounded,
+                  color: color.withOpacity(0.5), size: 40),
+              const SizedBox(height: 8),
+              Text(
+                'Image unavailable',
+                style: TextStyle(
+                    color: color.withOpacity(0.7),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showFullScreenImage(String url) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: EdgeInsets.zero,
+        child: Stack(
+          children: [
+            InteractiveViewer(
+              child: Image.network(
+                url,
+                fit: BoxFit.contain,
+                headers: const {'Cache-Control': 'max-age=3600'},
+                errorBuilder: (_, __, ___) => const Center(
+                  child: Icon(Icons.broken_image_rounded,
+                      color: Colors.white, size: 60),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 16,
+              right: 16,
+              child: GestureDetector(
+                onTap: () => Navigator.pop(ctx),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.6),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.close_rounded,
+                      color: Colors.white, size: 24),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Lens card ─────────────────────────────────────────────────────────────
+  Widget _lensCard(AlertModel alert) {
+    final front = _frontLens?.isNotEmpty == true ? _frontLens! : null;
+    final back = _backLens?.isNotEmpty == true ? _backLens! : null;
     final rawLens =
         (front == null && back == null && alert.lens.isNotEmpty)
             ? alert.lens
@@ -355,7 +623,6 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Section header row
           Row(
             children: [
               Container(
@@ -381,44 +648,32 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
           const SizedBox(height: 14),
           Container(height: 1, color: Colors.grey.shade100),
           const SizedBox(height: 14),
-
-          if (rawLens != null) ...[
-            // Single lens fallback
+          if (rawLens != null)
             _lensRow(
-              icon: Icons.videocam_rounded,
-              label: 'Camera Lens',
-              value: rawLens,
-              color: const Color(0xFF06B6D4),
-            ),
-          ] else ...[
-            // Front camera
-            if (front != null)
-              _lensRow(
-                icon: Icons.camera_front_rounded,
-                label: 'Front Camera',
-                value: front,
-                color: const Color(0xFF8B5CF6),
-              ),
-            if (front != null && back != null)
-              const SizedBox(height: 12),
-
-            // Back camera
-            if (back != null)
-              _lensRow(
-                icon: Icons.camera_rear_rounded,
-                label: 'Back Camera',
-                value: back,
-                color: const Color(0xFFEC4899),
-              ),
-
-            // If both are null but we have raw
-            if (front == null && back == null && alert.lens.isNotEmpty)
-              _lensRow(
                 icon: Icons.videocam_rounded,
                 label: 'Camera Lens',
-                value: alert.lens,
-                color: const Color(0xFF06B6D4),
-              ),
+                value: rawLens,
+                color: const Color(0xFF06B6D4))
+          else ...[
+            if (front != null)
+              _lensRow(
+                  icon: Icons.camera_front_rounded,
+                  label: 'Front Camera',
+                  value: front,
+                  color: const Color(0xFF8B5CF6)),
+            if (front != null && back != null) const SizedBox(height: 12),
+            if (back != null)
+              _lensRow(
+                  icon: Icons.camera_rear_rounded,
+                  label: 'Back Camera',
+                  value: back,
+                  color: const Color(0xFFEC4899)),
+            if (front == null && back == null && alert.lens.isNotEmpty)
+              _lensRow(
+                  icon: Icons.videocam_rounded,
+                  label: 'Camera Lens',
+                  value: alert.lens,
+                  color: const Color(0xFF06B6D4)),
           ],
         ],
       ),
@@ -443,9 +698,8 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
+                color: color.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(10)),
             child: Icon(icon, color: color, size: 20),
           ),
           const SizedBox(width: 12),
@@ -453,43 +707,33 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: color,
-                    letterSpacing: 0.5,
-                  ),
-                ),
+                Text(label,
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: color,
+                        letterSpacing: 0.5)),
                 const SizedBox(height: 3),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF1F2937),
-                  ),
-                ),
+                Text(value,
+                    style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1F2937))),
               ],
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 8, vertical: 4),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              'ACTIVE',
-              style: TextStyle(
-                fontSize: 9,
-                fontWeight: FontWeight.w800,
-                color: color,
-                letterSpacing: 1,
-              ),
-            ),
+                color: color.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(8)),
+            child: Text('ACTIVE',
+                style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    color: color,
+                    letterSpacing: 1)),
           ),
         ],
       ),
@@ -502,7 +746,6 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
     final lng = alert.longitude!;
     final coordsText =
         '${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}';
-
     final copyValue = _address ?? coordsText;
 
     return Container(
@@ -521,7 +764,7 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Human-readable address banner ───────────────────────────
+          // ── Human-readable address banner ───────────────────────
           Container(
             padding: const EdgeInsets.symmetric(
                 horizontal: 14, vertical: 12),
@@ -532,8 +775,7 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
               ]),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                  color:
-                      const Color(0xFF06B6D4).withOpacity(0.25)),
+                  color: const Color(0xFF06B6D4).withOpacity(0.25)),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -543,27 +785,22 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF06B6D4)
-                          .withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+                        color: const Color(0xFF06B6D4).withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(8)),
                     child: const Icon(Icons.location_on_rounded,
                         color: Color(0xFF06B6D4), size: 18),
                   ),
                 ),
                 const SizedBox(width: 12),
-
-                // Address / loading / error
                 Expanded(
                   child: _loadingAddress
                       ? Row(children: [
                           const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Color(0xFF06B6D4)),
-                          ),
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Color(0xFF06B6D4))),
                           const SizedBox(width: 10),
                           Text('Fetching precise location…',
                               style: TextStyle(
@@ -572,8 +809,7 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
                                   fontWeight: FontWeight.w500)),
                         ])
                       : Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               _address ??
@@ -600,32 +836,24 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
                                 Text('Location verified',
                                     style: TextStyle(
                                         fontSize: 11,
-                                        color:
-                                            Colors.green.shade600,
-                                        fontWeight:
-                                            FontWeight.w600)),
+                                        color: Colors.green.shade600,
+                                        fontWeight: FontWeight.w600)),
                               ]),
                             ],
                           ],
                         ),
                 ),
-
                 const SizedBox(width: 8),
-
-                // Copy button
                 GestureDetector(
                   onTap: () {
-                    Clipboard.setData(
-                        ClipboardData(text: copyValue));
-                    ScaffoldMessenger.of(context)
-                        .showSnackBar(SnackBar(
+                    Clipboard.setData(ClipboardData(text: copyValue));
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                       content:
                           const Text('Address copied to clipboard'),
                       backgroundColor: const Color(0xFF06B6D4),
                       behavior: SnackBarBehavior.floating,
                       shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(12)),
+                          borderRadius: BorderRadius.circular(12)),
                       margin: const EdgeInsets.all(16),
                       duration: const Duration(seconds: 2),
                     ));
@@ -633,10 +861,8 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF06B6D4)
-                          .withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+                        color: const Color(0xFF06B6D4).withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(8)),
                     child: const Icon(Icons.copy_rounded,
                         size: 16, color: Color(0xFF06B6D4)),
                   ),
@@ -645,7 +871,6 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
             ),
           ),
 
-          // Error note
           if (_addressError != null && _address == null) ...[
             const SizedBox(height: 8),
             Row(children: [
@@ -655,8 +880,7 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
               Text(
                   'Showing GPS coordinates (address unavailable)',
                   style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey.shade400)),
+                      fontSize: 11, color: Colors.grey.shade400)),
             ]),
           ],
 
@@ -664,7 +888,6 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
           Container(height: 1, color: Colors.grey.shade100),
           const SizedBox(height: 14),
 
-          // ── GPS Coordinates ─────────────────────────────────────────
           _coordRow(
               icon: Icons.my_location_rounded,
               label: 'Latitude',
@@ -675,7 +898,6 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
               label: 'Longitude',
               value: lng.toStringAsFixed(6)),
 
-          // ── Location name from Firestore ────────────────────────────
           if (alert.locationName != null &&
               alert.locationName!.isNotEmpty) ...[
             const SizedBox(height: 10),
@@ -685,7 +907,6 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
                 value: alert.locationName!),
           ],
 
-          // ── Map deep-link button ────────────────────────────────────
           const SizedBox(height: 16),
           Container(height: 1, color: Colors.grey.shade100),
           const SizedBox(height: 14),
@@ -696,8 +917,7 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
                   'https://www.google.com/maps/search/?api=1&query=$lat,$lng';
               Clipboard.setData(ClipboardData(text: mapsUrl));
               ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content:
-                    const Text('Google Maps link copied!'),
+                content: const Text('Google Maps link copied!'),
                 backgroundColor: const Color(0xFF8B5CF6),
                 behavior: SnackBarBehavior.floating,
                 shape: RoundedRectangleBorder(
@@ -716,8 +936,7 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
                 ]),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                    color: const Color(0xFF8B5CF6)
-                        .withOpacity(0.3)),
+                    color: const Color(0xFF8B5CF6).withOpacity(0.3)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -725,14 +944,11 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
                   Icon(Icons.map_rounded,
                       color: const Color(0xFF8B5CF6), size: 18),
                   const SizedBox(width: 8),
-                  const Text(
-                    'Copy Google Maps Link',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                      color: Color(0xFF8B5CF6),
-                    ),
-                  ),
+                  const Text('Copy Google Maps Link',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          color: Color(0xFF8B5CF6))),
                 ],
               ),
             ),
@@ -751,11 +967,9 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
       Container(
         padding: const EdgeInsets.all(7),
         decoration: BoxDecoration(
-            color:
-                const Color(0xFF06B6D4).withOpacity(0.08),
+            color: const Color(0xFF06B6D4).withOpacity(0.08),
             borderRadius: BorderRadius.circular(10)),
-        child: Icon(icon,
-            size: 15, color: const Color(0xFF06B6D4)),
+        child: Icon(icon, size: 15, color: const Color(0xFF06B6D4)),
       ),
       const SizedBox(width: 12),
       SizedBox(
@@ -806,8 +1020,7 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
           ).createShader(bounds),
           child: const Text('Alert Details',
               style: TextStyle(
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white)),
+                  fontWeight: FontWeight.w900, color: Colors.white)),
         ),
       );
 
@@ -829,17 +1042,14 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
       Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-              colors: [
-                accent.withOpacity(0.10),
-                const Color(0xFF8B5CF6).withOpacity(0.08),
-                const Color(0xFF06B6D4).withOpacity(0.08),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight),
+          gradient: LinearGradient(colors: [
+            accent.withOpacity(0.10),
+            const Color(0xFF8B5CF6).withOpacity(0.08),
+            const Color(0xFF06B6D4).withOpacity(0.08),
+          ], begin: Alignment.topLeft, end: Alignment.bottomRight),
           borderRadius: BorderRadius.circular(20),
-          border:
-              Border.all(color: accent.withOpacity(0.25), width: 1.5),
+          border: Border.all(
+              color: accent.withOpacity(0.25), width: 1.5),
           boxShadow: [
             BoxShadow(
                 color: Colors.black.withOpacity(0.05),
@@ -881,8 +1091,7 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-              color: Colors.grey.shade200, width: 1.5),
+          border: Border.all(color: Colors.grey.shade200, width: 1.5),
           boxShadow: [
             BoxShadow(
                 color: Colors.black.withOpacity(0.05),

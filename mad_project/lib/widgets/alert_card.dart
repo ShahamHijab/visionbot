@@ -9,22 +9,17 @@ class AlertCard extends StatelessWidget {
   const AlertCard({super.key, required this.alert, this.onTap});
 
   bool get _isFaceAlert {
-    final t = alert.type.toString().toLowerCase();
-    return t.contains('unknown_face') ||
-        t.contains('unknownface') ||
-        t.contains('known_face') ||
-        t.contains('knownface') ||
-        t.contains('intruder');
+    return alert.type == AlertType.unknownFace ||
+        alert.type == AlertType.knownFace ||
+        alert.type == AlertType.intruder;
   }
-
-  bool get _hasImage => alert.imageUrl.isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
     final title = alert.type.displayName;
     final subtitle = _subtitle();
     final timeText = _formatTime(alert.createdAt);
-    final color = alert.type.toString().severityColor;
+    final color = _severityColor;
 
     return Material(
       color: Colors.transparent,
@@ -46,12 +41,11 @@ class AlertCard extends StatelessWidget {
           ),
           child: Row(
             children: [
-              // ── Avatar: face photo OR icon ──────────────────────────
+              // ── Avatar ─────────────────────────────────────────────
               _buildAvatar(color),
-
               const SizedBox(width: 12),
 
-              // ── Content ─────────────────────────────────────────────
+              // ── Content ────────────────────────────────────────────
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -70,39 +64,10 @@ class AlertCard extends StatelessWidget {
                             ),
                           ),
                         ),
-                        // Badge for face alerts
+                        // Badge showing image count for face alerts
                         if (_isFaceAlert) ...[
                           const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: color.withOpacity(0.12),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  _hasImage
-                                      ? Icons.photo_camera_rounded
-                                      : Icons.no_photography_rounded,
-                                  size: 10,
-                                  color: color,
-                                ),
-                                const SizedBox(width: 3),
-                                Text(
-                                  _hasImage ? 'PHOTO' : 'NO IMG',
-                                  style: TextStyle(
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w800,
-                                    color: color,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                          _imageBadge(color),
                         ],
                       ],
                     ),
@@ -117,6 +82,31 @@ class AlertCard extends StatelessWidget {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
+                    // Show location if available
+                    if (alert.hasLocation) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(Icons.location_on_rounded,
+                              size: 12, color: const Color(0xFF06B6D4)),
+                          const SizedBox(width: 3),
+                          Expanded(
+                            child: Text(
+                              alert.locationName ??
+                                  '${alert.latitude!.toStringAsFixed(4)}, '
+                                      '${alert.longitude!.toStringAsFixed(4)}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF06B6D4),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -133,7 +123,7 @@ class AlertCard extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(height: 4),
                   Icon(
                     Icons.chevron_right_rounded,
                     color: Colors.grey.shade400,
@@ -148,23 +138,86 @@ class AlertCard extends StatelessWidget {
     );
   }
 
-  // ── Avatar builder ────────────────────────────────────────────────────────
-  Widget _buildAvatar(Color color) {
-    // Face alert with actual image URL — show the photo
-    if (_isFaceAlert && _hasImage) {
-      return _FaceImageAvatar(
-        imageUrl: alert.imageUrl,
-        color: color,
-        size: 56,
+  // ── Image count badge ─────────────────────────────────────────────────────
+  Widget _imageBadge(Color color) {
+    final count = alert.faceImageUrls.length;
+    final hasFullFrame = alert.imageUrl.isNotEmpty;
+
+    if (count == 0 && !hasFullFrame) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.no_photography_rounded,
+                size: 10, color: Colors.grey.shade400),
+            const SizedBox(width: 3),
+            Text(
+              'NO IMG',
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w800,
+                color: Colors.grey.shade400,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        ),
       );
     }
 
-    // Face alert but no image stored in Firestore
-    if (_isFaceAlert && !_hasImage) {
+    final label = count > 0 ? '${count} FACE${count > 1 ? 'S' : ''}' : 'PHOTO';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.face_rounded, size: 10, color: color),
+          const SizedBox(width: 3),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w800,
+              color: color,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Avatar builder ────────────────────────────────────────────────────────
+  Widget _buildAvatar(Color color) {
+    // Face alert: show first face crop, or full frame, or placeholder
+    if (_isFaceAlert) {
+      if (alert.faceImageUrls.isNotEmpty) {
+        return _NetworkImageAvatar(
+          imageUrl: alert.faceImageUrls.first,
+          color: color,
+          size: 56,
+        );
+      }
+      if (alert.imageUrl.isNotEmpty) {
+        return _NetworkImageAvatar(
+          imageUrl: alert.imageUrl,
+          color: color,
+          size: 56,
+        );
+      }
       return _noPhotoPlaceholder(color);
     }
 
-    // Non-face alert — emoji icon
+    // Non-face alert: emoji icon
     return Container(
       width: 56,
       height: 56,
@@ -180,7 +233,6 @@ class AlertCard extends StatelessWidget {
     );
   }
 
-  // ── No-photo placeholder ──────────────────────────────────────────────────
   Widget _noPhotoPlaceholder(Color color) {
     return Container(
       width: 56,
@@ -210,6 +262,19 @@ class AlertCard extends StatelessWidget {
     );
   }
 
+  Color get _severityColor {
+    switch (alert.type) {
+      case AlertType.fire:
+      case AlertType.intruder:
+        return const Color(0xFFFF6B6B);
+      case AlertType.smoke:
+      case AlertType.unknownFace:
+        return const Color(0xFFF59E0B);
+      default:
+        return const Color(0xFF45B7D1);
+    }
+  }
+
   String _subtitle() {
     final lensText = alert.lens.isEmpty ? 'unknown' : alert.lens;
     final noteText = alert.note.isEmpty ? '' : alert.note;
@@ -223,13 +288,13 @@ class AlertCard extends StatelessWidget {
   }
 }
 
-// ── Reusable face image widget with loading + error states ─────────────────
-class _FaceImageAvatar extends StatelessWidget {
+// ── Reusable network image avatar ─────────────────────────────────────────
+class _NetworkImageAvatar extends StatelessWidget {
   final String imageUrl;
   final Color color;
   final double size;
 
-  const _FaceImageAvatar({
+  const _NetworkImageAvatar({
     required this.imageUrl,
     required this.color,
     this.size = 56,
@@ -245,19 +310,13 @@ class _FaceImageAvatar extends StatelessWidget {
         child: Image.network(
           imageUrl,
           fit: BoxFit.cover,
-          // Cache headers help with repeated loads
-          headers: const {
-            'Cache-Control': 'max-age=3600',
-          },
+          headers: const {'Cache-Control': 'max-age=3600'},
           loadingBuilder: (context, child, progress) {
             if (progress == null) return child;
             return Container(
               width: size,
               height: size,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(14),
-              ),
+              color: color.withOpacity(0.1),
               child: Center(
                 child: SizedBox(
                   width: size * 0.35,
@@ -275,13 +334,11 @@ class _FaceImageAvatar extends StatelessWidget {
             );
           },
           errorBuilder: (context, error, stackTrace) {
-            // On error, show a styled placeholder with the error hint
             return Container(
               width: size,
               height: size,
               decoration: BoxDecoration(
                 color: color.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(14),
                 border: Border.all(
                     color: color.withOpacity(0.25), width: 1.5),
               ),
@@ -290,15 +347,12 @@ class _FaceImageAvatar extends StatelessWidget {
                 children: [
                   Icon(Icons.broken_image_rounded,
                       color: color.withOpacity(0.6), size: size * 0.35),
-                  const SizedBox(height: 2),
                   Text(
-                    'Load\nFailed',
-                    textAlign: TextAlign.center,
+                    'Error',
                     style: TextStyle(
                       fontSize: 7,
                       color: color.withOpacity(0.7),
                       fontWeight: FontWeight.w700,
-                      height: 1.1,
                     ),
                   ),
                 ],
@@ -308,46 +362,5 @@ class _FaceImageAvatar extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-// ── Extensions ────────────────────────────────────────────────────────────
-extension AlertTypeText on String {
-  String get displayName {
-    final t = toLowerCase().trim();
-    if (t == 'unknown_face' ||
-        t == 'unknownface' ||
-        t == 'alerttype.unknownface') return 'Unknown person';
-    if (t == 'known_face' || t == 'knownface') return 'Known person';
-    if (t == 'motion') return 'Motion detected';
-    if (t == 'fire') return 'Fire detected';
-    if (t == 'smoke') return 'Smoke detected';
-    if (t == 'intruder') return 'Intruder detected';
-    if (t.isEmpty) return 'Alert';
-    final pretty = t.replaceAll('_', ' ').replaceAll('alerttype.', '');
-    return pretty[0].toUpperCase() + pretty.substring(1);
-  }
-
-  String get icon {
-    final t = toLowerCase().trim();
-    if (t == 'fire') return '🔥';
-    if (t == 'smoke') return '💨';
-    if (t == 'unknown_face' ||
-        t == 'unknownface' ||
-        t == 'alerttype.unknownface') return '👤';
-    if (t == 'known_face' || t == 'knownface') return '🙂';
-    if (t == 'motion') return '🏃';
-    if (t == 'intruder') return '🛡️';
-    return '⚠️';
-  }
-
-  Color get severityColor {
-    final t = toLowerCase().trim();
-    if (t == 'fire' || t == 'intruder') return const Color(0xFFFF6B6B);
-    if (t == 'smoke' ||
-        t == 'unknown_face' ||
-        t == 'unknownface' ||
-        t == 'alerttype.unknownface') return const Color(0xFFF59E0B);
-    return const Color(0xFF45B7D1);
   }
 }
