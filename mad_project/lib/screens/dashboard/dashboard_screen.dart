@@ -528,43 +528,36 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
 
         return LayoutBuilder(
           builder: (context, constraints) {
-            final width = constraints.maxWidth;
-            final crossAxisCount = width >= 1000
-                ? 4
-                : width >= 680
-                ? 2
-                : 1;
-            final childAspectRatio = crossAxisCount == 1 ? 2.2 : 1.1;
+            final itemWidth = (constraints.maxWidth - 14) / 2;
 
-            return GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: crossAxisCount,
-                crossAxisSpacing: 14,
-                mainAxisSpacing: 14,
-                childAspectRatio: childAspectRatio,
-              ),
-              itemCount: stats.length,
-              itemBuilder: (context, index) {
-                return TweenAnimationBuilder<double>(
-                  tween: Tween(begin: 0.0, end: 1.0),
-                  duration: Duration(milliseconds: 600 + (index * 100)),
-                  curve: Curves.easeOutCubic,
-                  builder: (context, value, child) {
-                    return Transform.translate(
-                      offset: Offset(0, 30 * (1 - value)),
-                      child: Opacity(opacity: value, child: child),
-                    );
-                  },
-                  child: _buildStatCard(
-                    stats[index]['title'] as String,
-                    stats[index]['value'] as String,
-                    stats[index]['icon'] as IconData,
-                    stats[index]['color'] as Color,
+            return Wrap(
+              spacing: 14,
+              runSpacing: 14,
+              children: List.generate(stats.length, (index) {
+                return SizedBox(
+                  width: itemWidth,
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0.0, end: 1.0),
+                    duration: Duration(milliseconds: 600 + (index * 100)),
+                    curve: Curves.easeOutCubic,
+                    builder: (context, value, child) {
+                      return Transform.translate(
+                        offset: Offset(0, 30 * (1 - value)),
+                        child: Opacity(opacity: value, child: child),
+                      );
+                    },
+                    child: AspectRatio(
+                      aspectRatio: 1.0,
+                      child: _buildStatCard(
+                        stats[index]['title'] as String,
+                        stats[index]['value'] as String,
+                        stats[index]['icon'] as IconData,
+                        stats[index]['color'] as Color,
+                      ),
+                    ),
                   ),
                 );
-              },
+              }),
             );
           },
         );
@@ -592,19 +585,21 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
+              gradient: LinearGradient(colors: [color, color.withOpacity(0.7)]),
+              borderRadius: BorderRadius.circular(16),
             ),
-            child: Icon(icon, color: color, size: 24),
+            child: Icon(icon, color: Colors.white, size: 32),
           ),
           const SizedBox(height: 8),
           Text(
             value,
+            textAlign: TextAlign.center,
             style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w900,
@@ -615,6 +610,7 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
           const SizedBox(height: 2),
           Text(
             title,
+            textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
