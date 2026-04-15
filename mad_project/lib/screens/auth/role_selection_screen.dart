@@ -3,7 +3,11 @@ import '../../routes/app_routes.dart';
 import '../../services/auth_service.dart';
 
 class RoleSelectionScreen extends StatefulWidget {
-  const RoleSelectionScreen({super.key});
+  /// If true, shows admin role option (for Security Officers creating admins)
+  /// If false, only shows Security Officer role (normal signup)
+  final bool allowAdminSelection;
+
+  const RoleSelectionScreen({super.key, this.allowAdminSelection = false});
 
   @override
   State<RoleSelectionScreen> createState() => _RoleSelectionScreenState();
@@ -23,6 +27,11 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
   void initState() {
     super.initState();
 
+    // Set default role to 'securityOfficer' for new users during normal signup
+    if (!widget.allowAdminSelection) {
+      _selectedRole = 'securityOfficer';
+    }
+
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
@@ -33,13 +42,13 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
       curve: Curves.easeInOut,
     );
 
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOutCubic,
-    ));
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
 
     _animationController.forward();
   }
@@ -68,7 +77,9 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
           ),
           backgroundColor: const Color(0xFF8B5CF6),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           margin: const EdgeInsets.all(20),
           duration: const Duration(seconds: 3),
           elevation: 8,
@@ -107,7 +118,9 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
           ),
           backgroundColor: const Color(0xFFEC4899),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           margin: const EdgeInsets.all(20),
           duration: const Duration(seconds: 3),
           elevation: 8,
@@ -144,9 +157,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
           color: isSelected ? null : Colors.white,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: isSelected
-                ? Colors.transparent
-                : Colors.grey.shade200,
+            color: isSelected ? Colors.transparent : Colors.grey.shade200,
             width: 2,
           ),
           boxShadow: [
@@ -173,7 +184,9 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: isSelected ? Colors.white.withOpacity(0.2) : const Color(0xFF06B6D4).withOpacity(0.1),
+                  color: isSelected
+                      ? Colors.white.withOpacity(0.2)
+                      : const Color(0xFF06B6D4).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Icon(
@@ -193,7 +206,9 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
-                        color: isSelected ? Colors.white : const Color(0xFF1F2937),
+                        color: isSelected
+                            ? Colors.white
+                            : const Color(0xFF1F2937),
                         letterSpacing: 0.3,
                       ),
                     ),
@@ -253,16 +268,16 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
             children: [
               // Custom AppBar
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     ShaderMask(
                       shaderCallback: (bounds) => const LinearGradient(
-                        colors: [
-                          Color(0xFFEC4899),
-                          Color(0xFF06B6D4),
-                        ],
+                        colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
                       ).createShader(bounds),
                       child: const Text(
                         'Select Your Role',
@@ -303,7 +318,9 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFF06B6D4).withOpacity(0.3),
+                                  color: const Color(
+                                    0xFF06B6D4,
+                                  ).withOpacity(0.3),
                                   blurRadius: 30,
                                   offset: const Offset(0, 10),
                                 ),
@@ -352,7 +369,9 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
                           ),
                           const SizedBox(height: 12),
                           Text(
-                            'Select the role that best describes you',
+                            widget.allowAdminSelection
+                                ? 'Select the role for the new admin account'
+                                : 'Select the role that best describes you',
                             style: TextStyle(
                               fontSize: 16,
                               color: Colors.grey.shade600,
@@ -361,19 +380,23 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 48),
-                          // Admin Role Card
-                          _buildRoleCard(
-                            title: 'Admin',
-                            subtitle: 'Full access to all features',
-                            value: 'admin',
-                            icon: Icons.admin_panel_settings_rounded,
-                          ),
-                          const SizedBox(height: 20),
+                          // Admin Role Card - Only show if allowAdminSelection is true
+                          if (widget.allowAdminSelection)
+                            _buildRoleCard(
+                              title: 'Admin',
+                              subtitle: 'Full access to all features',
+                              value: 'admin',
+                              icon: Icons.admin_panel_settings_rounded,
+                            ),
+                          if (widget.allowAdminSelection)
+                            const SizedBox(height: 20),
                           // Officer Role Card
                           _buildRoleCard(
-                            title: 'Officer',
-                            subtitle: 'Standard user access',
-                            value: 'officer',
+                            title: 'Security Officer',
+                            subtitle: widget.allowAdminSelection
+                                ? 'Standard access (manually select admin above)'
+                                : 'Standard user access',
+                            value: 'securityOfficer',
                             icon: Icons.badge_rounded,
                           ),
                           const SizedBox(height: 48),
@@ -394,12 +417,16 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
                               borderRadius: BorderRadius.circular(20),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFFEC4899).withOpacity(0.4),
+                                  color: const Color(
+                                    0xFFEC4899,
+                                  ).withOpacity(0.4),
                                   blurRadius: 20,
                                   offset: const Offset(0, 10),
                                 ),
                                 BoxShadow(
-                                  color: const Color(0xFF06B6D4).withOpacity(0.3),
+                                  color: const Color(
+                                    0xFF06B6D4,
+                                  ).withOpacity(0.3),
                                   blurRadius: 20,
                                   offset: const Offset(0, 5),
                                 ),

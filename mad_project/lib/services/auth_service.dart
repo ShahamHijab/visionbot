@@ -291,6 +291,123 @@ class AuthService {
     }
   }
 
+  /// Creates a new admin account. Only users with canCreateAdminAccounts permission can call this.
+  /// Security Officers can create admins, but Admins cannot create other admins.
+  Future<UserCredential> createAdminAccount({
+    required String name,
+    required String email,
+    required String password,
+  }) async {
+    try {
+      // Check if current user has permission to create admin accounts
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        throw FirebaseAuthException(
+          code: 'no-current-user',
+          message: 'You must be logged in to create admin accounts.',
+        );
+      }
+
+      // Verify current user has admin creation permission
+      final currentUserDoc = await _db
+          .collection('users')
+          .doc(currentUser.uid)
+          .get();
+      if (!currentUserDoc.exists) {
+        throw FirebaseAuthException(
+          code: 'user-not-found',
+          message: 'Current user data not found.',
+        );
+      }
+
+      final currentUserData = currentUserDoc.data();
+      final currentUserRole = currentUserData?['role'] as String?;
+
+      // Only Security Officers (not Admins) can create admin accounts
+      if (currentUserRole != 'securityOfficer') {
+        throw FirebaseAuthException(
+          code: 'permission-denied',
+          message:
+              'Only Security Officers can create admin accounts. Admins cannot create other admins.',
+        );
+      }
+
+      // Validate input
+      final emailLower = email.trim().toLowerCase();
+      final trimmedName = name.trim();
+
+      if (trimmedName.isEmpty || emailLower.isEmpty || password.isEmpty) {
+        throw FirebaseAuthException(
+          code: 'invalid-input',
+          message: 'Name, email, and password are required.',
+        );
+      }
+
+      if (password.length < 6) {
+        throw FirebaseAuthException(
+          code: 'weak-password',
+          message: 'Password must be at least 6 characters.',
+        );
+      }
+
+      // Check if email already exists in users collection
+      final existingUser = await _db
+          .collection('users')
+          .where('email', isEqualTo: emailLower)
+          .limit(1)
+          .get();
+
+      if (existingUser.docs.isNotEmpty) {
+        throw FirebaseAuthException(
+          code: 'email-already-in-use',
+          message: 'An account with this email already exists.',
+        );
+      }
+
+      // Create the admin account
+      final cred = await _auth.createUserWithEmailAndPassword(
+        email: emailLower,
+        password: password,
+      );
+
+      final newUser = cred.user;
+      if (newUser == null) {
+        throw FirebaseAuthException(
+          code: 'unknown',
+          message: 'Failed to create admin account.',
+        );
+      }
+
+      // Update display name
+      if (trimmedName.isNotEmpty) {
+        try {
+          await newUser.updateDisplayName(trimmedName);
+        } catch (_) {}
+      }
+
+      // Send verification email
+      await newUser.sendEmailVerification();
+
+      // Create user document with admin role
+      final adminPermissions = UserPermissions.fromRole(UserRole.admin);
+      await _db.collection('users').doc(newUser.uid).set({
+        'id': newUser.uid,
+        'name': trimmedName,
+        'email': emailLower,
+        'role': 'admin',
+        'permissions': adminPermissions.toJson(),
+        'createdAt': FieldValue.serverTimestamp(),
+        'createdBy': currentUser.uid, // Track which officer created this admin
+      }, SetOptions(merge: true));
+
+      return cred;
+    } on FirebaseAuthException {
+      rethrow;
+    } catch (e) {
+      throw FirebaseAuthException(code: 'unknown', message: e.toString());
+    }
+  }
+
   Future<bool> hasPendingVerification(String email) async {
     try {
       final emailLower = email.trim().toLowerCase();

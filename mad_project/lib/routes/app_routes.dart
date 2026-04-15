@@ -15,9 +15,11 @@ import '../screens/tracking/gps_tracking_screen.dart';
 import '../screens/notifications/notifications_screen.dart';
 import '../screens/logs/logs_history_screen.dart';
 import '../screens/settings/settings_screen.dart';
-import '../screens/settings/about_screen.dart' hide UserGuideScreen, ImageGalleryScreen, LogsHistoryScreen;
+import '../screens/settings/about_screen.dart'
+    hide UserGuideScreen, ImageGalleryScreen, LogsHistoryScreen;
 import '../screens/settings/user_guide_screen.dart';
 import '../screens/auth/verify_email_screen.dart';
+import '../screens/admin/admin_management_screen.dart';
 
 class AppRoutes {
   // Auth Routes
@@ -55,6 +57,9 @@ class AppRoutes {
   static const String about = '/about';
   static const String userGuide = '/user-guide';
 
+  // Admin Routes
+  static const String adminManagement = '/admin-management';
+
   static Map<String, WidgetBuilder> routes = {
     splash: (_) => const SplashScreen(),
     login: (_) => const LoginScreen(),
@@ -75,5 +80,6 @@ class AppRoutes {
     about: (_) => const AboutScreen(),
     userGuide: (_) => const UserGuideScreen(),
     verifyEmail: (_) => const VerifyEmailScreen(),
+    adminManagement: (_) => const AdminManagementScreen(),
   };
 }

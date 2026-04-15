@@ -165,6 +165,9 @@ class UserPermissions {
   // Alert & Event Logs
   final bool canViewAlertLogs;
 
+  // Admin Management - Only Security Officers can create admin accounts
+  final bool canCreateAdminAccounts;
+
   UserPermissions({
     required this.canAccessDashboard,
     required this.canViewLiveCameraFeed,
@@ -174,6 +177,7 @@ class UserPermissions {
     required this.canPerformFaceVerification,
     required this.canAccessGPSTracking,
     required this.canViewAlertLogs,
+    required this.canCreateAdminAccounts,
   });
 
   factory UserPermissions.fromRole(UserRole role) {
@@ -188,6 +192,7 @@ class UserPermissions {
           canPerformFaceVerification: true,
           canAccessGPSTracking: true,
           canViewAlertLogs: true,
+          canCreateAdminAccounts: false, // Admins CANNOT create other admins
         );
       case UserRole.securityOfficer:
         return UserPermissions(
@@ -199,6 +204,8 @@ class UserPermissions {
           canPerformFaceVerification: true,
           canAccessGPSTracking: false, // Admin only
           canViewAlertLogs: true,
+          canCreateAdminAccounts:
+              true, // ONLY Security Officers can create admins
         );
     }
   }
@@ -215,6 +222,7 @@ class UserPermissions {
       canAccessGPSTracking:
           json['canAccessGPSTracking'] ?? true, // Default to true
       canViewAlertLogs: json['canViewAlertLogs'] ?? true,
+      canCreateAdminAccounts: json['canCreateAdminAccounts'] ?? false,
     );
   }
 
@@ -228,6 +236,7 @@ class UserPermissions {
       'canPerformFaceVerification': canPerformFaceVerification,
       'canAccessGPSTracking': canAccessGPSTracking,
       'canViewAlertLogs': canViewAlertLogs,
+      'canCreateAdminAccounts': canCreateAdminAccounts,
     };
   }
 }

@@ -5,6 +5,7 @@ import '../../routes/app_routes.dart';
 import '../../services/auth_service.dart';
 import '../../services/alert_service.dart';
 import '../../models/alert_model.dart';
+import '../../models/user_model.dart';
 import '../gallery/image_gallery_screen.dart';
 import '../alerts/alerts_dashboard.dart';
 
@@ -142,6 +143,7 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
   late Animation<Offset> _slideAnimation;
 
   final AlertService _alertService = AlertService();
+  final AuthService _authService = AuthService();
 
   @override
   void initState() {
@@ -628,75 +630,131 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
   }
 
   Widget _buildQuickActionsSection(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
-          ).createShader(bounds),
-          child: const Text(
-            'Quick Actions',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-              letterSpacing: -0.5,
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final useColumn = constraints.maxWidth < 640;
-            if (useColumn) {
-              return Column(
-                children: [
-                  _buildActionButton(
-                    context,
-                    'GPS Tracking',
-                    Icons.location_on_rounded,
-                    const Color(0xFF4ECDC4),
-                    AppRoutes.tracking,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildActionButton(
-                    context,
-                    'View Logs',
-                    Icons.history_rounded,
-                    const Color(0xFF45B7D1),
-                    AppRoutes.logs,
-                  ),
-                ],
-              );
-            }
+    return FutureBuilder<UserModel?>(
+      future: _authService.getCurrentUserData(),
+      builder: (context, snapshot) {
+        final isSecurityOfficer =
+            snapshot.data?.permissions.canCreateAdminAccounts ?? false;
 
-            return Row(
-              children: [
-                Expanded(
-                  child: _buildActionButton(
-                    context,
-                    'GPS Tracking',
-                    Icons.location_on_rounded,
-                    const Color(0xFF4ECDC4),
-                    AppRoutes.tracking,
-                  ),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
+              ).createShader(bounds),
+              child: const Text(
+                'Quick Actions',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  letterSpacing: -0.5,
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildActionButton(
-                    context,
-                    'View Logs',
-                    Icons.history_rounded,
-                    const Color(0xFF45B7D1),
-                    AppRoutes.logs,
+              ),
+            ),
+            const SizedBox(height: 16),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final useColumn = constraints.maxWidth < 640;
+                final actionButtons = [
+                  {
+                    'label': 'GPS Tracking',
+                    'icon': Icons.location_on_rounded,
+                    'color': const Color(0xFF4ECDC4),
+                    'route': AppRoutes.tracking,
+                  },
+                  {
+                    'label': 'View Logs',
+                    'icon': Icons.history_rounded,
+                    'color': const Color(0xFF45B7D1),
+                    'route': AppRoutes.logs,
+                  },
+                ];
+
+                // Add Admin Management button for Security Officers
+                if (isSecurityOfficer) {
+                  actionButtons.add({
+                    'label': 'Admin Management',
+                    'icon': Icons.admin_panel_settings_rounded,
+                    'color': const Color(0xFF8B5CF6),
+                    'route': AppRoutes.adminManagement,
+                  });
+                }
+
+                if (useColumn) {
+                  return Column(
+                    children: List.generate(actionButtons.length, (index) {
+                      final w = _buildActionButton(
+                        context,
+                        actionButtons[index]['label'] as String,
+                        actionButtons[index]['icon'] as IconData,
+                        actionButtons[index]['color'] as Color,
+                        actionButtons[index]['route'] as String,
+                      );
+                      if (index < actionButtons.length - 1) {
+                        return Column(
+                          children: [w, const SizedBox(height: 16)],
+                        );
+                      }
+                      return w;
+                    }),
+                  );
+                }
+
+                // For row layout with 2 columns
+                if (actionButtons.length == 2) {
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: _buildActionButton(
+                          context,
+                          actionButtons[0]['label'] as String,
+                          actionButtons[0]['icon'] as IconData,
+                          actionButtons[0]['color'] as Color,
+                          actionButtons[0]['route'] as String,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildActionButton(
+                          context,
+                          actionButtons[1]['label'] as String,
+                          actionButtons[1]['icon'] as IconData,
+                          actionButtons[1]['color'] as Color,
+                          actionButtons[1]['route'] as String,
+                        ),
+                      ),
+                    ],
+                  );
+                }
+
+                // For 3 buttons, use grid
+                return GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 1.0,
                   ),
-                ),
-              ],
-            );
-          },
-        ),
-      ],
+                  itemCount: actionButtons.length,
+                  itemBuilder: (context, index) {
+                    return _buildActionButton(
+                      context,
+                      actionButtons[index]['label'] as String,
+                      actionButtons[index]['icon'] as IconData,
+                      actionButtons[index]['color'] as Color,
+                      actionButtons[index]['route'] as String,
+                    );
+                  },
+                );
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 
