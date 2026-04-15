@@ -579,14 +579,14 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
     Color color,
   ) {
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.15),
-            blurRadius: 20,
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 18,
             offset: const Offset(0, 8),
           ),
         ],
@@ -656,7 +656,6 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
             const SizedBox(height: 16),
             LayoutBuilder(
               builder: (context, constraints) {
-                final useColumn = constraints.maxWidth < 640;
                 final actionButtons = [
                   {
                     'label': 'GPS Tracking',
@@ -682,73 +681,23 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
                   });
                 }
 
-                if (useColumn) {
-                  return Column(
-                    children: List.generate(actionButtons.length, (index) {
-                      final w = _buildActionButton(
-                        context,
-                        actionButtons[index]['label'] as String,
-                        actionButtons[index]['icon'] as IconData,
-                        actionButtons[index]['color'] as Color,
-                        actionButtons[index]['route'] as String,
-                      );
-                      if (index < actionButtons.length - 1) {
-                        return Column(
-                          children: [w, const SizedBox(height: 16)],
-                        );
-                      }
-                      return w;
-                    }),
-                  );
-                }
-
-                // For row layout with 2 columns
-                if (actionButtons.length == 2) {
-                  return Row(
-                    children: [
+                // Use Row with Expanded for all button counts to ensure same size in one row
+                return Row(
+                  children: [
+                    for (int i = 0; i < actionButtons.length; i++) ...[
                       Expanded(
                         child: _buildActionButton(
                           context,
-                          actionButtons[0]['label'] as String,
-                          actionButtons[0]['icon'] as IconData,
-                          actionButtons[0]['color'] as Color,
-                          actionButtons[0]['route'] as String,
+                          actionButtons[i]['label'] as String,
+                          actionButtons[i]['icon'] as IconData,
+                          actionButtons[i]['color'] as Color,
+                          actionButtons[i]['route'] as String,
                         ),
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: _buildActionButton(
-                          context,
-                          actionButtons[1]['label'] as String,
-                          actionButtons[1]['icon'] as IconData,
-                          actionButtons[1]['color'] as Color,
-                          actionButtons[1]['route'] as String,
-                        ),
-                      ),
+                      if (i < actionButtons.length - 1)
+                        const SizedBox(width: 12),
                     ],
-                  );
-                }
-
-                // For 3 buttons, use grid
-                return GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    childAspectRatio: 1.0,
-                  ),
-                  itemCount: actionButtons.length,
-                  itemBuilder: (context, index) {
-                    return _buildActionButton(
-                      context,
-                      actionButtons[index]['label'] as String,
-                      actionButtons[index]['icon'] as IconData,
-                      actionButtons[index]['color'] as Color,
-                      actionButtons[index]['route'] as String,
-                    );
-                  },
+                  ],
                 );
               },
             ),
@@ -779,19 +728,18 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
         color: Colors.transparent,
         child: InkWell(
           onTap: () => Navigator.pushNamed(context, route),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(24),
           child: SizedBox(
             height: 170,
             child: Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: color.withOpacity(0.3), width: 2),
+                borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: color.withOpacity(0.15),
-                    blurRadius: 20,
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 18,
                     offset: const Offset(0, 8),
                   ),
                 ],
