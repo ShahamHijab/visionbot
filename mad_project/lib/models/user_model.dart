@@ -202,7 +202,8 @@ class UserPermissions {
           canReceiveUnauthorizedPersonAlerts: true,
           canViewDetectedFaceImages: true,
           canPerformFaceVerification: true,
-          canAccessGPSTracking: false, // Admin only
+          canAccessGPSTracking:
+              true, // Security Officers can access GPS tracking
           canViewAlertLogs: true,
           canCreateAdminAccounts:
               true, // ONLY Security Officers can create admins

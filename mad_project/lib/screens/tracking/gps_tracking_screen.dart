@@ -47,7 +47,7 @@ class GPSTrackingScreen extends StatelessWidget {
 
     return const ProtectedRoute(
       permissionKey: 'gps_tracking',
-      accessDeniedMessage: 'Only administrators can access GPS tracking.',
+      accessDeniedMessage: 'You do not have permission to access GPS tracking.',
       child: _GPSTrackingContent(),
     );
   }
@@ -171,76 +171,79 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent>
     try {
       final user = _auth.currentUser;
       if (user != null) {
-        setState(() =>
-            _currentUserName = user.displayName ?? user.email ?? 'Unknown User');
+        setState(
+          () => _currentUserName =
+              user.displayName ?? user.email ?? 'Unknown User',
+        );
       }
     } catch (_) {}
   }
 
   // ── Shared user locations ─────────────────────────────────────────────────
   void _startListeningToLocations() {
-    _locationSubscription =
-        _db.collection('shared_locations').snapshots().listen(
-      (snapshot) {
-        if (!mounted) return;
-        setState(() {
-          _devices.clear();
-          _rebuildMarkers();
+    _locationSubscription = _db
+        .collection('shared_locations')
+        .snapshots()
+        .listen(
+          (snapshot) {
+            if (!mounted) return;
+            setState(() {
+              _devices.clear();
+              _rebuildMarkers();
 
-          final currentUserId = _auth.currentUser?.uid;
+              final currentUserId = _auth.currentUser?.uid;
 
-          for (var doc in snapshot.docs) {
-            try {
-              final data = doc.data();
-              final userId    = data['user_id'] ?? doc.id;
-              final deviceName = data['device_name'] ?? 'Unknown Device';
-              final email     = data['email'] ?? 'unknown@email.com';
-              final lat       = (data['latitude'] ?? 0).toDouble();
-              final lng       = (data['longitude'] ?? 0).toDouble();
-              final battery   = (data['battery'] ?? 0).toInt();
-              final status    = data['status'] ?? 'inactive';
+              for (var doc in snapshot.docs) {
+                try {
+                  final data = doc.data();
+                  final userId = data['user_id'] ?? doc.id;
+                  final deviceName = data['device_name'] ?? 'Unknown Device';
+                  final email = data['email'] ?? 'unknown@email.com';
+                  final lat = (data['latitude'] ?? 0).toDouble();
+                  final lng = (data['longitude'] ?? 0).toDouble();
+                  final battery = (data['battery'] ?? 0).toInt();
+                  final status = data['status'] ?? 'inactive';
 
-              if (lat == 0 && lng == 0) continue;
-              if (userId == currentUserId) continue;
+                  if (lat == 0 && lng == 0) continue;
+                  if (userId == currentUserId) continue;
 
-              final device = DeviceLocation(
-                userId: userId,
-                deviceName: deviceName,
-                email: email,
-                position: LatLng(lat, lng),
-                status: _parseStatus(status),
-                battery: battery,
-              );
-              _devices[userId] = device;
-            } catch (_) {}
-          }
-          _rebuildMarkers();
-        });
-      },
-      onError: (error) {
-        if (mounted) setState(() => _errorMessage = 'Failed to load locations');
-      },
-    );
+                  final device = DeviceLocation(
+                    userId: userId,
+                    deviceName: deviceName,
+                    email: email,
+                    position: LatLng(lat, lng),
+                    status: _parseStatus(status),
+                    battery: battery,
+                  );
+                  _devices[userId] = device;
+                } catch (_) {}
+              }
+              _rebuildMarkers();
+            });
+          },
+          onError: (error) {
+            if (mounted)
+              setState(() => _errorMessage = 'Failed to load locations');
+          },
+        );
   }
 
   // ── Alert locations (VisionBot unknown/known persons) ─────────────────────
   void _startListeningToAlertLocations() {
     _alertSubscription = _alertService
         .streamAlerts(limit: 50, collection: 'alerts', orderField: 'created_at')
-        .listen(
-      (alerts) {
-        if (!mounted) return;
-        setState(() {
-          _alertLocations.clear();
-          for (final alert in alerts) {
-            if (alert.hasLocation) {
-              _alertLocations[alert.id] = alert;
+        .listen((alerts) {
+          if (!mounted) return;
+          setState(() {
+            _alertLocations.clear();
+            for (final alert in alerts) {
+              if (alert.hasLocation) {
+                _alertLocations[alert.id] = alert;
+              }
             }
-          }
-          _rebuildMarkers();
+            _rebuildMarkers();
+          });
         });
-      },
-    );
   }
 
   void _rebuildMarkers() {
@@ -268,7 +271,8 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent>
           position: device.position,
           infoWindow: InfoWindow(
             title: device.deviceName,
-            snippet: '${device.status.name} · ${device.battery}% · ${device.email}',
+            snippet:
+                '${device.status.name} · ${device.battery}% · ${device.email}',
           ),
           icon: BitmapDescriptor.defaultMarkerWithHue(hue),
         ),
@@ -292,7 +296,8 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent>
             position: LatLng(alert.latitude!, alert.longitude!),
             infoWindow: InfoWindow(
               title: alert.type.displayName,
-              snippet: '${alert.note.isEmpty ? alert.lens : alert.note} · $coordLabel',
+              snippet:
+                  '${alert.note.isEmpty ? alert.lens : alert.note} · $coordLabel',
             ),
             icon: BitmapDescriptor.defaultMarkerWithHue(hue),
             onTap: () => setState(() => _selectedAlertId = alert.id),
@@ -307,8 +312,9 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent>
     if (!_hasPermission) await _checkPermissions();
     setState(() => _isSendingLocation = true);
 
-    _locationSendTimer =
-        Timer.periodic(const Duration(seconds: 5), (timer) async {
+    _locationSendTimer = Timer.periodic(const Duration(seconds: 5), (
+      timer,
+    ) async {
       try {
         final position = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high,
@@ -350,9 +356,12 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent>
 
   DeviceStatus _parseStatus(String status) {
     switch (status.toLowerCase()) {
-      case 'active':   return DeviceStatus.active;
-      case 'charging': return DeviceStatus.charging;
-      default:         return DeviceStatus.inactive;
+      case 'active':
+        return DeviceStatus.active;
+      case 'charging':
+        return DeviceStatus.charging;
+      default:
+        return DeviceStatus.inactive;
     }
   }
 
@@ -364,7 +373,7 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent>
     );
     setState(() {
       _selectedDeviceId = device.userId;
-      _selectedAlertId  = null;
+      _selectedAlertId = null;
     });
   }
 
@@ -378,33 +387,37 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent>
       ),
     );
     setState(() {
-      _selectedAlertId  = alert.id;
+      _selectedAlertId = alert.id;
       _selectedDeviceId = null;
     });
   }
 
   void _showSuccess(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: const Color(0xFF06B6D4),
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      margin: const EdgeInsets.all(20),
-      duration: const Duration(seconds: 2),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: const Color(0xFF06B6D4),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        margin: const EdgeInsets.all(20),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   void _showError(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: const Color(0xFFEC4899),
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      margin: const EdgeInsets.all(20),
-      duration: const Duration(seconds: 3),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: const Color(0xFFEC4899),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        margin: const EdgeInsets.all(20),
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -418,8 +431,10 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent>
             children: [
               const CircularProgressIndicator(),
               const SizedBox(height: 16),
-              Text('Initializing GPS...',
-                  style: TextStyle(color: Colors.grey.shade600)),
+              Text(
+                'Initializing GPS...',
+                style: TextStyle(color: Colors.grey.shade600),
+              ),
             ],
           ),
         ),
@@ -435,16 +450,22 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.location_off_rounded,
-                    size: 80, color: Color(0xFFFF6B6B)),
+                const Icon(
+                  Icons.location_off_rounded,
+                  size: 80,
+                  color: Color(0xFFFF6B6B),
+                ),
                 const SizedBox(height: 24),
-                const Text('Location Access Required',
-                    style: TextStyle(
-                        fontSize: 24, fontWeight: FontWeight.w900)),
+                const Text(
+                  'Location Access Required',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
+                ),
                 const SizedBox(height: 16),
-                Text(_errorMessage ?? 'Unable to access location',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey.shade600)),
+                Text(
+                  _errorMessage ?? 'Unable to access location',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey.shade600),
+                ),
                 const SizedBox(height: 32),
                 ElevatedButton.icon(
                   onPressed: () => Geolocator.openLocationSettings(),
@@ -471,16 +492,19 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent>
           shaderCallback: (bounds) => const LinearGradient(
             colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
           ).createShader(bounds),
-          child: const Text('GPS Tracking',
-              style:
-                  TextStyle(fontWeight: FontWeight.w900, color: Colors.white)),
+          child: const Text(
+            'GPS Tracking',
+            style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
+          ),
         ),
         actions: [
           // Toggle alert markers
           Padding(
             padding: const EdgeInsets.only(right: 4),
             child: IconButton(
-              tooltip: _showAlertMarkers ? 'Hide alert pins' : 'Show alert pins',
+              tooltip: _showAlertMarkers
+                  ? 'Hide alert pins'
+                  : 'Show alert pins',
               icon: Icon(
                 _showAlertMarkers
                     ? Icons.location_on_rounded
@@ -528,8 +552,10 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent>
           // ── Map ────────────────────────────────────────────────────────
           GoogleMap(
             onMapCreated: (c) => _mapController = c,
-            initialCameraPosition:
-                CameraPosition(target: _initialPosition, zoom: 13),
+            initialCameraPosition: CameraPosition(
+              target: _initialPosition,
+              zoom: 13,
+            ),
             markers: _markers,
             myLocationButtonEnabled: true,
             myLocationEnabled: true,
@@ -545,31 +571,43 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent>
               right: 20,
               child: Container(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 12),
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                      colors: [Color(0xFF06B6D4), Color(0xFF8B5CF6)]),
+                    colors: [Color(0xFF06B6D4), Color(0xFF8B5CF6)],
+                  ),
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                        color: const Color(0xFF06B6D4).withOpacity(0.4),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8))
+                      color: const Color(0xFF06B6D4).withOpacity(0.4),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
                   ],
                 ),
-                child: Row(children: [
-                  Container(
+                child: Row(
+                  children: [
+                    Container(
                       width: 8,
                       height: 8,
                       decoration: const BoxDecoration(
-                          color: Colors.white, shape: BoxShape.circle)),
-                  const SizedBox(width: 12),
-                  const Text('Sending your location every 5 seconds',
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Sending your location every 5 seconds',
                       style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14)),
-                ]),
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
 
@@ -587,7 +625,8 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent>
             bottom: 0,
             child: Container(
               constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height * 0.34),
+                maxHeight: MediaQuery.of(context).size.height * 0.34,
+              ),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: const BorderRadius.only(
@@ -596,9 +635,10 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent>
                 ),
                 boxShadow: [
                   BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 20,
-                      offset: const Offset(0, -5))
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 20,
+                    offset: const Offset(0, -5),
+                  ),
                 ],
               ),
               child: Column(
@@ -610,8 +650,9 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent>
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(2)),
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                   const SizedBox(height: 12),
 
@@ -620,11 +661,19 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent>
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Row(
                       children: [
-                        _tabChip(0, 'Shared Users',
-                            Icons.people_alt_rounded, _devices.length),
+                        _tabChip(
+                          0,
+                          'Shared Users',
+                          Icons.people_alt_rounded,
+                          _devices.length,
+                        ),
                         const SizedBox(width: 10),
-                        _tabChip(1, 'Alert Pins',
-                            Icons.location_on_rounded, alertsWithLoc.length),
+                        _tabChip(
+                          1,
+                          'Alert Pins',
+                          Icons.location_on_rounded,
+                          alertsWithLoc.length,
+                        ),
                       ],
                     ),
                   ),
@@ -656,9 +705,10 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent>
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 3))
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
         ],
       ),
       child: Column(
@@ -677,15 +727,20 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent>
   Widget _legendRow(Color color, String label) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(children: [
-        Container(
+      child: Row(
+        children: [
+          Container(
             width: 10,
             height: 10,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-        const SizedBox(width: 6),
-        Text(label,
-            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
-      ]),
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
     );
   }
 
@@ -700,7 +755,8 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent>
         decoration: BoxDecoration(
           gradient: isSelected
               ? const LinearGradient(
-                  colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)])
+                  colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
+                )
               : null,
           color: isSelected ? null : Colors.grey.shade100,
           borderRadius: BorderRadius.circular(20),
@@ -708,32 +764,38 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent>
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon,
-                size: 14,
-                color: isSelected ? Colors.white : Colors.grey.shade600),
+            Icon(
+              icon,
+              size: 14,
+              color: isSelected ? Colors.white : Colors.grey.shade600,
+            ),
             const SizedBox(width: 6),
-            Text(label,
-                style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: isSelected ? Colors.white : Colors.grey.shade600)),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: isSelected ? Colors.white : Colors.grey.shade600,
+              ),
+            ),
             if (count > 0) ...[
               const SizedBox(width: 6),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: isSelected
                       ? Colors.white.withOpacity(0.3)
                       : Colors.grey.shade300,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Text('$count',
-                    style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color:
-                            isSelected ? Colors.white : Colors.grey.shade700)),
+                child: Text(
+                  '$count',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: isSelected ? Colors.white : Colors.grey.shade700,
+                  ),
+                ),
               ),
             ],
           ],
@@ -749,12 +811,19 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.location_off_rounded,
-                size: 40, color: Colors.grey.shade400),
+            Icon(
+              Icons.location_off_rounded,
+              size: 40,
+              color: Colors.grey.shade400,
+            ),
             const SizedBox(height: 8),
-            Text('No shared locations yet',
-                style: TextStyle(
-                    color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
+            Text(
+              'No shared locations yet',
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ],
         ),
       );
@@ -775,12 +844,19 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.location_off_rounded,
-                size: 40, color: Colors.grey.shade400),
+            Icon(
+              Icons.location_off_rounded,
+              size: 40,
+              color: Colors.grey.shade400,
+            ),
             const SizedBox(height: 8),
-            Text('No alert locations available',
-                style: TextStyle(
-                    color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
+            Text(
+              'No alert locations available',
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ],
         ),
       );
@@ -801,15 +877,15 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent>
     switch (device.status) {
       case DeviceStatus.active:
         statusColor = const Color(0xFF4ECDC4);
-        statusIcon  = Icons.check_circle_rounded;
+        statusIcon = Icons.check_circle_rounded;
         break;
       case DeviceStatus.charging:
         statusColor = const Color(0xFFFF9800);
-        statusIcon  = Icons.battery_charging_full_rounded;
+        statusIcon = Icons.battery_charging_full_rounded;
         break;
       case DeviceStatus.inactive:
         statusColor = const Color(0xFFFF6B6B);
-        statusIcon  = Icons.cancel_rounded;
+        statusIcon = Icons.cancel_rounded;
         break;
     }
 
@@ -830,61 +906,81 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent>
                 : statusColor.withOpacity(0.08),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-                color: statusColor.withOpacity(isSelected ? 0.6 : 0.3),
-                width: isSelected ? 2.5 : 2),
+              color: statusColor.withOpacity(isSelected ? 0.6 : 0.3),
+              width: isSelected ? 2.5 : 2,
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Row(children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
                       color: statusColor,
-                      borderRadius: BorderRadius.circular(8)),
-                  child: const Icon(Icons.phone_android_rounded,
-                      color: Colors.white, size: 16),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(device.deviceName,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.phone_android_rounded,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      device.deviceName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w800)),
-                ),
-              ]),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 8),
-              Text(device.email,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      fontSize: 10, color: Colors.grey.shade600)),
+              Text(
+                device.email,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+              ),
               const SizedBox(height: 6),
-              Row(children: [
-                Icon(statusIcon, color: statusColor, size: 13),
-                const SizedBox(width: 4),
-                Text(device.status.name.toUpperCase(),
+              Row(
+                children: [
+                  Icon(statusIcon, color: statusColor, size: 13),
+                  const SizedBox(width: 4),
+                  Text(
+                    device.status.name.toUpperCase(),
                     style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: statusColor)),
-              ]),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: statusColor,
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 6),
-              Row(children: [
-                Icon(
-                  Icons.battery_std_rounded,
-                  color: device.battery < 20
-                      ? const Color(0xFFFF6B6B)
-                      : Colors.grey.shade600,
-                  size: 13,
-                ),
-                const SizedBox(width: 4),
-                Text('${device.battery}%',
-                    style: TextStyle(
-                        fontSize: 12, color: Colors.grey.shade600)),
-              ]),
+              Row(
+                children: [
+                  Icon(
+                    Icons.battery_std_rounded,
+                    color: device.battery < 20
+                        ? const Color(0xFFFF6B6B)
+                        : Colors.grey.shade600,
+                    size: 13,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${device.battery}%',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
@@ -932,57 +1028,66 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent>
                 : cardColor.withOpacity(0.07),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-                color: cardColor.withOpacity(isSelected ? 0.6 : 0.3),
-                width: isSelected ? 2.5 : 2),
+              color: cardColor.withOpacity(isSelected ? 0.6 : 0.3),
+              width: isSelected ? 2.5 : 2,
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
               // Icon + title
-              Row(children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
                       color: cardColor,
-                      borderRadius: BorderRadius.circular(8)),
-                  child: Icon(
-                    isUnknown
-                        ? Icons.person_off_rounded
-                        : Icons.person_rounded,
-                    color: Colors.white,
-                    size: 16,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      isUnknown
+                          ? Icons.person_off_rounded
+                          : Icons.person_rounded,
+                      color: Colors.white,
+                      size: 16,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    alert.type.displayName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.w800),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      alert.type.displayName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                   ),
-                ),
-              ]),
+                ],
+              ),
               const SizedBox(height: 8),
 
               // Coordinates
-              Row(children: [
-                Icon(Icons.location_on_rounded, size: 12, color: cardColor),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    coordLabel,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
+              Row(
+                children: [
+                  Icon(Icons.location_on_rounded, size: 12, color: cardColor),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      coordLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
-                        color: cardColor),
+                        color: cardColor,
+                      ),
+                    ),
                   ),
-                ),
-              ]),
+                ],
+              ),
               const SizedBox(height: 4),
 
               // Note / lens
@@ -997,11 +1102,14 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent>
               const SizedBox(height: 4),
 
               // Time
-              Text(timeText,
-                  style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey.shade500)),
+              Text(
+                timeText,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade500,
+                ),
+              ),
             ],
           ),
         ),
@@ -1011,25 +1119,25 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent>
 
   // ── Small helpers ─────────────────────────────────────────────────────────
   Widget _backButton() => Container(
-        margin: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 2))
-          ],
+    margin: const EdgeInsets.all(8),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.05),
+          blurRadius: 10,
+          offset: const Offset(0, 2),
         ),
-        child: Builder(
-          builder: (ctx) => IconButton(
-            icon: const Icon(Icons.arrow_back_rounded,
-                color: Color(0xFF1F2937)),
-            onPressed: () => Navigator.pop(ctx),
-          ),
-        ),
-      );
+      ],
+    ),
+    child: Builder(
+      builder: (ctx) => IconButton(
+        icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF1F2937)),
+        onPressed: () => Navigator.pop(ctx),
+      ),
+    ),
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1043,9 +1151,13 @@ PreferredSizeWidget _simpleAppBar(String title) {
       shaderCallback: (bounds) => const LinearGradient(
         colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
       ).createShader(bounds),
-      child: Text(title,
-          style:
-              const TextStyle(fontWeight: FontWeight.w900, color: Colors.white)),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontWeight: FontWeight.w900,
+          color: Colors.white,
+        ),
+      ),
     ),
   );
 }
@@ -1066,8 +1178,9 @@ Widget _gradientCircleIcon(IconData icon, double size) {
       padding: const EdgeInsets.all(24),
       decoration: const BoxDecoration(
         shape: BoxShape.circle,
-        gradient:
-            LinearGradient(colors: [Color(0xFF06B6D4), Color(0xFF8B5CF6)]),
+        gradient: LinearGradient(
+          colors: [Color(0xFF06B6D4), Color(0xFF8B5CF6)],
+        ),
       ),
       child: Icon(icon, size: size, color: Colors.white),
     ),
