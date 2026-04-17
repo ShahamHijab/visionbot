@@ -1,4 +1,3 @@
-// lib/widgets/alert_card.dart
 import 'package:flutter/material.dart';
 import '../models/alert_model.dart';
 
@@ -8,10 +7,15 @@ class AlertCard extends StatelessWidget {
 
   const AlertCard({super.key, required this.alert, this.onTap});
 
-  bool get _isFaceAlert {
+  bool get _isVisualAlert {
     return alert.type == AlertType.unknownFace ||
         alert.type == AlertType.knownFace ||
-        alert.type == AlertType.intruder;
+        alert.type == AlertType.intruder ||
+        alert.type == AlertType.group;
+  }
+
+  bool get _hasAnyImage {
+    return alert.faceImageUrls.isNotEmpty || alert.imageUrl.isNotEmpty;
   }
 
   @override
@@ -41,11 +45,9 @@ class AlertCard extends StatelessWidget {
           ),
           child: Row(
             children: [
-              // ── Avatar ─────────────────────────────────────────────
               _buildAvatar(color),
               const SizedBox(width: 12),
 
-              // ── Content ────────────────────────────────────────────
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -64,8 +66,7 @@ class AlertCard extends StatelessWidget {
                             ),
                           ),
                         ),
-                        // Badge showing image count for face alerts
-                        if (_isFaceAlert) ...[
+                        if (_isVisualAlert) ...[
                           const SizedBox(width: 6),
                           _imageBadge(color),
                         ],
@@ -82,13 +83,15 @@ class AlertCard extends StatelessWidget {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    // Show location if available
                     if (alert.hasLocation) ...[
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          Icon(Icons.location_on_rounded,
-                              size: 12, color: const Color(0xFF06B6D4)),
+                          const Icon(
+                            Icons.location_on_rounded,
+                            size: 12,
+                            color: Color(0xFF06B6D4),
+                          ),
                           const SizedBox(width: 3),
                           Expanded(
                             child: Text(
@@ -138,12 +141,11 @@ class AlertCard extends StatelessWidget {
     );
   }
 
-  // ── Image count badge ─────────────────────────────────────────────────────
   Widget _imageBadge(Color color) {
-    final count = alert.faceImageUrls.length;
+    final faceCount = alert.faceImageUrls.length;
     final hasFullFrame = alert.imageUrl.isNotEmpty;
 
-    if (count == 0 && !hasFullFrame) {
+    if (!_hasAnyImage) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration: BoxDecoration(
@@ -153,8 +155,11 @@ class AlertCard extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.no_photography_rounded,
-                size: 10, color: Colors.grey.shade400),
+            Icon(
+              Icons.no_photography_rounded,
+              size: 10,
+              color: Colors.grey.shade400,
+            ),
             const SizedBox(width: 3),
             Text(
               'NO IMG',
@@ -170,7 +175,23 @@ class AlertCard extends StatelessWidget {
       );
     }
 
-    final label = count > 0 ? '${count} FACE${count > 1 ? 'S' : ''}' : 'PHOTO';
+    String label;
+    IconData icon;
+
+    if (alert.type == AlertType.group) {
+      label = 'GROUP';
+      icon = Icons.groups_rounded;
+    } else if (faceCount > 0) {
+      label = '${faceCount} FACE${faceCount > 1 ? 'S' : ''}';
+      icon = Icons.face_rounded;
+    } else if (hasFullFrame) {
+      label = 'PHOTO';
+      icon = Icons.photo_camera_rounded;
+    } else {
+      label = 'PHOTO';
+      icon = Icons.photo_camera_rounded;
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
@@ -180,7 +201,7 @@ class AlertCard extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.face_rounded, size: 10, color: color),
+          Icon(icon, size: 10, color: color),
           const SizedBox(width: 3),
           Text(
             label,
@@ -196,10 +217,8 @@ class AlertCard extends StatelessWidget {
     );
   }
 
-  // ── Avatar builder ────────────────────────────────────────────────────────
   Widget _buildAvatar(Color color) {
-    // Face alert: show first face crop, or full frame, or placeholder
-    if (_isFaceAlert) {
+    if (_isVisualAlert) {
       if (alert.faceImageUrls.isNotEmpty) {
         return _NetworkImageAvatar(
           imageUrl: alert.faceImageUrls.first,
@@ -207,6 +226,7 @@ class AlertCard extends StatelessWidget {
           size: 56,
         );
       }
+
       if (alert.imageUrl.isNotEmpty) {
         return _NetworkImageAvatar(
           imageUrl: alert.imageUrl,
@@ -214,10 +234,10 @@ class AlertCard extends StatelessWidget {
           size: 56,
         );
       }
+
       return _noPhotoPlaceholder(color);
     }
 
-    // Non-face alert: emoji icon
     return Container(
       width: 56,
       height: 56,
@@ -234,6 +254,8 @@ class AlertCard extends StatelessWidget {
   }
 
   Widget _noPhotoPlaceholder(Color color) {
+    final isGroup = alert.type == AlertType.group;
+
     return Container(
       width: 56,
       height: 56,
@@ -245,10 +267,14 @@ class AlertCard extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.face_retouching_off_rounded, color: color, size: 20),
+          Icon(
+            isGroup ? Icons.groups_rounded : Icons.face_retouching_off_rounded,
+            color: color,
+            size: 20,
+          ),
           const SizedBox(height: 2),
           Text(
-            'No\nPhoto',
+            isGroup ? 'No\nGroup' : 'No\nPhoto',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 8,
@@ -270,6 +296,8 @@ class AlertCard extends StatelessWidget {
       case AlertType.smoke:
       case AlertType.unknownFace:
         return const Color(0xFFF59E0B);
+      case AlertType.group:
+        return const Color(0xFF10B981);
       default:
         return const Color(0xFF45B7D1);
     }
@@ -288,7 +316,6 @@ class AlertCard extends StatelessWidget {
   }
 }
 
-// ── Reusable network image avatar ─────────────────────────────────────────
 class _NetworkImageAvatar extends StatelessWidget {
   final String imageUrl;
   final Color color;
@@ -340,13 +367,18 @@ class _NetworkImageAvatar extends StatelessWidget {
               decoration: BoxDecoration(
                 color: color.withOpacity(0.08),
                 border: Border.all(
-                    color: color.withOpacity(0.25), width: 1.5),
+                  color: color.withOpacity(0.25),
+                  width: 1.5,
+                ),
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.broken_image_rounded,
-                      color: color.withOpacity(0.6), size: size * 0.35),
+                  Icon(
+                    Icons.broken_image_rounded,
+                    color: color.withOpacity(0.6),
+                    size: size * 0.35,
+                  ),
                   Text(
                     'Error',
                     style: TextStyle(
