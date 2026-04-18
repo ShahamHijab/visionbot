@@ -6,6 +6,7 @@ import '../../services/auth_service.dart';
 import '../../services/alert_service.dart';
 import '../../models/alert_model.dart';
 import '../../models/user_model.dart';
+import '../../widgets/alert_card.dart';
 import '../gallery/image_gallery_screen.dart';
 import '../alerts/alerts_dashboard.dart';
 
@@ -173,88 +174,6 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
   void dispose() {
     _animationController.dispose();
     super.dispose();
-  }
-
-  String _normalizeType(String raw) {
-    var t = raw.trim().toLowerCase();
-    if (t.contains('.')) {
-      t = t.split('.').last;
-    }
-    t = t.replaceAll(' ', '');
-    t = t.replaceAll('-', '');
-    return t;
-  }
-
-  _AlertUI _mapAlertUI(AlertModel alert) {
-    final typeNorm = _normalizeType(alert.type.toString());
-    final title = _titleFromType(typeNorm);
-
-    final lensText = alert.lens.isEmpty ? 'unknown lens' : alert.lens;
-    final noteText = alert.note.isEmpty ? '' : alert.note;
-    final location = noteText.isEmpty
-        ? 'Lens: $lensText'
-        : 'Lens: $lensText. $noteText';
-
-    final dt = alert.createdAt;
-    final now = DateTime.now();
-    final diff = now.difference(dt);
-
-    String timeText;
-    if (diff.inMinutes < 1) {
-      timeText = 'Just now';
-    } else if (diff.inMinutes < 60) {
-      timeText = '${diff.inMinutes} mins ago';
-    } else if (diff.inHours < 24) {
-      timeText = '${diff.inHours} hours ago';
-    } else {
-      timeText = '${diff.inDays} days ago';
-    }
-
-    final color = _colorFromType(typeNorm);
-    final icon = _iconFromType(typeNorm);
-
-    return _AlertUI(
-      title: title,
-      location: location,
-      timeText: timeText,
-      color: color,
-      icon: icon,
-    );
-  }
-
-  String _titleFromType(String typeNorm) {
-    if (typeNorm == 'unknown_face') return 'Unknown person';
-    if (typeNorm == 'unknownface') return 'Unknown person';
-    if (typeNorm == 'motion') return 'Motion detected';
-    if (typeNorm == 'fire') return 'Fire detected';
-    if (typeNorm == 'smoke') return 'Smoke detected';
-
-    if (typeNorm.isEmpty) return 'Alert';
-
-    final pretty = typeNorm.replaceAll('_', ' ');
-    return pretty[0].toUpperCase() + pretty.substring(1);
-  }
-
-  Color _colorFromType(String typeNorm) {
-    if (typeNorm == 'fire') return const Color(0xFFFF6B6B);
-    if (typeNorm == 'smoke') return const Color(0xFFF59E0B);
-    if (typeNorm == 'unknown_face') return const Color(0xFFF59E0B);
-    if (typeNorm == 'unknownface') return const Color(0xFFF59E0B);
-
-    return const Color(0xFF45B7D1);
-  }
-
-  IconData _iconFromType(String typeNorm) {
-    if (typeNorm == 'fire') return Icons.local_fire_department_rounded;
-    if (typeNorm == 'smoke') return Icons.cloud_rounded;
-    if (typeNorm == 'unknown_face') return Icons.person_off_rounded;
-    if (typeNorm == 'unknownface') return Icons.person_off_rounded;
-    if (typeNorm == 'known_face') return Icons.person_rounded;
-    if (typeNorm == 'knownface') return Icons.person_rounded;
-    if (typeNorm == 'motion') return Icons.directions_run_rounded;
-    if (typeNorm == 'intruder') return Icons.security_rounded;
-
-    return Icons.warning_amber_rounded;
   }
 
   Stream<int> _alertsCountStream() {
@@ -847,7 +766,6 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
               itemCount: alerts.length,
               itemBuilder: (context, index) {
                 final alert = alerts[index];
-                final mapped = _mapAlertUI(alert);
 
                 return TweenAnimationBuilder<double>(
                   tween: Tween(begin: 0.0, end: 1.0),
@@ -861,14 +779,15 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
                   },
                   child: Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: _buildAlertCard(
-                      alert,
-                      mapped.title,
-                      mapped.location,
-                      mapped.timeText,
-                      mapped.color,
-                      mapped.icon,
-                      context,
+                    child: AlertCard(
+                      alert: alert,
+                      onTap: () {
+                        Navigator.pushNamed(
+                          context,
+                          AppRoutes.alertDetail,
+                          arguments: alert,
+                        );
+                      },
                     ),
                   ),
                 );
@@ -879,117 +798,6 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
       ],
     );
   }
-
-  Widget _buildAlertCard(
-    AlertModel alert,
-    String title,
-    String location,
-    String time,
-    Color color,
-    IconData icon,
-    BuildContext context,
-  ) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () {
-          Navigator.pushNamed(context, AppRoutes.alertDetail, arguments: alert);
-        },
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: color.withOpacity(0.15),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [color, color.withOpacity(0.7)],
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(icon, color: Colors.white, size: 26),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                        color: Color(0xFF1F2937),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      location,
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    time,
-                    style: TextStyle(
-                      color: Colors.grey.shade400,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _AlertUI {
-  final String title;
-  final String location;
-  final String timeText;
-  final Color color;
-  final IconData icon;
-
-  _AlertUI({
-    required this.title,
-    required this.location,
-    required this.timeText,
-    required this.color,
-    required this.icon,
-  });
 }
 
 class AlertsTab extends StatelessWidget {
