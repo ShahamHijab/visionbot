@@ -44,6 +44,21 @@ class AlertService {
     await _db.collection(collection).doc(id).update({'isRead': true});
   }
 
+  Future<void> markAllRead({String collection = 'alerts'}) async {
+    final unread = await _db
+        .collection(collection)
+        .where('isRead', isEqualTo: false)
+        .get();
+
+    if (unread.docs.isEmpty) return;
+
+    final batch = _db.batch();
+    for (final doc in unread.docs) {
+      batch.update(doc.reference, {'isRead': true});
+    }
+    await batch.commit();
+  }
+
   Stream<List<GalleryImageItem>> streamImagesFromStorage() {
     return Stream.periodic(const Duration(seconds: 5)).asyncMap((_) async {
       final ref = FirebaseStorage.instance.ref('images/');

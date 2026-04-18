@@ -18,44 +18,6 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
   final AlertService _alertService = AlertService();
 
-  final List<NotificationItem> _synthetic = [
-    NotificationItem(
-      title: 'Fire Alert',
-      message: 'Fire detected in Building A. Floor 2',
-      time: DateTime.now().subtract(const Duration(minutes: 5)),
-      type: NotificationType.critical,
-      isRead: false,
-    ),
-    NotificationItem(
-      title: 'Motion Detected',
-      message: 'Unauthorized movement in restricted area',
-      time: DateTime.now().subtract(const Duration(hours: 1)),
-      type: NotificationType.warning,
-      isRead: false,
-    ),
-    NotificationItem(
-      title: 'System Update',
-      message: 'Robot 3 completed maintenance check',
-      time: DateTime.now().subtract(const Duration(hours: 2)),
-      type: NotificationType.info,
-      isRead: true,
-    ),
-    NotificationItem(
-      title: 'Smoke Alert',
-      message: 'Smoke detected in parking area',
-      time: DateTime.now().subtract(const Duration(hours: 4)),
-      type: NotificationType.warning,
-      isRead: true,
-    ),
-    NotificationItem(
-      title: 'All Clear',
-      message: 'All systems operational',
-      time: DateTime.now().subtract(const Duration(days: 1)),
-      type: NotificationType.info,
-      isRead: true,
-    ),
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -79,68 +41,21 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     super.dispose();
   }
 
-  String _prettyType(String raw) {
-    final t = raw.toLowerCase().trim();
-    if (t == 'unknown_face') return 'Unknown person';
-    if (t == 'known_face') return 'Known person';
-    if (t == 'motion') return 'Motion detected';
-    if (t == 'fire') return 'Fire detected';
-    if (t == 'smoke') return 'Smoke detected';
-    if (t == 'intruder') return 'Intruder detected';
-
-    if (t.isEmpty) return 'Alert';
-    final pretty = t.replaceAll('_', ' ');
-    return pretty[0].toUpperCase() + pretty.substring(1);
-  }
-
-  NotificationType _mapNotifType(String raw) {
-    final t = raw.toLowerCase().trim();
-    if (t == 'fire' || t == 'intruder') return NotificationType.critical;
-    if (t == 'smoke' || t == 'unknown_face') return NotificationType.warning;
-    return NotificationType.info;
-  }
-
-  NotificationItem _fromAlert(AlertModel alert) {
-    final title = _prettyType(alert.type.toString());
-
-    final lensText = alert.lens.isEmpty ? 'unknown lens' : alert.lens;
-    final noteText = alert.note.isEmpty ? '' : alert.note;
-
-    final message = noteText.isEmpty
-        ? 'Lens: $lensText'
-        : 'Lens: $lensText. $noteText';
-
-    return NotificationItem(
-      title: title,
-      message: message,
-      time: alert.createdAt,
-      type: _mapNotifType(alert.type.toString()),
-      isRead: false,
-    );
-  }
-
-  void _markAllAsRead(List<NotificationItem> list) {
-    setState(() {
-      for (final n in list) {
-        n.isRead = true;
-      }
-    });
+  Future<void> _markAllAsRead() async {
+    await _alertService.markAllRead(collection: 'alerts');
   }
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<AlertModel>>(
       stream: _alertService.streamAlerts(
-        limit: 2,
+        limit: 200,
         collection: 'alerts',
         orderField: 'created_at',
       ),
       builder: (context, snapshot) {
-        final dynamicAlerts = (snapshot.data ?? []).map(_fromAlert).toList();
-
-        final notifications = [...dynamicAlerts, ..._synthetic];
-
-        final unreadCount = notifications.where((n) => !n.isRead).length;
+        final alerts = snapshot.data ?? [];
+        final unreadCount = alerts.where((a) => !a.isRead).length;
 
         return Scaffold(
           backgroundColor: const Color(0xFFF8F9FA),
@@ -181,7 +96,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               ),
             ),
             actions: [
-              if (notifications.isNotEmpty)
+              if (alerts.isNotEmpty)
                 PopupMenuButton<String>(
                   icon: const Icon(
                     Icons.more_vert_rounded,
@@ -190,13 +105,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  onSelected: (value) {
+                  onSelected: (value) async {
                     if (value == 'mark_read') {
-                      _markAllAsRead(notifications);
-                    } else if (value == 'clear') {
-                      setState(() {
-                        _synthetic.clear();
-                      });
+                      await _markAllAsRead();
                     }
                   },
                   itemBuilder: (context) => [
@@ -210,23 +121,13 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                         ],
                       ),
                     ),
-                    const PopupMenuItem(
-                      value: 'clear',
-                      child: Row(
-                        children: [
-                          Icon(Icons.delete_outline_rounded, size: 20),
-                          SizedBox(width: 12),
-                          Text('Clear all'),
-                        ],
-                      ),
-                    ),
                   ],
                 ),
             ],
           ),
           body: FadeTransition(
             opacity: _fadeAnimation,
-            child: notifications.isEmpty
+            child: alerts.isEmpty
                 ? _buildEmptyState()
                 : Column(
                     children: [
@@ -283,11 +184,11 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                       Expanded(
                         child: ListView.separated(
                           padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                          itemCount: notifications.length,
+                          itemCount: alerts.length,
                           separatorBuilder: (_, __) =>
                               const SizedBox(height: 12),
                           itemBuilder: (context, index) {
-                            return _buildNotificationCard(notifications[index]);
+                            return _buildNotificationCard(alerts[index]);
                           },
                         ),
                       ),
@@ -353,20 +254,20 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     );
   }
 
-  Widget _buildNotificationCard(NotificationItem notification) {
+  Widget _buildNotificationCard(AlertModel alert) {
     Color typeColor;
     IconData typeIcon;
 
-    switch (notification.type) {
-      case NotificationType.critical:
+    switch (alert.severity) {
+      case AlertSeverity.critical:
         typeColor = const Color(0xFFFF6B6B);
         typeIcon = Icons.warning_rounded;
         break;
-      case NotificationType.warning:
+      case AlertSeverity.warning:
         typeColor = const Color(0xFFFF9800);
         typeIcon = Icons.info_rounded;
         break;
-      case NotificationType.info:
+      case AlertSeverity.info:
         typeColor = const Color(0xFF45B7D1);
         typeIcon = Icons.check_circle_rounded;
         break;
@@ -375,24 +276,20 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () {
-          setState(() {
-            notification.isRead = true;
-          });
-        },
+        onTap: alert.isRead ? null : () => _alertService.markRead(alert.id),
         borderRadius: BorderRadius.circular(20),
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: notification.isRead
+            color: alert.isRead
                 ? Colors.white
                 : typeColor.withOpacity(0.05),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: notification.isRead
+              color: alert.isRead
                   ? Colors.grey.shade200
                   : typeColor.withOpacity(0.3),
-              width: notification.isRead ? 1 : 2,
+              width: alert.isRead ? 1 : 2,
             ),
             boxShadow: [
               BoxShadow(
@@ -422,17 +319,17 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                       children: [
                         Expanded(
                           child: Text(
-                            notification.title,
+                            alert.title,
                             style: TextStyle(
                               fontSize: 16,
-                              fontWeight: notification.isRead
+                              fontWeight: alert.isRead
                                   ? FontWeight.w600
                                   : FontWeight.w800,
                               color: const Color(0xFF1F2937),
                             ),
                           ),
                         ),
-                        if (!notification.isRead)
+                        if (!alert.isRead)
                           Container(
                             width: 8,
                             height: 8,
@@ -445,7 +342,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      notification.message,
+                      alert.description.isNotEmpty
+                          ? alert.description
+                          : (alert.location.isNotEmpty ? alert.location : ''),
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
@@ -455,7 +354,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      timeago.format(notification.time),
+                      timeago.format(alert.createdAt),
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -472,21 +371,3 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     );
   }
 }
-
-class NotificationItem {
-  final String title;
-  final String message;
-  final DateTime time;
-  final NotificationType type;
-  bool isRead;
-
-  NotificationItem({
-    required this.title,
-    required this.message,
-    required this.time,
-    required this.type,
-    this.isRead = false,
-  });
-}
-
-enum NotificationType { critical, warning, info }

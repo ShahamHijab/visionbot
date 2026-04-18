@@ -258,16 +258,9 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
   }
 
   Stream<int> _alertsCountStream() {
-    // If you have unread support, use this instead:
-    // return FirebaseFirestore.instance
-    //     .collection('alerts')
-    //     .where('is_read', isEqualTo: false)
-    //     .snapshots()
-    //     .map((s) => s.size);
-
-    // Default: count recent alerts (works with your current data)
     return FirebaseFirestore.instance
         .collection('alerts')
+        .where('isRead', isEqualTo: false)
         .limit(200)
         .snapshots()
         .map((s) => s.size);
