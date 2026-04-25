@@ -6,20 +6,22 @@ import '../models/gallery_image_item.dart';
 class AlertService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  Stream<List<AlertModel>> streamAlerts({
-    int limit = 20,
-    String collection = 'alerts',
-    String orderField = 'created_at',
-  }) {
-    return _db
-        .collection(collection)
-        .orderBy(orderField, descending: true)
-        .limit(limit)
-        .snapshots()
-        .map(
-          (snap) => snap.docs.map((d) => AlertModel.fromFirestore(d)).toList(),
-        );
-  }
+  // lib/services/alert_service.dart (USER APP)
+
+Stream<List<AlertModel>> streamAlerts({
+  int limit = 100,
+  String collection = 'alerts',
+  String orderField = 'created_at',
+}) {
+  return FirebaseFirestore.instance
+      .collection(collection)
+      .orderBy(orderField, descending: true)
+      .limit(limit)
+      .snapshots()
+      .map((snapshot) => snapshot.docs
+          .map((doc) => AlertModel.fromFirestore(doc))
+          .toList());
+}
 
   Stream<AlertModel?> streamAlertById(
     String id, {
