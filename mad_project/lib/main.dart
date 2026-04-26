@@ -10,6 +10,14 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'services/push_service.dart';
+// ADD THESE TO THE EXISTING main.dart
+
+// ✅ ADD THESE IMPORTS
+import 'services/alert_sync_service.dart';
+import 'services/alert_notification_service.dart';
+
+// ✅ ADD THESE GLOBAL VARIABLES
+AlertSyncService? _syncService;
 
 void _checkForSyncedAlerts() {
   // Will automatically stream new alerts via StreamBuilder
@@ -83,7 +91,31 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  debugPrint('');
+  debugPrint('╔═══════════════════════════════════╗');
+  debugPrint('║  VisionBot USER APP - Initializing  ║');
+  debugPrint('╚═══════════════════════════════════╝');
+
+  try {
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+    debugPrint('');
+    debugPrint('🔔 Setting up notifications...');
+    await AlertNotificationService.initialize();
+
+    debugPrint('');
+    debugPrint('🔄 Starting real-time sync...');
+    _syncService = AlertSyncService();
+    await _syncService!.initializeRealtimeSync();
+
+    debugPrint('');
+    debugPrint('✅ USER APP READY - Listening to Detection App');
+    debugPrint('');
+  } catch (e, st) {
+    debugPrint('❌ Initialization failed: $e');
+    debugPrint('   Stack: $st');
+  }
 
   Future.delayed(const Duration(seconds: 5), _checkForSyncedAlerts);
 
