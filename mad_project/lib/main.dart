@@ -10,20 +10,6 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'services/push_service.dart';
-// main.dart - USER APP - Add periodic sync check
-
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  
-  // ... existing init code ...
-
-  // ✅ Periodically check for synced alerts from detection app
-  Future.delayed(const Duration(seconds: 5), () {
-    _checkForSyncedAlerts();
-  });
-
-  runApp(const UserApp());
-}
 
 void _checkForSyncedAlerts() {
   // Will automatically stream new alerts via StreamBuilder
@@ -98,6 +84,8 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  Future.delayed(const Duration(seconds: 5), _checkForSyncedAlerts);
 
   // Only initialize notifications and messaging on mobile
   if (!kIsWeb) {
