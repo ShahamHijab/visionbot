@@ -1,3 +1,5 @@
+// ✅ FIXED USER APP main.dart - Hybrid Alert System
+
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
@@ -10,19 +12,16 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'services/push_service.dart';
-// ADD THESE TO THE EXISTING main.dart
-
-// ✅ ADD THESE IMPORTS
 import 'services/alert_sync_service.dart';
 import 'services/alert_notification_service.dart';
+import 'services/database_service.dart';
+import 'services/hybrid_alert_services.dart';
 
-// ✅ ADD THESE GLOBAL VARIABLES
+// ✅ GLOBAL SERVICES
 AlertSyncService? _syncService;
+DatabaseService? _dbService;
+HybridAlertsService? _hybridService;
 
-void _checkForSyncedAlerts() {
-  // Will automatically stream new alerts via StreamBuilder
-  // No additional action needed - Firestore triggers push notifications
-}
 final FlutterLocalNotificationsPlugin _local =
     FlutterLocalNotificationsPlugin();
 
@@ -33,9 +32,83 @@ const AndroidNotificationChannel _alertsChannel = AndroidNotificationChannel(
   importance: Importance.high,
 );
 
+/// ✅ Initialize local database and check for unsynced alerts
+Future<void> _initializeLocalDatabase() async {
+  try {
+    debugPrint('');
+    debugPrint('═══════════════════════════════════');
+    debugPrint('🗄️  INITIALIZING LOCAL DATABASE');
+    debugPrint('═══════════════════════════════════');
+
+    _dbService = DatabaseService();
+    final db = await _dbService!.database;
+
+    // ✅ Print statistics
+    await _dbService!.printStats();
+
+    // ✅ Check for unsynced alerts and try to sync them
+    final unsynced = await _dbService!.getUnsyncedAlerts();
+    if (unsynced.isNotEmpty) {
+      debugPrint('');
+      debugPrint('⏳ Found ${unsynced.length} unsynced alerts from offline mode');
+      debugPrint('🔄 Will attempt to sync when Firebase is available...');
+      
+      // ✅ Start background sync
+      _startUnSyncedAlertSync();
+    }
+
+    debugPrint('✅ Local database ready');
+    debugPrint('═══════════════════════════════════');
+    debugPrint('');
+  } catch (e, st) {
+    debugPrint('❌ Database init failed: $e');
+    debugPrint('   Stack: $st');
+  }
+}
+
+/// ✅ HYBRID: Sync unsynced local alerts to Firebase
+Future<void> _startUnSyncedAlertSync() async {
+  if (_syncService == null) return;
+
+  try {
+    final unsynced = await _dbService!.getUnsyncedAlerts();
+    if (unsynced.isEmpty) return;
+
+    debugPrint('');
+    debugPrint('═══════════════════════════════════');
+    debugPrint('🔄 SYNCING OFFLINE ALERTS TO FIREBASE');
+    debugPrint('═══════════════════════════════════');
+
+    int synced = 0;
+    for (final alert in unsynced) {
+      try {
+        // ✅ Try to upload alert to Firebase
+        final alertId = alert['alert_id'] as String;
+        await _syncService!.uploadAlertToFirebase(alert);
+        
+        // ✅ Mark as synced in local database
+        await _dbService!.markSynced(alertId);
+        synced++;
+
+        debugPrint('✅ Synced: $alertId');
+      } catch (e) {
+        debugPrint('⚠️ Failed to sync alert: $e');
+      }
+    }
+
+    debugPrint('');
+    debugPrint('✅ Sync complete: $synced/${unsynced.length} alerts synced');
+    debugPrint('═══════════════════════════════════');
+    debugPrint('');
+  } catch (e) {
+    debugPrint('❌ Unsynced alert sync failed: $e');
+  }
+}
+
+/// ✅ Initialize local notifications
 Future<void> _initLocalNotifications() async {
   if (kIsWeb) return; // Skip on web
-  
+
   const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
   const iosInit = DarwinInitializationSettings();
 
@@ -54,11 +127,14 @@ Future<void> _initLocalNotifications() async {
   if (androidPlugin != null) {
     await androidPlugin.createNotificationChannel(_alertsChannel);
   }
+
+  debugPrint('✅ Local notifications initialized');
 }
 
+/// ✅ Show local notification from FCM message
 Future<void> _showLocalFromRemote(RemoteMessage message) async {
-  if (kIsWeb) return; // Skip on web
-  
+  if (kIsWeb) return;
+
   final title = message.notification?.title ?? 'Alert';
   final body = message.notification?.body ?? '';
 
@@ -84,65 +160,110 @@ Future<void> _showLocalFromRemote(RemoteMessage message) async {
   );
 }
 
+/// ✅ Firebase background message handler
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  debugPrint('🔔 FCM Background message: ${message.messageId}');
 }
 
-Future<void> main() async {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   debugPrint('');
   debugPrint('╔═══════════════════════════════════╗');
   debugPrint('║  VisionBot USER APP - Initializing  ║');
+  debugPrint('║      HYBRID MODE 🚀              ║');
   debugPrint('╚═══════════════════════════════════╝');
 
   try {
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-
+    // ✅ Step 1: Initialize Firebase
     debugPrint('');
-    debugPrint('🔔 Setting up notifications...');
+    debugPrint('1️⃣ Initializing Firebase...');
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    debugPrint('   ✅ Firebase ready');
+
+    // ✅ Step 2: Initialize local database (for offline support)
+    debugPrint('');
+    debugPrint('2️⃣ Initializing Local Database...');
+    await _initializeLocalDatabase();
+
+    // ✅ Step 3: Initialize Alert Services
+    debugPrint('');
+    debugPrint('3️⃣ Setting up Alert Services...');
     await AlertNotificationService.initialize();
+    debugPrint('   ✅ Alert notifications ready');
 
+    // ✅ Step 4: Initialize HYBRID alerts service
     debugPrint('');
-    debugPrint('🔄 Starting real-time sync...');
+    debugPrint('4️⃣ Starting HYBRID Alerts Service...');
+    _hybridService = HybridAlertsService();
+    final stats = await _hybridService!.getStatistics();
+    debugPrint('   Firebase alerts: ${stats['firebase']}');
+    debugPrint('   Local alerts: ${stats['local']}');
+    debugPrint('   Unsynced: ${stats['unsynced']}');
+
+    // ✅ Step 5: Initialize real-time sync
+    debugPrint('');
+    debugPrint('5️⃣ Starting Real-time Sync...');
     _syncService = AlertSyncService();
     await _syncService!.initializeRealtimeSync();
+    debugPrint('   ✅ Real-time sync listening');
+
+    // ✅ Step 6: Try to sync any offline alerts
+    debugPrint('');
+    debugPrint('6️⃣ Checking for offline alerts...');
+    Future.delayed(
+      const Duration(seconds: 2),
+      _startUnSyncedAlertSync,
+    );
 
     debugPrint('');
-    debugPrint('✅ USER APP READY - Listening to Detection App');
+    debugPrint('✅ USER APP READY');
+    debugPrint('   📱 Listening to Detection App');
+    debugPrint('   💾 Local backup active');
+    debugPrint('   🔄 Real-time sync enabled');
+    debugPrint('═══════════════════════════════════');
     debugPrint('');
   } catch (e, st) {
-    debugPrint('❌ Initialization failed: $e');
+    debugPrint('');
+    debugPrint('❌ Initialization FAILED: $e');
     debugPrint('   Stack: $st');
+    debugPrint('');
   }
 
-  Future.delayed(const Duration(seconds: 5), _checkForSyncedAlerts);
-
-  // Only initialize notifications and messaging on mobile
+  // ✅ Only initialize messaging on mobile
   if (!kIsWeb) {
-    await _initLocalNotifications();
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    try {
+      await _initLocalNotifications();
 
-    final fcm = FirebaseMessaging.instance;
-    final token = await fcm.getToken();
-    debugPrint('FCM TOKEN: $token');
-
-    FirebaseMessaging.onMessage.listen((message) async {
-      debugPrint('FCM FOREGROUND: ${message.messageId}');
-      debugPrint(
-        'FCM FOREGROUND notification: ${message.notification?.title} | ${message.notification?.body}',
+      FirebaseMessaging.onBackgroundMessage(
+        _firebaseMessagingBackgroundHandler,
       );
-      debugPrint('FCM FOREGROUND data: ${message.data}');
 
-      await _showLocalFromRemote(message);
-    });
+      final fcm = FirebaseMessaging.instance;
+      final token = await fcm.getToken();
+      debugPrint('');
+      debugPrint('🔐 FCM Token: ${token?.substring(0, 20)}...');
+      debugPrint('');
 
-    FirebaseMessaging.onMessageOpenedApp.listen((message) {
-      debugPrint('FCM OPENED FROM NOTIF: ${message.messageId}');
-    });
+      // ✅ Handle foreground messages
+      FirebaseMessaging.onMessage.listen((message) async {
+        debugPrint('🔔 FCM FOREGROUND: ${message.notification?.title}');
+        await _showLocalFromRemote(message);
+      });
 
-    await PushService().init();
+      // ✅ Handle message tap
+      FirebaseMessaging.onMessageOpenedApp.listen((message) {
+        debugPrint('📱 Notification tapped: ${message.messageId}');
+      });
+
+      await PushService().init();
+    } catch (e) {
+      debugPrint('⚠️ FCM setup failed: $e');
+    }
   }
 
   runApp(const VisionBotApp());
