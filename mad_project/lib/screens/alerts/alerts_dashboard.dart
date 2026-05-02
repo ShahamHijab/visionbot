@@ -1,10 +1,10 @@
-// lib/screens/alerts/alerts_dashboard.dart - FIXED
+// 📱 PHONE: Display alerts with HYBRID fetching
+// ✅ Firebase PRIMARY → Laptop Backup → Local Cache
 
 import 'package:flutter/material.dart';
-import '../../models/alert_model.dart';
+import '../../services/backend_fetch_service.dart';
+import '../../services/database_service.dart';
 import '../../routes/app_routes.dart';
-import '../../services/alert_service.dart';
-import '../../widgets/alert_card.dart';
 
 class AlertsDashboard extends StatefulWidget {
   const AlertsDashboard({super.key});
@@ -14,12 +14,63 @@ class AlertsDashboard extends StatefulWidget {
 }
 
 class _AlertsDashboardState extends State<AlertsDashboard> {
-  late final AlertService _alertService;
+  final BackendFetchService _backendFetch = BackendFetchService();
+  final DatabaseService _localDb = DatabaseService();
+
+  List<Map<String, dynamic>> _alerts = [];
+  bool _loading = false;
+  String _status = '⏳ Loading...';
+  String _source = ''; // Track where data came from
 
   @override
   void initState() {
     super.initState();
-    _alertService = AlertService();
+    _loadAlerts();
+  }
+
+  /// ✅ Load alerts from hybrid sources
+  Future<void> _loadAlerts() async {
+    setState(() {
+      _loading = true;
+      _status = '🔄 Fetching...';
+      _source = '';
+    });
+
+    try {
+      // ✅ Try hybrid fetch (Firebase → Laptop → Cache)
+      final alerts = await _backendFetch.getAlerts();
+
+      // Determine source
+      String source = '❓ Unknown';
+      if (alerts.isNotEmpty) {
+        // Check if from Firebase (will have created_at timestamp)
+        if (alerts.first.containsKey('created_at') && 
+            alerts.first['created_at'] != null) {
+          source = '🌐 Firebase';
+        } 
+        // Check if from laptop (will have receivedAt)
+        else if (alerts.first.containsKey('receivedAt')) {
+          source = '📡 Laptop';
+        } 
+        // Otherwise from cache
+        else {
+          source = '💾 Cache';
+        }
+      }
+
+      setState(() {
+        _alerts = alerts;
+        _status = '✅ ${alerts.length} alerts';
+        _source = source;
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _status = '❌ Error: $e';
+        _source = '❌ Failed';
+        _loading = false;
+      });
+    }
   }
 
   @override
@@ -35,89 +86,177 @@ class _AlertsDashboardState extends State<AlertsDashboard> {
             style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
           ),
         ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _status,
+              style: TextStyle(
+                fontSize: 11,
+                color: _status.startsWith('✅')
+                    ? Colors.green
+                    : _status.startsWith('❌')
+                        ? Colors.red
+                        : Colors.orange,
+              ),
+            ),
+            if (_source.isNotEmpty)
+              Text(
+                _source,
+                style: const TextStyle(fontSize: 10, color: Colors.grey),
+              ),
+          ],
+        ),
+        actions: [
+          if (_loading)
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation(Colors.white),
+                ),
+              ),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _loadAlerts,
+              tooltip: 'Refresh alerts',
+            ),
+        ],
       ),
-      body: StreamBuilder<List<AlertModel>>(
-        stream: _alertService.streamAlerts(limit: 100),
-        builder: (context, snapshot) {
-          // ✅ Handle connection states
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (snapshot.hasError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.error_outline,
-                    size: 64,
-                    color: Colors.red.shade300,
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Failed to load alerts',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '${snapshot.error}',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          final alerts = snapshot.data ?? [];
-
-          if (alerts.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.notifications_off_rounded,
-                    size: 64,
-                    color: Colors.grey.shade400,
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'No alerts found',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Check back later for new detections',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: alerts.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final alert = alerts[index];
-
-              return AlertCard(
-                alert: alert,
-                onTap: () {
-                  Navigator.pushNamed(
-                    context,
-                    AppRoutes.alertDetail,
-                    arguments: alert,
-                  );
-                },
-              );
-            },
-          );
-        },
+      body: _buildBody(),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _loadAlerts,
+        tooltip: 'Fetch alerts',
+        child: const Icon(Icons.cloud_download),
       ),
     );
+  }
+
+  Widget _buildBody() {
+    if (_alerts.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.notifications_off_rounded,
+              size: 64,
+              color: Colors.grey.shade400,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'No alerts found',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _status,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+            if (_source.isNotEmpty)
+              Text(
+                _source,
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+              ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadAlerts,
+              child: const Text('Try Again'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: _alerts.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        final alert = _alerts[index];
+
+        return Card(
+          elevation: 2,
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: Colors.blue.shade100,
+              child: Icon(
+                Icons.alert_rounded,
+                color: Colors.blue.shade700,
+              ),
+            ),
+            title: Text(
+              alert['type']?.toString() ?? 'Alert',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 4),
+                Text(
+                  alert['created_at_local']?.toString() ?? 
+                  alert['receivedAt']?.toString() ?? 
+                  'Unknown time',
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                ),
+              ],
+            ),
+            trailing: Chip(
+              label: Text(
+                _getAlertSourceLabel(alert),
+                style: const TextStyle(fontSize: 10),
+              ),
+              backgroundColor: _getAlertSourceColor(alert),
+            ),
+            onTap: () {
+              Navigator.pushNamed(
+                context,
+                AppRoutes.alertDetail,
+                arguments: alert,
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  /// ✅ Determine alert source
+  String _getAlertSourceLabel(Map<String, dynamic> alert) {
+    if (alert['created_at'] != null) {
+      return '☁️ Cloud';
+    }
+    if (alert['receivedAt'] != null) {
+      return '📡 Server';
+    }
+    if (alert['synced_to_firebase'] == 1) {
+      return '✅ Synced';
+    }
+    return '💾 Local';
+  }
+
+  /// ✅ Determine alert source color
+  Color _getAlertSourceColor(Map<String, dynamic> alert) {
+    if (alert['created_at'] != null) {
+      return Colors.blue.shade100;
+    }
+    if (alert['receivedAt'] != null) {
+      return Colors.orange.shade100;
+    }
+    if (alert['synced_to_firebase'] == 1) {
+      return Colors.green.shade100;
+    }
+    return Colors.grey.shade100;
+  }
+
+  @override
+  void dispose() {
+    _backendFetch.dispose();
+    super.dispose();
   }
 }
