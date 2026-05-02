@@ -86,26 +86,29 @@ class _AlertsDashboardState extends State<AlertsDashboard> {
             style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
           ),
         ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              _status,
-              style: TextStyle(
-                fontSize: 11,
-                color: _status.startsWith('✅')
-                    ? Colors.green
-                    : _status.startsWith('❌')
-                        ? Colors.red
-                        : Colors.orange,
-              ),
-            ),
-            if (_source.isNotEmpty)
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(60),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Text(
-                _source,
-                style: const TextStyle(fontSize: 10, color: Colors.grey),
+                _status,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: _status.startsWith('✅')
+                      ? Colors.green
+                      : _status.startsWith('❌')
+                          ? Colors.red
+                          : Colors.orange,
+                ),
               ),
-          ],
+              if (_source.isNotEmpty)
+                Text(
+                  _source,
+                  style: const TextStyle(fontSize: 10, color: Colors.grey),
+                ),
+            ],
+          ),
         ),
         actions: [
           if (_loading)
@@ -186,7 +189,7 @@ class _AlertsDashboardState extends State<AlertsDashboard> {
             leading: CircleAvatar(
               backgroundColor: Colors.blue.shade100,
               child: Icon(
-                Icons.alert_rounded,
+                Icons.warning_rounded,
                 color: Colors.blue.shade700,
               ),
             ),

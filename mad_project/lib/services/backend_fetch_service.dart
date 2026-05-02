@@ -11,7 +11,7 @@ class BackendFetchService {
   // ⚠️ CHANGE THIS TO YOUR LAPTOP IP!
   // Example: http://192.168.1.50:3000
   // Find it from laptop server output
-  static const String BACKEND_URL = 'http://192.168.1.50:3000';
+  static const String BACKEND_URL = 'http://10.5.0.2';
 
   final DatabaseService _localDb = DatabaseService();
   final ConnectivityHelper _connectivity = ConnectivityHelper();
