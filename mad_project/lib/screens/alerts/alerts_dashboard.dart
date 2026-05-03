@@ -1,9 +1,7 @@
-// 📱 PHONE: Display alerts with HYBRID fetching
-// ✅ Firebase PRIMARY → Laptop Backup → Local Cache
-
 import 'package:flutter/material.dart';
+import '../../services/alert_service.dart';
 import '../../services/backend_fetch_service.dart';
-import '../../services/database_service.dart';
+import '../../models/alert_model.dart';
 import '../../routes/app_routes.dart';
 
 class AlertsDashboard extends StatefulWidget {
@@ -14,62 +12,19 @@ class AlertsDashboard extends StatefulWidget {
 }
 
 class _AlertsDashboardState extends State<AlertsDashboard> {
+  final AlertService _alertService = AlertService();
   final BackendFetchService _backendFetch = BackendFetchService();
-  final DatabaseService _localDb = DatabaseService();
-
-  List<Map<String, dynamic>> _alerts = [];
-  bool _loading = false;
-  String _status = '⏳ Loading...';
-  String _source = ''; // Track where data came from
 
   @override
   void initState() {
     super.initState();
-    _loadAlerts();
+    _initializeBackend();
   }
 
-  /// ✅ Load alerts from hybrid sources
-  Future<void> _loadAlerts() async {
-    setState(() {
-      _loading = true;
-      _status = '🔄 Fetching...';
-      _source = '';
-    });
-
-    try {
-      // ✅ Try hybrid fetch (Firebase → Laptop → Cache)
-      final alerts = await _backendFetch.getAlerts();
-
-      // Determine source
-      String source = '❓ Unknown';
-      if (alerts.isNotEmpty) {
-        // Check if from Firebase (will have created_at timestamp)
-        if (alerts.first.containsKey('created_at') && 
-            alerts.first['created_at'] != null) {
-          source = '🌐 Firebase';
-        } 
-        // Check if from laptop (will have receivedAt)
-        else if (alerts.first.containsKey('receivedAt')) {
-          source = '📡 Laptop';
-        } 
-        // Otherwise from cache
-        else {
-          source = '💾 Cache';
-        }
-      }
-
-      setState(() {
-        _alerts = alerts;
-        _status = '✅ ${alerts.length} alerts';
-        _source = source;
-        _loading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _status = '❌ Error: $e';
-        _source = '❌ Failed';
-        _loading = false;
-      });
+  Future<void> _initializeBackend() async {
+    await _backendFetch.initialize();
+    if (mounted) {
+      setState(() {});
     }
   }
 
@@ -82,179 +37,333 @@ class _AlertsDashboardState extends State<AlertsDashboard> {
             colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
           ).createShader(bounds),
           child: const Text(
-            'Alert Dashboard',
+            'Alerts',
             style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
           ),
         ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(60),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                _status,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: _status.startsWith('✅')
-                      ? Colors.green
-                      : _status.startsWith('❌')
-                          ? Colors.red
-                          : Colors.orange,
-                ),
-              ),
-              if (_source.isNotEmpty)
-                Text(
-                  _source,
-                  style: const TextStyle(fontSize: 10, color: Colors.grey),
-                ),
-            ],
-          ),
-        ),
+        elevation: 0,
         actions: [
-          if (_loading)
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation(Colors.white),
-                ),
-              ),
-            )
-          else
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: _loadAlerts,
-              tooltip: 'Refresh alerts',
-            ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () => setState(() {}),
+            tooltip: 'Refresh alerts',
+          ),
         ],
       ),
-      body: _buildBody(),
+      body: _buildAlertsList(),
       floatingActionButton: FloatingActionButton(
-        onPressed: _loadAlerts,
-        tooltip: 'Fetch alerts',
+        onPressed: () => setState(() {}),
+        tooltip: 'Refresh',
         child: const Icon(Icons.cloud_download),
       ),
     );
   }
 
-  Widget _buildBody() {
-    if (_alerts.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.notifications_off_rounded,
-              size: 64,
-              color: Colors.grey.shade400,
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'No alerts found',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _status,
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-            ),
-            if (_source.isNotEmpty)
-              Text(
-                _source,
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-              ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _loadAlerts,
-              child: const Text('Try Again'),
-            ),
-          ],
-        ),
-      );
-    }
+  Widget _buildAlertsList() {
+    return StreamBuilder<List<AlertModel>>(
+      stream: _alertService.streamAlerts(limit: 50),
+      builder: (context, snapshot) {
+        // Loading state
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        }
 
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: _alerts.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final alert = _alerts[index];
-
-        return Card(
-          elevation: 2,
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: Colors.blue.shade100,
-              child: Icon(
-                Icons.warning_rounded,
-                color: Colors.blue.shade700,
-              ),
-            ),
-            title: Text(
-              alert['type']?.toString() ?? 'Alert',
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        // Error state
+        if (snapshot.hasError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const SizedBox(height: 4),
-                Text(
-                  alert['created_at_local']?.toString() ?? 
-                  alert['receivedAt']?.toString() ?? 
-                  'Unknown time',
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                Icon(Icons.error_outline, size: 48, color: Colors.red),
+                const SizedBox(height: 16),
+                Text('Error: ${snapshot.error}'),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => setState(() {}),
+                  child: const Text('Retry'),
                 ),
               ],
             ),
-            trailing: Chip(
-              label: Text(
-                _getAlertSourceLabel(alert),
-                style: const TextStyle(fontSize: 10),
-              ),
-              backgroundColor: _getAlertSourceColor(alert),
+          );
+        }
+
+        // Empty state
+        final alerts = snapshot.data ?? [];
+
+        if (alerts.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.notifications_off_rounded,
+                  size: 48,
+                  color: Colors.grey.shade400,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'No alerts',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
             ),
-            onTap: () {
-              Navigator.pushNamed(
-                context,
-                AppRoutes.alertDetail,
-                arguments: alert,
-              );
-            },
-          ),
+          );
+        }
+
+        // Alerts list - COMPACT VERSION
+        return ListView.builder(
+          padding: const EdgeInsets.all(12),
+          itemCount: alerts.length,
+          itemBuilder: (context, index) {
+            final alert = alerts[index];
+            return _buildCompactAlertCard(alert);
+          },
         );
       },
     );
   }
 
-  /// ✅ Determine alert source
-  String _getAlertSourceLabel(Map<String, dynamic> alert) {
-    if (alert['created_at'] != null) {
-      return '☁️ Cloud';
-    }
-    if (alert['receivedAt'] != null) {
-      return '📡 Server';
-    }
-    if (alert['synced_to_firebase'] == 1) {
-      return '✅ Synced';
-    }
-    return '💾 Local';
+  /// ✅ COMPACT alert card (like before)
+  Widget _buildCompactAlertCard(AlertModel alert) {
+    final typeLabel = _getTypeLabel(alert.type);
+    final typeColor = _getTypeColor(alert.type);
+    final typeIcon = _getTypeIcon(alert.type);
+
+    // Get thumbnail image URL
+    final thumbnailUrl = alert.imageUrl.isNotEmpty
+        ? alert.imageUrl
+        : (alert.faceImageUrls.isNotEmpty ? alert.faceImageUrls.first : '');
+
+    return Card(
+      elevation: 2,
+      margin: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: () {
+          Navigator.pushNamed(
+            context,
+            AppRoutes.alertDetail,
+            arguments: alert,
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              // ✅ Thumbnail image (small, left side)
+              if (thumbnailUrl.isNotEmpty)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    width: 60,
+                    height: 60,
+                    color: Colors.grey[200],
+                    child: Image.network(
+                      thumbnailUrl,
+                      fit: BoxFit.cover,
+                      cacheHeight: 120,
+                      cacheWidth: 120,
+                      loadingBuilder: (context, child, progress) {
+                        if (progress == null) return child;
+                        return Center(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 1.5,
+                              valueColor: AlwaysStoppedAnimation(
+                                Colors.grey.shade400,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: Colors.grey[200],
+                          child: Icon(
+                            Icons.broken_image_rounded,
+                            size: 24,
+                            color: Colors.grey.shade400,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                )
+              else
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: typeColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(typeIcon, color: typeColor, size: 28),
+                ),
+
+              const SizedBox(width: 12),
+
+              // ✅ Details (center)
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      typeLabel,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _formatDateTime(alert.timestamp),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    if (alert.description.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        alert.description,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey.shade700,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+              const SizedBox(width: 8),
+
+              // ✅ Status (right)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: alert.isRead ? Colors.grey[200] : Colors.blue[200],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  alert.isRead ? 'Read' : 'New',
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                    color: alert.isRead
+                        ? Colors.grey[700]
+                        : Colors.blue[700],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
-  /// ✅ Determine alert source color
-  Color _getAlertSourceColor(Map<String, dynamic> alert) {
-    if (alert['created_at'] != null) {
-      return Colors.blue.shade100;
+  String _getTypeLabel(AlertType type) {
+    switch (type) {
+      case AlertType.fire:
+        return 'Fire Detected';
+      case AlertType.smoke:
+        return 'Smoking Detected';
+      case AlertType.human:
+        return 'Person Detected';
+      case AlertType.motion:
+        return 'Motion Detected';
+      case AlertType.restricted:
+        return 'Restricted Area';
+      case AlertType.group:
+        return 'Group Detected';
+      case AlertType.unknownFace:
+        return 'Unknown Person';
+      case AlertType.knownFace:
+        return 'Known Person';
+      case AlertType.intruder:
+        return 'Intruder Detected';
+      case AlertType.other:
+        return 'Alert';
     }
-    if (alert['receivedAt'] != null) {
-      return Colors.orange.shade100;
+  }
+
+  Color _getTypeColor(AlertType type) {
+    switch (type) {
+      case AlertType.fire:
+        return Colors.red;
+      case AlertType.smoke:
+        return Colors.amber;
+      case AlertType.human:
+        return Colors.blue;
+      case AlertType.motion:
+        return Colors.cyan;
+      case AlertType.restricted:
+        return Colors.purple;
+      case AlertType.group:
+        return Colors.orange;
+      case AlertType.unknownFace:
+        return Colors.red;
+      case AlertType.knownFace:
+        return Colors.green;
+      case AlertType.intruder:
+        return Colors.deepOrange;
+      case AlertType.other:
+        return Colors.grey;
     }
-    if (alert['synced_to_firebase'] == 1) {
-      return Colors.green.shade100;
+  }
+
+  IconData _getTypeIcon(AlertType type) {
+    switch (type) {
+      case AlertType.fire:
+        return Icons.local_fire_department;
+      case AlertType.smoke:
+        return Icons.smoking_rooms;
+      case AlertType.human:
+        return Icons.person_outline;
+      case AlertType.motion:
+        return Icons.directions_run;
+      case AlertType.restricted:
+        return Icons.block;
+      case AlertType.group:
+        return Icons.people_outline;
+      case AlertType.unknownFace:
+        return Icons.person_search;
+      case AlertType.knownFace:
+        return Icons.verified_user;
+      case AlertType.intruder:
+        return Icons.security;
+      case AlertType.other:
+        return Icons.warning_outlined;
     }
-    return Colors.grey.shade100;
+  }
+
+  String _formatDateTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inSeconds < 60) {
+      return 'just now';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours}h ago';
+    } else {
+      return '${dateTime.day}/${dateTime.month}';
+    }
   }
 
   @override

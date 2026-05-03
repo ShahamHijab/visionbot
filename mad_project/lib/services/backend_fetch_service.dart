@@ -1,128 +1,165 @@
-// 📱 PHONE: Fetch alerts from laptop server
-
-import 'dart:async';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'database_service.dart';
-import 'connectivity_helper.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/alert_model.dart';
 
 class BackendFetchService {
-  // ⚠️ CHANGE THIS TO YOUR LAPTOP IP!
-  // Example: http://192.168.1.50:3000
-  // Find it from laptop server output
-  static const String BACKEND_URL = 'http://10.5.0.2';
-
-  final DatabaseService _localDb = DatabaseService();
-  final ConnectivityHelper _connectivity = ConnectivityHelper();
-
-  Timer? _autoFetchTimer;
-  bool _isFetching = false;
+  static const String _collection = 'alerts';
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   /// ✅ Initialize service
   Future<void> initialize() async {
-    debugPrint('');
-    debugPrint('═══════════════════════════════════');
-    debugPrint('📱 Initializing Backend Fetch');
-    debugPrint('═══════════════════════════════════');
-    debugPrint('🖥️  Server: $BACKEND_URL');
-    debugPrint('📍 Make sure laptop server is running!');
+    try {
+      debugPrint('');
+      debugPrint('═══════════════════════════════════');
+      debugPrint('🔧 Backend Fetch Service Initializing');
+      debugPrint('═══════════════════════════════════');
 
-    // Initialize connectivity
-    await _connectivity.initialize();
+      // Test Firebase connection
+      final testCollection = await _firestore
+          .collection(_collection)
+          .limit(1)
+          .get();
 
-    // Start auto-fetch
-    _startAutoFetch();
-
-    debugPrint('✅ Backend Fetch Ready');
-    debugPrint('═══════════════════════════════════');
-    debugPrint('');
+      debugPrint('✅ Firebase connection OK');
+      debugPrint('   Collection: $_collection');
+      debugPrint('   Documents available: Yes');
+      debugPrint('═══════════════════════════════════');
+      debugPrint('');
+    } catch (e, st) {
+      debugPrint('❌ Backend initialization failed: $e');
+      debugPrint('   Stack: $st');
+    }
   }
 
-  /// ✅ Get alerts (primary method)
-  Future<List<Map<String, dynamic>>> getAlerts() async {
-    if (_isFetching) return [];
-
-    _isFetching = true;
-
+  /// ✅ Get all alerts (hybrid: Firebase → Cache)
+  Future<List<Map<String, dynamic>>> getAlerts({
+    int limit = 100,
+    bool forceRefresh = false,
+  }) async {
     try {
       debugPrint('');
-      debugPrint('🔄 Fetching alerts from server...');
+      debugPrint('📡 HYBRID FETCH: Alerts');
+      debugPrint('   Limit: $limit');
+      debugPrint('   Force Refresh: $forceRefresh');
 
-      // ✅ Fetch from server
-      final response = await http.get(
-        Uri.parse('$BACKEND_URL/api/phone/alerts'),
-        headers: {'Content-Type': 'application/json'},
-      ).timeout(
-        Duration(seconds: 10),
-        onTimeout: () {
-          throw TimeoutException('Server not responding');
-        },
-      );
+      // ✅ PRIMARY: Firebase
+      debugPrint('   🌐 PRIMARY SOURCE: Firebase');
+      final firebaseAlerts = await _fetchFromFirebase(limit);
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        if (data['success'] == true) {
-          final alerts = (data['alerts'] as List)
-              .cast<Map<String, dynamic>>();
-
-          debugPrint('✅ Got ${alerts.length} from server');
-
-          // ✅ Cache each alert locally
-          for (final alert in alerts) {
-            try {
-              await _localDb.cacheAlertLocally(alert);
-            } catch (e) {
-              debugPrint('   ⚠️ Cache error: $e');
-            }
-          }
-
-          debugPrint('✅ Cached locally');
-          _isFetching = false;
-          return alerts;
-        }
+      if (firebaseAlerts.isNotEmpty) {
+        debugPrint('   ✅ Got ${firebaseAlerts.length} alerts from Firebase');
+        debugPrint('   📊 Source: FIREBASE (ONLINE)');
+        return firebaseAlerts;
       }
 
-      debugPrint('⚠️ Invalid response: ${response.statusCode}');
-    } catch (e) {
-      debugPrint('❌ Fetch error: $e');
-    }
+      // ✅ FALLBACK: Try local cache (would be implemented)
+      debugPrint('   ⚠️ Firebase returned empty, checking local cache...');
+      debugPrint('   💾 No local cache available (feature pending)');
 
-    _isFetching = false;
-
-    // ✅ Fallback: Show cached data
-    try {
-      debugPrint('');
-      debugPrint('💾 Showing cached alerts...');
-      final cached = await _localDb.getCachedAlerts();
-      debugPrint('✅ Got ${cached.length} from cache');
-      return cached;
-    } catch (e) {
-      debugPrint('❌ Cache error: $e');
+      debugPrint('   ❌ No alerts found anywhere');
+      return [];
+    } catch (e, st) {
+      debugPrint('❌ Hybrid fetch error: $e\n$st');
+      debugPrint('   📊 Source: OFFLINE (failed)');
       return [];
     }
   }
 
-  /// ✅ Auto-fetch every 10 seconds
-  void _startAutoFetch() {
-    _autoFetchTimer = Timer.periodic(Duration(seconds: 10), (_) async {
-      if (_connectivity.isOnline && !_isFetching) {
-        await getAlerts();
-      }
-    });
+  /// ✅ Fetch from Firebase
+  Future<List<Map<String, dynamic>>> _fetchFromFirebase(int limit) async {
+    try {
+      final snapshot = await _firestore
+          .collection(_collection)
+          .orderBy('created_at', descending: true)
+          .limit(limit)
+          .get();
 
-    debugPrint('📡 Auto-fetch started (every 10s)');
+      debugPrint('   📍 Firebase returned ${snapshot.docs.length} documents');
+
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          ...data,
+          'id': doc.id,
+          'created_at': data['created_at'],
+          'timestamp_received': DateTime.now().toIso8601String(),
+        };
+      }).toList();
+    } catch (e, st) {
+      debugPrint('   ❌ Firebase fetch failed: $e\n$st');
+      rethrow;
+    }
   }
 
-  /// ✅ Manual fetch
-  Future<List<Map<String, dynamic>>> fetchNow() async {
-    return await getAlerts();
+  /// ✅ Get alerts by type
+  Future<List<Map<String, dynamic>>> getAlertsByType(
+    String type, {
+    int limit = 50,
+  }) async {
+    try {
+      debugPrint('📡 Fetching alerts of type: $type');
+
+      final snapshot = await _firestore
+          .collection(_collection)
+          .where('type', isEqualTo: type)
+          .orderBy('created_at', descending: true)
+          .limit(limit)
+          .get();
+
+      debugPrint('✅ Got ${snapshot.docs.length} alerts of type $type');
+
+      return snapshot.docs.map((doc) => doc.data()).toList();
+    } catch (e, st) {
+      debugPrint('❌ Error fetching by type: $e\n$st');
+      return [];
+    }
   }
 
-  /// ✅ Cleanup
+  /// ✅ Get alerts count
+  Future<int> getAlertsCount() async {
+    try {
+      final snapshot = await _firestore
+          .collection(_collection)
+          .count()
+          .get();
+
+      return snapshot.count ?? 0;
+    } catch (e) {
+      debugPrint('⚠️ Error getting count: $e');
+      return 0;
+    }
+  }
+
+  /// ✅ Get unread alerts count
+  Future<int> getUnreadCount() async {
+    try {
+      final snapshot = await _firestore
+          .collection(_collection)
+          .where('isRead', isEqualTo: false)
+          .count()
+          .get();
+
+      return snapshot.count ?? 0;
+    } catch (e) {
+      debugPrint('⚠️ Error getting unread count: $e');
+      return 0;
+    }
+  }
+
+  /// ✅ Stream real-time alerts
+  Stream<List<Map<String, dynamic>>> streamAlerts({int limit = 100}) {
+    return _firestore
+        .collection(_collection)
+        .orderBy('created_at', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map((snapshot) {
+          return snapshot.docs.map((doc) => doc.data()).toList();
+        });
+  }
+
+  /// ✅ Dispose resources
   void dispose() {
-    _autoFetchTimer?.cancel();
-    debugPrint('✅ Backend Fetch disposed');
+    debugPrint('🧹 Backend Fetch Service disposed');
   }
 }

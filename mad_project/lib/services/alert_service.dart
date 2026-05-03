@@ -1,6 +1,3 @@
-// lib/services/alert_service.dart
-// ✅ UPDATED: User app version - read from Firebase + Local hybrid
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../models/alert_model.dart';
@@ -10,13 +7,14 @@ class AlertService {
 
   static const String _collection = 'alerts';
 
-  /// ✅ Get alerts: Try Firebase first, fallback to Local
+  /// ✅ Stream alerts - OPTIMIZED for performance
   Stream<List<AlertModel>> streamAlerts({
-    int limit = 100,
+    int limit = 50,
     String? collection,
     String? orderField,
   }) {
-    // ✅ Stream from Firebase (real-time from detection app)
+    debugPrint('📡 Setting up alerts stream (limit: $limit)...');
+
     return _firestore
         .collection(collection ?? _collection)
         .orderBy(orderField ?? 'created_at', descending: true)
@@ -24,9 +22,20 @@ class AlertService {
         .snapshots()
         .map<List<AlertModel>>((snapshot) {
           try {
-            return snapshot.docs
-                .map((doc) => AlertModel.fromFirestore(doc))
+            final alerts = snapshot.docs
+                .map((doc) {
+                  try {
+                    return AlertModel.fromFirestore(doc);
+                  } catch (e) {
+                    debugPrint('⚠️ Error converting doc ${doc.id}: $e');
+                    return null;
+                  }
+                })
+                .whereType<AlertModel>()
                 .toList();
+
+            debugPrint('✅ Stream received ${alerts.length} alerts');
+            return alerts;
           } catch (e) {
             debugPrint('❌ Stream conversion error: $e');
             return <AlertModel>[];
@@ -37,90 +46,63 @@ class AlertService {
         });
   }
 
-  /// ✅ Get alerts from local database (offline fallback)
-  Future<List<AlertModel>> _getLocalAlerts() async {
-    debugPrint('⚠️ Local database service is not configured');
-    return [];
-  }
+  /// ✅ Get single alert by ID
+  Future<AlertModel?> getAlert(String alertId) async {
+    try {
+      debugPrint('📡 Fetching alert: $alertId');
 
-  /// ✅ Convert local DB data to AlertModel
-  AlertModel _alertFromLocalData(Map<String, dynamic> data) {
-    return AlertModel(
-      id: data['alert_id'] ?? '',
-      type: AlertTypeX.fromString(data['type'] ?? ''),
-      severity: AlertSeverityX.fromString(data['severity'] ?? ''),
-      title: data['type'] ?? 'Alert',
-      description: data['note'] ?? '',
-      imageUrl: data['image_path'] ?? '',
-      faceImageUrls: (data['face_image_paths'] as String?)?.split(',') ?? [],
-      timestamp:
-          DateTime.tryParse(data['created_at_local'] as String? ?? '') ??
-              DateTime.now(),
-      location: data['location_name'] ?? '',
-      latitude: data['latitude'],
-      longitude: data['longitude'],
-      robotId: '',
-      isRead: false,
-      isResolved: false,
-    );
+      final doc = await _firestore
+          .collection(_collection)
+          .doc(alertId)
+          .get();
+
+      if (!doc.exists) {
+        debugPrint('❌ Alert not found');
+        return null;
+      }
+
+      return AlertModel.fromFirestore(doc);
+    } catch (e, st) {
+      debugPrint('❌ Error fetching alert: $e\n$st');
+      return null;
+    }
   }
 
   /// ✅ Mark alert as read
-  Future<void> markRead(String alertId) async {
+  Future<void> markAsRead(String alertId) async {
     try {
+      debugPrint('📌 Marking alert $alertId as read');
+
       await _firestore.collection(_collection).doc(alertId).update({
         'isRead': true,
-        'readAt': FieldValue.serverTimestamp(),
+        'read_at': FieldValue.serverTimestamp(),
       });
-    } catch (e) {
-      debugPrint('❌ Mark read error: $e');
+
+      debugPrint('✅ Alert marked as read');
+    } catch (e, st) {
+      debugPrint('❌ Mark read error: $e\n$st');
     }
   }
 
-  /// ✅ Mark all as read
-  Future<void> markAllRead({String? collection}) async {
+  /// ✅ Delete alert
+  Future<void> deleteAlert(String alertId) async {
     try {
-      final docs = await _firestore
-          .collection(collection ?? _collection)
-          .where('isRead', isEqualTo: false)
-          .get();
+      debugPrint('🗑️  Deleting alert $alertId');
 
-      for (final doc in docs.docs) {
-        await doc.reference.update({
-          'isRead': true,
-          'readAt': FieldValue.serverTimestamp(),
-        });
-      }
+      await _firestore.collection(_collection).doc(alertId).delete();
 
-      debugPrint('✅ Marked ${docs.docs.length} alerts as read');
-    } catch (e) {
-      debugPrint('❌ Mark all read error: $e');
+      debugPrint('✅ Alert deleted');
+    } catch (e, st) {
+      debugPrint('❌ Delete error: $e\n$st');
     }
   }
 
-  /// ✅ Get sync statistics
-  Future<Map<String, dynamic>> getSyncStats() async {
-    try {
-      final firebaseCount = await _getFirebaseCount();
-      const localCount = 0;
-
-      return {
-        'firebase': firebaseCount,
-        'local': localCount,
-        'lastUpdate': DateTime.now().toIso8601String(),
-      };
-    } catch (e) {
-      return {'error': e.toString()};
-    }
-  }
-
-  Future<int> _getFirebaseCount() async {
-    try {
-      final snapshot =
-          await _firestore.collection(_collection).count().get();
-      return snapshot.count ?? 0;
-    } catch (e) {
-      return 0;
-    }
+  /// ✅ Get unread count
+  Stream<int> streamUnreadCount() {
+    return _firestore
+        .collection(_collection)
+        .where('isRead', isEqualTo: false)
+        .snapshots()
+        .map((snapshot) => snapshot.size);
   }
 }
