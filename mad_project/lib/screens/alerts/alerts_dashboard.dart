@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../services/alert_service.dart';
 import '../../services/backend_fetch_service.dart';
 import '../../models/alert_model.dart';
@@ -14,17 +15,73 @@ class AlertsDashboard extends StatefulWidget {
 class _AlertsDashboardState extends State<AlertsDashboard> {
   final AlertService _alertService = AlertService();
   final BackendFetchService _backendFetch = BackendFetchService();
+  final Connectivity _connectivity = Connectivity(); // ✅ NEW
+
+  List<AlertModel> _cachedAlerts = [];
+  bool _isOnline = true;
+  bool _isLoading = false; // ✅ NEW: Track loading state
 
   @override
   void initState() {
     super.initState();
     _initializeBackend();
+    _loadCachedAlerts();
+    _monitorConnectivity(); // ✅ NEW: Monitor internet changes
+  }
+
+  /// ✅ NEW: Monitor internet connectivity changes
+  void _monitorConnectivity() {
+    _connectivity.onConnectivityChanged.listen((result) {
+      final isOnline = result != ConnectivityResult.none;
+      if (_isOnline != isOnline) {
+        setState(() {
+          _isOnline = isOnline;
+        });
+        
+        if (isOnline) {
+          debugPrint('🌐 Internet restored - reloading alerts');
+          _loadCachedAlerts();
+        } else {
+          debugPrint('📴 Internet lost - showing cached alerts');
+        }
+      }
+    });
   }
 
   Future<void> _initializeBackend() async {
+    debugPrint('🔧 Initializing backend fetch service...');
     await _backendFetch.initialize();
     if (mounted) {
       setState(() {});
+    }
+  }
+
+  Future<void> _loadCachedAlerts() async {
+    if (_isLoading) return; // ✅ NEW: Prevent concurrent loads
+    
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      debugPrint('📡 Loading alerts...');
+      final alerts = await _backendFetch.getAlerts(limit: 50);
+      
+      if (mounted) {
+        setState(() {
+          _cachedAlerts = alerts;
+          _isLoading = false;
+        });
+        
+        debugPrint('✅ Loaded ${alerts.length} alerts');
+      }
+    } catch (e) {
+      debugPrint('❌ Load error: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -43,98 +100,167 @@ class _AlertsDashboardState extends State<AlertsDashboard> {
         ),
         elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () => setState(() {}),
-            tooltip: 'Refresh alerts',
+          // ✅ UPDATED: Show connection status
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Center(
+              child: Tooltip(
+                message: _isOnline
+                    ? 'Online - syncing alerts'
+                    : 'Offline - showing cached alerts',
+                child: Row(
+                  children: [
+                    Icon(
+                      _isOnline ? Icons.cloud_done : Icons.cloud_off,
+                      size: 20,
+                      color: _isOnline ? Colors.green : Colors.orange,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _isOnline ? 'Online' : 'Offline',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
+          // ✅ UPDATED: Refresh button with loading indicator
+          if (_isLoading)
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation(Colors.white),
+                ),
+              ),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: () {
+                _loadCachedAlerts();
+              },
+              tooltip: 'Refresh alerts',
+            ),
         ],
       ),
       body: _buildAlertsList(),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => setState(() {}),
-        tooltip: 'Refresh',
-        child: const Icon(Icons.cloud_download),
+      floatingActionButton: _isLoading
+          ? null // ✅ NEW: Hide FAB while loading
+          : FloatingActionButton(
+              onPressed: () {
+                _loadCachedAlerts();
+              },
+              tooltip: 'Refresh',
+              child: const Icon(Icons.cloud_download),
+            ),
+    );
+  }
+
+  /// ✅ FIXED: Removed duplicate code
+  Widget _buildAlertsList() {
+    return RefreshIndicator(
+      onRefresh: () async {
+        debugPrint('⬇️ Pull-to-refresh triggered');
+        await _loadCachedAlerts();
+      },
+      child: StreamBuilder<List<AlertModel>>(
+        stream: _alertService.streamAlerts(limit: 50),
+        builder: (context, snapshot) {
+          // ✅ Show cached alerts while loading
+          final alerts = snapshot.data ?? _cachedAlerts;
+
+          // Loading state (only if no cached data)
+          if (snapshot.connectionState == ConnectionState.waiting &&
+              alerts.isEmpty) {
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Loading alerts...'),
+                ],
+              ),
+            );
+          }
+
+          // Error state (only if no cached data)
+          if (snapshot.hasError && alerts.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 48, color: Colors.red),
+                  const SizedBox(height: 16),
+                  Text('Error: ${snapshot.error}'),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      _loadCachedAlerts();
+                    },
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          // Empty state
+          if (alerts.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.notifications_off_rounded,
+                    size: 48,
+                    color: Colors.grey.shade400,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No alerts',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      _loadCachedAlerts();
+                    },
+                    child: const Text('Refresh'),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          // ✅ Show alerts list (cached or fresh)
+          return ListView.builder(
+            padding: const EdgeInsets.all(12),
+            itemCount: alerts.length,
+            itemBuilder: (context, index) {
+              final alert = alerts[index];
+              return _buildCompactAlertCard(alert);
+            },
+          );
+        },
       ),
     );
   }
 
-  Widget _buildAlertsList() {
-    return StreamBuilder<List<AlertModel>>(
-      stream: _alertService.streamAlerts(limit: 50),
-      builder: (context, snapshot) {
-        // Loading state
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
-        }
-
-        // Error state
-        if (snapshot.hasError) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.error_outline, size: 48, color: Colors.red),
-                const SizedBox(height: 16),
-                Text('Error: ${snapshot.error}'),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () => setState(() {}),
-                  child: const Text('Retry'),
-                ),
-              ],
-            ),
-          );
-        }
-
-        // Empty state
-        final alerts = snapshot.data ?? [];
-
-        if (alerts.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.notifications_off_rounded,
-                  size: 48,
-                  color: Colors.grey.shade400,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'No alerts',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-              ],
-            ),
-          );
-        }
-
-        // Alerts list - COMPACT VERSION
-        return ListView.builder(
-          padding: const EdgeInsets.all(12),
-          itemCount: alerts.length,
-          itemBuilder: (context, index) {
-            final alert = alerts[index];
-            return _buildCompactAlertCard(alert);
-          },
-        );
-      },
-    );
-  }
-
-  /// ✅ COMPACT alert card (like before)
+  /// ✅ UPDATED: Better error handling for images
   Widget _buildCompactAlertCard(AlertModel alert) {
     final typeLabel = _getTypeLabel(alert.type);
     final typeColor = _getTypeColor(alert.type);
     final typeIcon = _getTypeIcon(alert.type);
 
-    // Get thumbnail image URL
     final thumbnailUrl = alert.imageUrl.isNotEmpty
         ? alert.imageUrl
         : (alert.faceImageUrls.isNotEmpty ? alert.faceImageUrls.first : '');
@@ -154,7 +280,7 @@ class _AlertsDashboardState extends State<AlertsDashboard> {
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              // ✅ Thumbnail image (small, left side)
+              // ✅ UPDATED: Better image handling
               if (thumbnailUrl.isNotEmpty)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
@@ -170,15 +296,12 @@ class _AlertsDashboardState extends State<AlertsDashboard> {
                       loadingBuilder: (context, child, progress) {
                         if (progress == null) return child;
                         return Center(
-                          child: SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 1.5,
-                              valueColor: AlwaysStoppedAnimation(
-                                Colors.grey.shade400,
-                              ),
-                            ),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 1.5,
+                            value: progress.expectedTotalBytes != null
+                                ? progress.cumulativeBytesLoaded /
+                                    progress.expectedTotalBytes!
+                                : null,
                           ),
                         );
                       },
@@ -205,10 +328,7 @@ class _AlertsDashboardState extends State<AlertsDashboard> {
                   ),
                   child: Icon(typeIcon, color: typeColor, size: 28),
                 ),
-
               const SizedBox(width: 12),
-
-              // ✅ Details (center)
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -230,12 +350,13 @@ class _AlertsDashboardState extends State<AlertsDashboard> {
                         color: Colors.grey.shade600,
                       ),
                     ),
+                    // ✅ NEW: Show description if available
                     if (alert.description.isNotEmpty) ...[
                       const SizedBox(height: 3),
                       Text(
                         alert.description,
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 10,
                           color: Colors.grey.shade700,
                         ),
                         maxLines: 1,
@@ -245,10 +366,7 @@ class _AlertsDashboardState extends State<AlertsDashboard> {
                   ],
                 ),
               ),
-
               const SizedBox(width: 8),
-
-              // ✅ Status (right)
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 8,
@@ -263,9 +381,7 @@ class _AlertsDashboardState extends State<AlertsDashboard> {
                   style: TextStyle(
                     fontSize: 9,
                     fontWeight: FontWeight.w600,
-                    color: alert.isRead
-                        ? Colors.grey[700]
-                        : Colors.blue[700],
+                    color: alert.isRead ? Colors.grey[700] : Colors.blue[700],
                   ),
                 ),
               ),
@@ -278,75 +394,56 @@ class _AlertsDashboardState extends State<AlertsDashboard> {
 
   String _getTypeLabel(AlertType type) {
     switch (type) {
-      case AlertType.fire:
-        return 'Fire Detected';
-      case AlertType.smoke:
-        return 'Smoking Detected';
-      case AlertType.human:
-        return 'Person Detected';
-      case AlertType.motion:
-        return 'Motion Detected';
-      case AlertType.restricted:
-        return 'Restricted Area';
-      case AlertType.group:
-        return 'Group Detected';
       case AlertType.unknownFace:
-        return 'Unknown Person';
+        return '👤 Unknown Person';
       case AlertType.knownFace:
-        return 'Known Person';
+        return '✅ Known Person';
+      case AlertType.group:
+        return '👥 Group Detected';
+      case AlertType.smoke:
+        return '💨 Smoking Detected';
+      case AlertType.fire:
+        return '🔥 Fire Detected';
       case AlertType.intruder:
-        return 'Intruder Detected';
-      case AlertType.other:
-        return 'Alert';
+        return '🛡️ Intruder Detected';
+      default:
+        return '⚠️ Alert';
     }
   }
 
   Color _getTypeColor(AlertType type) {
     switch (type) {
-      case AlertType.fire:
-        return Colors.red;
-      case AlertType.smoke:
-        return Colors.amber;
-      case AlertType.human:
-        return Colors.blue;
-      case AlertType.motion:
-        return Colors.cyan;
-      case AlertType.restricted:
-        return Colors.purple;
-      case AlertType.group:
-        return Colors.orange;
       case AlertType.unknownFace:
+      case AlertType.fire:
         return Colors.red;
       case AlertType.knownFace:
         return Colors.green;
+      case AlertType.group:
+        return Colors.orange;
+      case AlertType.smoke:
+        return Colors.amber;
       case AlertType.intruder:
         return Colors.deepOrange;
-      case AlertType.other:
+      default:
         return Colors.grey;
     }
   }
 
   IconData _getTypeIcon(AlertType type) {
     switch (type) {
-      case AlertType.fire:
-        return Icons.local_fire_department;
-      case AlertType.smoke:
-        return Icons.smoking_rooms;
-      case AlertType.human:
-        return Icons.person_outline;
-      case AlertType.motion:
-        return Icons.directions_run;
-      case AlertType.restricted:
-        return Icons.block;
-      case AlertType.group:
-        return Icons.people_outline;
       case AlertType.unknownFace:
         return Icons.person_search;
       case AlertType.knownFace:
         return Icons.verified_user;
+      case AlertType.group:
+        return Icons.people_outline;
+      case AlertType.smoke:
+        return Icons.smoking_rooms;
+      case AlertType.fire:
+        return Icons.local_fire_department;
       case AlertType.intruder:
         return Icons.security;
-      case AlertType.other:
+      default:
         return Icons.warning_outlined;
     }
   }
@@ -361,8 +458,10 @@ class _AlertsDashboardState extends State<AlertsDashboard> {
       return '${difference.inMinutes}m ago';
     } else if (difference.inHours < 24) {
       return '${difference.inHours}h ago';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays}d ago';
     } else {
-      return '${dateTime.day}/${dateTime.month}';
+      return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
     }
   }
 
