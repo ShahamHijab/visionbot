@@ -9,6 +9,7 @@ import '../../models/user_model.dart';
 import '../../widgets/alert_card.dart';
 import '../gallery/image_gallery_screen.dart';
 import '../alerts/alerts_dashboard.dart';
+import '../control/robot_control_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -42,7 +43,13 @@ class _DashboardScreenState extends State<DashboardScreen>
     return Scaffold(
       body: IndexedStack(
         index: _selectedIndex,
-        children: const [HomeTab(), AlertsTab(), GalleryTab(), ProfileTab()],
+        children: const [
+          HomeTab(),
+          AlertsTab(),
+          ControlsTab(),
+          GalleryTab(),
+          ProfileTab(),
+        ],
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
@@ -84,16 +91,22 @@ class _DashboardScreenState extends State<DashboardScreen>
                 1,
               ),
               _buildNavItem(
+                Icons.settings_remote_rounded,
+                Icons.settings_remote_outlined,
+                'Controls',
+                2,
+              ),
+              _buildNavItem(
                 Icons.photo_library_rounded,
                 Icons.photo_library_outlined,
                 'Gallery',
-                2,
+                3,
               ),
               _buildNavItem(
                 Icons.person_rounded,
                 Icons.person_outline,
                 'Profile',
-                3,
+                4,
               ),
             ],
           ),
@@ -572,6 +585,12 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
                     'route': AppRoutes.tracking,
                   },
                   {
+                    'label': 'Controls',
+                    'icon': Icons.settings_remote_rounded,
+                    'color': const Color(0xFFEC4899),
+                    'route': AppRoutes.robotControl,
+                  },
+                  {
                     'label': 'View Logs',
                     'icon': Icons.history_rounded,
                     'color': const Color(0xFF45B7D1),
@@ -806,6 +825,15 @@ class AlertsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const AlertsDashboard();
+  }
+}
+
+class ControlsTab extends StatelessWidget {
+  const ControlsTab({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const RobotControlScreen();
   }
 }
 
