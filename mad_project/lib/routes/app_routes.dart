@@ -20,6 +20,8 @@ import '../screens/settings/about_screen.dart'
 import '../screens/settings/user_guide_screen.dart';
 import '../screens/auth/verify_email_screen.dart';
 import '../screens/admin/admin_management_screen.dart';
+import '../screens/control/robot_control_screen.dart';
+import '../screens/remote_control/remote_control_screen.dart';  // ADD THIS IMPORT
 
 class AppRoutes {
   // Auth Routes
@@ -29,6 +31,7 @@ class AppRoutes {
   static const String forgotPassword = '/forgot-password';
   static const String roleSelection = '/role-selection';
   static const String verifyEmail = '/verify-email';
+  static const String remoteControl = '/remote-control';  
 
   // Main Routes
   static const String dashboard = '/dashboard';
@@ -51,6 +54,9 @@ class AppRoutes {
 
   // Logs Routes
   static const String logs = '/logs';
+
+  // Control Routes
+  static const String robotControl = '/robot-control';
 
   // Settings Routes
   static const String settings = '/settings';
@@ -76,10 +82,12 @@ class AppRoutes {
     tracking: (_) => const GPSTrackingScreen(),
     notifications: (_) => const NotificationsScreen(),
     logs: (_) => const LogsHistoryScreen(),
+    robotControl: (_) => const RobotControlScreen(),
     settings: (_) => const SettingsScreen(),
     about: (_) => const AboutScreen(),
     userGuide: (_) => const UserGuideScreen(),
     verifyEmail: (_) => const VerifyEmailScreen(),
     adminManagement: (_) => const AdminManagementScreen(),
+    remoteControl: (_) => const RemoteControlScreen(),
   };
 }
