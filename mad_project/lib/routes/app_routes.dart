@@ -21,7 +21,8 @@ import '../screens/settings/user_guide_screen.dart';
 import '../screens/auth/verify_email_screen.dart';
 import '../screens/admin/admin_management_screen.dart';
 import '../screens/control/robot_control_screen.dart';
-import '../screens/remote_control/remote_control_screen.dart';  // ADD THIS IMPORT
+import '../screens/remote_control/remote_control_screen.dart'; 
+import '../screens/control/combined_control_screen.dart';
 
 class AppRoutes {
   // Auth Routes
@@ -79,10 +80,12 @@ class AppRoutes {
     alertDetail: (_) => const AlertDetailScreen(),
     gallery: (_) => const ImageGalleryScreen(),
     imageDetail: (_) => const ImageDetailScreen(),
-    tracking: (_) => const GPSTrackingScreen(),
+    // tracking: (_) => const GPSTrackingScreen(),
     notifications: (_) => const NotificationsScreen(),
+    tracking: (_) => const CombinedControlScreen(),
+    robotControl: (_) => const CombinedControlScreen(),
     logs: (_) => const LogsHistoryScreen(),
-    robotControl: (_) => const RobotControlScreen(),
+    // robotControl: (_) => const RobotControlScreen(),
     settings: (_) => const SettingsScreen(),
     about: (_) => const AboutScreen(),
     userGuide: (_) => const UserGuideScreen(),

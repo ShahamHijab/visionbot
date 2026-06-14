@@ -10,6 +10,7 @@ import '../../widgets/alert_card.dart';
 import '../gallery/image_gallery_screen.dart';
 import '../alerts/alerts_dashboard.dart';
 import '../control/robot_control_screen.dart';
+import '../control/combined_control_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -46,7 +47,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         children: const [
           HomeTab(),
           AlertsTab(),
-          ControlsTab(),
+          CombinedControlTab(),
           GalleryTab(),
           ProfileTab(),
         ],
@@ -90,12 +91,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 'Alerts',
                 1,
               ),
-              _buildNavItem(
-                Icons.settings_remote_rounded,
-                Icons.settings_remote_outlined,
-                'Controls',
-                2,
-              ),
+              _buildNavItem(Icons.map_rounded, Icons.map_outlined, 'Car', 2),
               _buildNavItem(
                 Icons.photo_library_rounded,
                 Icons.photo_library_outlined,
@@ -834,6 +830,15 @@ class ControlsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const RobotControlScreen();
+  }
+}
+
+class CombinedControlTab extends StatelessWidget {
+  const CombinedControlTab({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const CombinedControlScreen();
   }
 }
 
