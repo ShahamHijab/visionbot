@@ -1,15 +1,25 @@
+// 📱 USER APP: Main initialization
+// ✅ Firebase PRIMARY + Laptop Backup + Local Cache FALLBACK
+
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
-
-import 'routes/app_routes.dart';
-import 'theme/app_theme.dart';
-
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'routes/app_routes.dart';
+import 'theme/app_theme.dart';
 import 'services/push_service.dart';
+import 'services/alert_sync_service.dart';
+import 'services/alert_notification_service.dart';
+import 'services/database_service.dart';
+import 'services/backend_fetch_service.dart'; // ✅ NEW: Laptop backup
+
+// ✅ Global services
+AlertSyncService? _syncService;
+DatabaseService? _dbService;
+BackendFetchService? _backendFetch; // ✅ NEW
 
 final FlutterLocalNotificationsPlugin _local =
     FlutterLocalNotificationsPlugin();
@@ -21,9 +31,33 @@ const AndroidNotificationChannel _alertsChannel = AndroidNotificationChannel(
   importance: Importance.high,
 );
 
+/// ✅ Initialize local database
+Future<void> _initializeLocalDatabase() async {
+  try {
+    debugPrint('');
+    debugPrint('═══════════════════════════════════');
+    debugPrint('🗄️  INITIALIZING LOCAL DATABASE');
+    debugPrint('═══════════════════════════════════');
+
+    _dbService = DatabaseService();
+    final db = await _dbService!.database;
+
+    // ✅ Print statistics
+    await _dbService!.printStats();
+
+    debugPrint('✅ Local database ready');
+    debugPrint('═══════════════════════════════════');
+    debugPrint('');
+  } catch (e, st) {
+    debugPrint('❌ Database init failed: $e');
+    debugPrint('   Stack: $st');
+  }
+}
+
+/// ✅ Initialize local notifications
 Future<void> _initLocalNotifications() async {
-  if (kIsWeb) return; // Skip on web
-  
+  if (kIsWeb) return;
+
   const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
   const iosInit = DarwinInitializationSettings();
 
@@ -42,11 +76,14 @@ Future<void> _initLocalNotifications() async {
   if (androidPlugin != null) {
     await androidPlugin.createNotificationChannel(_alertsChannel);
   }
+
+  debugPrint('✅ Local notifications initialized');
 }
 
+/// ✅ Show local notification from FCM message
 Future<void> _showLocalFromRemote(RemoteMessage message) async {
-  if (kIsWeb) return; // Skip on web
-  
+  if (kIsWeb) return;
+
   final title = message.notification?.title ?? 'Alert';
   final body = message.notification?.body ?? '';
 
@@ -72,39 +109,98 @@ Future<void> _showLocalFromRemote(RemoteMessage message) async {
   );
 }
 
+/// ✅ Firebase background message handler
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  debugPrint('🔔 FCM Background message: ${message.messageId}');
 }
 
-Future<void> main() async {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await dotenv.load();
 
-  // Only initialize notifications and messaging on mobile
+  debugPrint('');
+  debugPrint('╔═══════════════════════════════════╗');
+  debugPrint('║  📱 VisionBot USER APP            ║');
+  debugPrint('║  HYBRID: Firebase + Laptop + Cache║');
+  debugPrint('╚═══════════════════════════════════╝');
+
+  try {
+    // ✅ Step 1: Initialize Firebase
+    debugPrint('');
+    debugPrint('1️⃣ Initializing Firebase...');
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    debugPrint('   ✅ Firebase ready (PRIMARY)');
+
+    // ✅ Step 2: Initialize local database
+    debugPrint('2️⃣ Initializing Local Database...');
+    await _initializeLocalDatabase();
+    debugPrint('   ✅ Local DB ready (CACHE)');
+
+    // ✅ Step 3: Initialize backend fetch (BACKUP)
+    debugPrint('3️⃣ Starting Laptop Backup...');
+    _backendFetch = BackendFetchService();
+    await _backendFetch!.initialize();
+    debugPrint('   ✅ Laptop backup ready');
+
+    // ✅ Step 4: Initialize Alert Services
+    debugPrint('4️⃣ Setting up Alert Services...');
+    await AlertNotificationService.initialize();
+    debugPrint('   ✅ Alert notifications ready');
+
+    // ✅ Step 5: Initialize real-time sync
+    debugPrint('5️⃣ Starting Real-time Sync...');
+    _syncService = AlertSyncService();
+    await _syncService!.initializeRealtimeSync();
+    debugPrint('   ✅ Real-time sync listening');
+
+    debugPrint('');
+    debugPrint('✅ USER APP READY');
+    debugPrint('   🌐 Firebase (Primary)');
+    debugPrint('   📡 Laptop Backup (if offline)');
+    debugPrint('   💾 Local Cache (fallback)');
+    debugPrint('═══════════════════════════════════');
+    debugPrint('');
+  } catch (e, st) {
+    debugPrint('');
+    debugPrint('❌ Initialization FAILED: $e');
+    debugPrint('   Stack: $st');
+    debugPrint('');
+  }
+
+  // ✅ Only initialize messaging on mobile
   if (!kIsWeb) {
-    await _initLocalNotifications();
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    try {
+      await _initLocalNotifications();
 
-    final fcm = FirebaseMessaging.instance;
-    final token = await fcm.getToken();
-    debugPrint('FCM TOKEN: $token');
-
-    FirebaseMessaging.onMessage.listen((message) async {
-      debugPrint('FCM FOREGROUND: ${message.messageId}');
-      debugPrint(
-        'FCM FOREGROUND notification: ${message.notification?.title} | ${message.notification?.body}',
+      FirebaseMessaging.onBackgroundMessage(
+        _firebaseMessagingBackgroundHandler,
       );
-      debugPrint('FCM FOREGROUND data: ${message.data}');
 
-      await _showLocalFromRemote(message);
-    });
+      final fcm = FirebaseMessaging.instance;
+      final token = await fcm.getToken();
+      debugPrint('');
+      debugPrint('🔐 FCM Token: ${token?.substring(0, 20)}...');
+      debugPrint('');
 
-    FirebaseMessaging.onMessageOpenedApp.listen((message) {
-      debugPrint('FCM OPENED FROM NOTIF: ${message.messageId}');
-    });
+      // ✅ Handle foreground messages
+      FirebaseMessaging.onMessage.listen((message) async {
+        debugPrint('🔔 FCM FOREGROUND: ${message.notification?.title}');
+        await _showLocalFromRemote(message);
+      });
 
-    await PushService().init();
+      // ✅ Handle message tap
+      FirebaseMessaging.onMessageOpenedApp.listen((message) {
+        debugPrint('📱 Notification tapped: ${message.messageId}');
+      });
+
+      await PushService().init();
+    } catch (e) {
+      debugPrint('⚠️ FCM setup failed: $e');
+    }
   }
 
   runApp(const VisionBotApp());

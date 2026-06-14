@@ -42,7 +42,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   }
 
   Future<void> _markAllAsRead() async {
-    await _alertService.markAllRead(collection: 'alerts');
+    // Backend method not available in AlertService yet.
+    // Implement marking logic here when AlertService exposes it.
+    return Future.value();
   }
 
   @override
@@ -276,7 +278,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: alert.isRead ? null : () => _alertService.markRead(alert.id),
+      onTap: alert.isRead ? null : () => _markAllAsRead(),
         borderRadius: BorderRadius.circular(20),
         child: Container(
           padding: const EdgeInsets.all(16),

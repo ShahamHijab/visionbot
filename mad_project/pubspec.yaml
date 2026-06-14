@@ -17,7 +17,7 @@ dependencies:
   timeago: ^3.6.0
   google_maps_flutter: ^2.5.3
   geolocator: ^11.0.0
-  http: ^1.2.0
+  http: ^1.2.2
   
   shared_preferences: ^2.2.2
   photo_view: ^0.14.0
@@ -47,6 +47,7 @@ flutter:
     - assets/fire.jfif
     - assets/group.jfif
     - assets/google.png
+    - .env
 
 flutter_icons:
   android: true
