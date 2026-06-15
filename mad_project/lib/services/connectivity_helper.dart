@@ -30,9 +30,9 @@ class ConnectivityHelper {
   }
 
   /// Update connectivity status
-  void _updateStatus(ConnectivityResult result) {
+  void _updateStatus(List<ConnectivityResult> results) {
     final wasOnline = _isOnline;
-    _isOnline = result != ConnectivityResult.none;
+    _isOnline = results.isNotEmpty && !results.contains(ConnectivityResult.none);
 
     if (_isOnline && !wasOnline) {
       debugPrint('🌐 ONLINE');
