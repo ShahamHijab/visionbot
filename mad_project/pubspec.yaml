@@ -48,6 +48,9 @@ flutter:
     - assets/group.jfif
     - assets/google.png
     - .env
+    - assets/geo/path.geojson
+    - assets/geo/boundaries.geojson
+    - assets/geo/waypoints.geojson
 
 flutter_icons:
   android: true
