@@ -11,7 +11,7 @@ import '../screens/profile/profile_screen.dart';
 import '../screens/profile/change_password_screen.dart';
 import '../screens/gallery/image_gallery_screen.dart';
 import '../screens/gallery/image_detail_screen.dart';
-import '../screens/tracking/gps_tracking_screen.dart';
+// import '../screens/tracking/gps_tracking_screen.dart';
 import '../screens/notifications/notifications_screen.dart';
 import '../screens/logs/logs_history_screen.dart';
 import '../screens/settings/settings_screen.dart';
@@ -20,7 +20,7 @@ import '../screens/settings/about_screen.dart'
 import '../screens/settings/user_guide_screen.dart';
 import '../screens/auth/verify_email_screen.dart';
 import '../screens/admin/admin_management_screen.dart';
-import '../screens/control/robot_control_screen.dart';
+// import '../screens/control/robot_control_screen.dart';
 import '../screens/remote_control/remote_control_screen.dart'; 
 import '../screens/control/combined_control_screen.dart';
 
