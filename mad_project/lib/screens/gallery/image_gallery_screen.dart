@@ -208,7 +208,6 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-
           final alerts = snapshot.data ?? [];
           final items = _buildItems(alerts);
 

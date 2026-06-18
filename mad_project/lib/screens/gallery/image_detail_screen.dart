@@ -65,18 +65,31 @@ class ImageDetailScreen extends StatelessWidget {
               borderRadius: BorderRadius.circular(18),
               child: AspectRatio(
                 aspectRatio: 1,
-                child: Image.asset(
-                  asset,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) {
-                    return Container(
-                      color: Colors.grey.shade200,
-                      child: const Center(
-                        child: Icon(Icons.broken_image_rounded, size: 56),
+                child: asset.startsWith('http')
+                    ? Image.network(
+                        asset,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) {
+                          return Container(
+                            color: Colors.grey.shade200,
+                            child: const Center(
+                              child: Icon(Icons.broken_image_rounded, size: 56),
+                            ),
+                          );
+                        },
+                      )
+                    : Image.asset(
+                        asset,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) {
+                          return Container(
+                            color: Colors.grey.shade200,
+                            child: const Center(
+                              child: Icon(Icons.broken_image_rounded, size: 56),
+                            ),
+                          );
+                        },
                       ),
-                    );
-                  },
-                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -101,21 +114,8 @@ class ImageDetailScreen extends StatelessWidget {
                   color: const Color(0xFF06B6D4).withOpacity(0.3),
                   width: 1.5,
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
               ),
-              child: Text(
-                description,
-                style: TextStyle(
-                  color: Colors.grey.shade700,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+              child: Text(description),
             ),
           ],
         ),
@@ -123,64 +123,24 @@ class ImageDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _row(String left, String right, {bool bold = false}) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            left,
-            style: TextStyle(
-              fontSize: bold ? 18 : 14,
-              fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
-              color: const Color(0xFF1F2937),
-            ),
-          ),
-        ),
-        Text(
-          right,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: Colors.grey.shade500,
-          ),
-        ),
-      ],
+  Widget _row(String title, String time, {bool bold = false}) {
+    return Text(
+      '$title $time',
+      style: TextStyle(
+        fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+      ),
     );
   }
 
   Widget _infoCard(String label, String value) {
-    if (value.isEmpty) return const SizedBox.shrink();
-
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade200),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                label,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF1F2937),
-                ),
-              ),
-            ),
-            Text(
-              value,
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: Colors.grey.shade700,
-              ),
-            ),
-          ],
-        ),
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label),
+          Text(value),
+        ],
       ),
     );
   }

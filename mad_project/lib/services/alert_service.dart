@@ -15,12 +15,9 @@ class AlertService {
 
   static const String _collection = 'alerts';
 
-  // CHANGE THIS TO YOUR LAPTOP SERVER IP
-  // Example: http://192.168.1.12:3000
-static final String laptopServerUrl =     dotenv.env['LAPTOP_SERVER_URL'] ?? '';
-  /// Stream alerts:
-  /// Firebase first.
-  /// If Firebase fails, laptop server polling starts.
+  static final String laptopServerUrl =
+      dotenv.env['LAPTOP_SERVER_URL'] ?? '';
+
   Stream<List<AlertModel>> streamAlerts({
     int limit = 50,
     String? collection,
@@ -84,7 +81,6 @@ static final String laptopServerUrl =     dotenv.env['LAPTOP_SERVER_URL'] ?? '';
               controller.add(alerts);
             }
 
-            // If Firebase is reachable but empty, also check laptop server once.
             if (alerts.isEmpty) {
               debugPrint('⚠️ Firebase empty, checking laptop server...');
               fetchLaptopAlerts();
@@ -123,10 +119,14 @@ static final String laptopServerUrl =     dotenv.env['LAPTOP_SERVER_URL'] ?? '';
     }
 
     final decoded = jsonDecode(response.body);
-    final List alerts = decoded['alerts'] ?? [];
 
-    final models = alerts.map<AlertModel>((item) {
-      final alert = Map<String, dynamic>.from(item);
+    // 🔧 FIX 1: safe list extraction
+    final List rawAlerts = (decoded is Map && decoded['alerts'] is List)
+        ? decoded['alerts']
+        : [];
+
+    final models = rawAlerts.map<AlertModel>((item) {
+      final alert = Map<String, dynamic>.from(item as Map);
 
       final id = alert['alert_id']?.toString() ??
           alert['id']?.toString() ??
@@ -139,9 +139,16 @@ static final String laptopServerUrl =     dotenv.env['LAPTOP_SERVER_URL'] ?? '';
         'id': id,
         'title': _makeTitle(alert),
         'description': _makeDescription(alert),
-        'timestamp': createdAtLocal ?? DateTime.now().toIso8601String(),
+        'timestamp':
+            createdAtLocal ?? DateTime.now().toIso8601String(),
         'created_at_local': createdAtLocal,
-        'imageUrl': alert['image_path']?.toString() ?? '',
+
+        // 🔧 FIX 2: support Supabase + backend image keys (NO logic change)
+        'imageUrl': alert['image_url']?.toString() ??
+            alert['image_path']?.toString() ??
+            alert['imageUrl']?.toString() ??
+            '',
+
         'location': alert['location_name']?.toString() ??
             alert['location']?.toString() ??
             '',
@@ -203,16 +210,12 @@ static final String laptopServerUrl =     dotenv.env['LAPTOP_SERVER_URL'] ?? '';
     return 'New alert received from robot';
   }
 
-  /// Get single alert by ID
   Future<AlertModel?> getAlert(String alertId) async {
     try {
-      debugPrint('📡 Fetching alert from Firebase: $alertId');
-
-      final doc = await _firestore.collection(_collection).doc(alertId).get();
+      final doc =
+          await _firestore.collection(_collection).doc(alertId).get();
 
       if (!doc.exists) {
-        debugPrint('❌ Firebase alert not found, trying laptop server');
-
         final laptopAlerts = await _fetchLaptopServerAlerts(500);
 
         try {
@@ -223,58 +226,36 @@ static final String laptopServerUrl =     dotenv.env['LAPTOP_SERVER_URL'] ?? '';
       }
 
       return AlertModel.fromFirestore(doc);
-    } catch (e, st) {
-      debugPrint('❌ Error fetching Firebase alert: $e\n$st');
+    } catch (e) {
+      final laptopAlerts = await _fetchLaptopServerAlerts(500);
 
       try {
-        final laptopAlerts = await _fetchLaptopServerAlerts(500);
-
-        try {
-          return laptopAlerts.firstWhere((a) => a.id == alertId);
-        } catch (_) {
-          return null;
-        }
+        return laptopAlerts.firstWhere((a) => a.id == alertId);
       } catch (_) {
         return null;
       }
     }
   }
 
-  /// Mark alert as read.
-  /// Works for Firebase alerts only.
-  /// Laptop server currently has no mark-read endpoint.
   Future<void> markAsRead(String alertId) async {
     try {
-      debugPrint('📌 Marking alert $alertId as read');
-
       await _firestore.collection(_collection).doc(alertId).update({
         'isRead': true,
         'read_at': FieldValue.serverTimestamp(),
       });
-
-      debugPrint('✅ Alert marked as read');
-    } catch (e, st) {
-      debugPrint('❌ Mark read error: $e\n$st');
+    } catch (e) {
+      debugPrint('❌ Mark read error: $e');
     }
   }
 
-  /// Delete alert.
-  /// Works for Firebase alerts only.
-  /// Laptop server currently has no delete endpoint.
   Future<void> deleteAlert(String alertId) async {
     try {
-      debugPrint('🗑️ Deleting alert $alertId');
-
       await _firestore.collection(_collection).doc(alertId).delete();
-
-      debugPrint('✅ Alert deleted');
-    } catch (e, st) {
-      debugPrint('❌ Delete error: $e\n$st');
+    } catch (e) {
+      debugPrint('❌ Delete error: $e');
     }
   }
 
-  /// Firebase unread stream.
-  /// If Firebase fails, returns laptop-server unread count by polling.
   Stream<int> streamUnreadCount() {
     final controller = StreamController<int>();
 
@@ -290,8 +271,6 @@ static final String laptopServerUrl =     dotenv.env['LAPTOP_SERVER_URL'] ?? '';
           controller.add(unread);
         }
       } catch (e) {
-        debugPrint('⚠️ Laptop unread count failed: $e');
-
         if (!controller.isClosed) {
           controller.add(0);
         }
@@ -320,12 +299,10 @@ static final String laptopServerUrl =     dotenv.env['LAPTOP_SERVER_URL'] ?? '';
           }
         },
         onError: (error) {
-          debugPrint('⚠️ Firebase unread stream error: $error');
           startLaptopPolling();
         },
       );
     } catch (e) {
-      debugPrint('❌ Firebase unread stream setup failed: $e');
       startLaptopPolling();
     }
 
