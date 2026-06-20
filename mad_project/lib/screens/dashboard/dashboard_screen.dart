@@ -472,19 +472,23 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
                   );
                 }
                 // Robots Online (index 1) — reflect surveillance app connection
-                else if (index == 1) {
-                  cardContent = StreamBuilder<DocumentSnapshot>(
-                    stream: carStatusStream,
-                    builder: (context, snap) {
-                      final online = snap.data?.data()?['online'] == true;
-                      final display = online ? '1/1' : '0/1';
-                      return _buildStatCard(
-                        stats[index]['title'] as String,
-                        display,
-                        stats[index]['icon'] as IconData,
-                        stats[index]['color'] as Color,
-                      );
-                    },
+               else if (index == 1) {
+  cardContent = StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+    stream: carStatusStream,
+    builder: (context, snap) {
+      final data = snap.data?.data();
+      final online = data?['online'] == true;
+      final display = online ? '1/1' : '0/1';
+
+      return _buildStatCard(
+        stats[index]['title'] as String,
+        display,
+        stats[index]['icon'] as IconData,
+        stats[index]['color'] as Color,
+      );
+    },
+  
+
                   );
                 }
                 // Today Images (index 2) — navigate to gallery
