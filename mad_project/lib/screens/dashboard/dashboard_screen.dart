@@ -420,28 +420,30 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
       builder: (context, snapshot) {
         final alertsCount = snapshot.data ?? 0;
 
+        // Stream for robot online state written by surveillance app
+        final carStatusStream = FirebaseFirestore.instance
+            .collection('car_status')
+            .doc('current')
+            .snapshots();
+
         final stats = [
           {
             'title': 'Active Alerts',
-            'value': alertsCount.toString(),
             'icon': Icons.notification_important_rounded,
             'color': const Color(0xFFFF6B6B),
           },
           {
             'title': 'Robots Online',
-            'value': '3/4',
             'icon': Icons.smart_toy_rounded,
             'color': const Color(0xFF4ECDC4),
           },
           {
             'title': 'Today Images',
-            'value': '7',
             'icon': Icons.photo_library_rounded,
             'color': const Color(0xFF45B7D1),
           },
           {
             'title': 'Area Covered',
-            'value': '2.4 km',
             'icon': Icons.map_rounded,
             'color': const Color(0xFF8B5CF6),
           },
@@ -455,6 +457,59 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
               spacing: 14,
               runSpacing: 14,
               children: List.generate(stats.length, (index) {
+                Widget cardContent;
+
+                // Active Alerts (index 0) — show alertsCount and navigate to alerts
+                if (index == 0) {
+                  cardContent = GestureDetector(
+                    onTap: () => Navigator.pushNamed(context, AppRoutes.alerts),
+                    child: _buildStatCard(
+                      stats[index]['title'] as String,
+                      alertsCount.toString(),
+                      stats[index]['icon'] as IconData,
+                      stats[index]['color'] as Color,
+                    ),
+                  );
+                }
+                // Robots Online (index 1) — reflect surveillance app connection
+                else if (index == 1) {
+                  cardContent = StreamBuilder<DocumentSnapshot>(
+                    stream: carStatusStream,
+                    builder: (context, snap) {
+                      final online = snap.data?.data()?['online'] == true;
+                      final display = online ? '1/1' : '0/1';
+                      return _buildStatCard(
+                        stats[index]['title'] as String,
+                        display,
+                        stats[index]['icon'] as IconData,
+                        stats[index]['color'] as Color,
+                      );
+                    },
+                  );
+                }
+                // Today Images (index 2) — navigate to gallery
+                else if (index == 2) {
+                  cardContent = GestureDetector(
+                    onTap: () =>
+                        Navigator.pushNamed(context, AppRoutes.gallery),
+                    child: _buildStatCard(
+                      stats[index]['title'] as String,
+                      '7',
+                      stats[index]['icon'] as IconData,
+                      stats[index]['color'] as Color,
+                    ),
+                  );
+                }
+                // Area Covered (index 3)
+                else {
+                  cardContent = _buildStatCard(
+                    stats[index]['title'] as String,
+                    '2.4 km',
+                    stats[index]['icon'] as IconData,
+                    stats[index]['color'] as Color,
+                  );
+                }
+
                 return SizedBox(
                   width: itemWidth,
                   child: TweenAnimationBuilder<double>(
@@ -467,15 +522,7 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
                         child: Opacity(opacity: value, child: child),
                       );
                     },
-                    child: AspectRatio(
-                      aspectRatio: 1.0,
-                      child: _buildStatCard(
-                        stats[index]['title'] as String,
-                        stats[index]['value'] as String,
-                        stats[index]['icon'] as IconData,
-                        stats[index]['color'] as Color,
-                      ),
-                    ),
+                    child: AspectRatio(aspectRatio: 1.0, child: cardContent),
                   ),
                 );
               }),
@@ -579,12 +626,6 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
                     'icon': Icons.location_on_rounded,
                     'color': const Color(0xFF4ECDC4),
                     'route': AppRoutes.tracking,
-                  },
-                  {
-                    'label': 'Controls',
-                    'icon': Icons.settings_remote_rounded,
-                    'color': const Color(0xFFEC4899),
-                    'route': AppRoutes.robotControl,
                   },
                   {
                     'label': 'View Logs',

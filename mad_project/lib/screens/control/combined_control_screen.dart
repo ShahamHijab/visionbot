@@ -22,7 +22,6 @@ class CombinedControlScreen extends StatefulWidget {
 }
 
 class _CombinedControlScreenState extends State<CombinedControlScreen> {
-
   // ── Map ───────────────────────────────────────────────────────────────────
   GoogleMapController? _mapController;
   final Set<Marker> _markers = {};
@@ -37,7 +36,7 @@ class _CombinedControlScreenState extends State<CombinedControlScreen> {
   bool _patrolActive = false;
   bool _isTurning = false;
   String _statusMessage = 'Connect surveillance app to start';
-  String _carStatus = 'CLEAR';   // BLOCKED or CLEAR from Arduino via Firestore
+  String _carStatus = 'CLEAR'; // BLOCKED or CLEAR from Arduino via Firestore
   bool _robotOnline = false;
 
   // ── GPS tracking ──────────────────────────────────────────────────────────
@@ -79,7 +78,7 @@ class _CombinedControlScreenState extends State<CombinedControlScreen> {
   // ── Load path from GeoJSON asset ──────────────────────────────────────────
   Future<void> _loadPath() async {
     try {
-      final pathJson = await rootBundle.loadString('assets/geo/path.geojson');
+      final pathJson = await rootBundle.loadString('assets/path/path.geojson');
       final data = jsonDecode(pathJson) as Map<String, dynamic>;
 
       for (final f in (data['features'] as List)) {
@@ -95,29 +94,35 @@ class _CombinedControlScreenState extends State<CombinedControlScreen> {
 
       // Draw path on map
       if (_pathCoordinates.isNotEmpty) {
-        _polylines.add(Polyline(
-          polylineId: const PolylineId('path'),
-          points: _pathCoordinates,
-          color: Colors.blue,
-          width: 4,
-        ));
+        _polylines.add(
+          Polyline(
+            polylineId: const PolylineId('path'),
+            points: _pathCoordinates,
+            color: Colors.blue,
+            width: 4,
+          ),
+        );
 
         // Waypoint markers
         for (int i = 0; i < _pathCoordinates.length; i++) {
-          _markers.add(Marker(
-            markerId: MarkerId('wp_$i'),
-            position: _pathCoordinates[i],
-            icon: BitmapDescriptor.defaultMarkerWithHue(
-                BitmapDescriptor.hueOrange),
-            infoWindow: InfoWindow(title: 'Waypoint ${i + 1}'),
-          ));
+          _markers.add(
+            Marker(
+              markerId: MarkerId('wp_$i'),
+              position: _pathCoordinates[i],
+              icon: BitmapDescriptor.defaultMarkerWithHue(
+                BitmapDescriptor.hueOrange,
+              ),
+              infoWindow: InfoWindow(title: 'Waypoint ${i + 1}'),
+            ),
+          );
         }
       }
 
       // Load boundary
       try {
-        final boundJson =
-            await rootBundle.loadString('assets/geo/boundaries.geojson');
+        final boundJson = await rootBundle.loadString(
+          'assets/path/boundaries.geojson',
+        );
         final boundData = jsonDecode(boundJson) as Map<String, dynamic>;
         for (final f in (boundData['features'] as List)) {
           final geo = f['geometry'] as Map<String, dynamic>;
@@ -125,19 +130,20 @@ class _CombinedControlScreenState extends State<CombinedControlScreen> {
             for (final ring in (geo['coordinates'] as List)) {
               final poly = <LatLng>[];
               for (final c in ring) {
-                poly.add(LatLng(
-                  (c[1] as num).toDouble(),
-                  (c[0] as num).toDouble(),
-                ));
+                poly.add(
+                  LatLng((c[1] as num).toDouble(), (c[0] as num).toDouble()),
+                );
               }
               if (poly.isNotEmpty) {
-                _polygons.add(Polygon(
-                  polygonId: PolygonId('b${_polygons.length}'),
-                  points: poly,
-                  fillColor: Colors.green.withOpacity(0.15),
-                  strokeColor: Colors.green,
-                  strokeWidth: 2,
-                ));
+                _polygons.add(
+                  Polygon(
+                    polygonId: PolygonId('b${_polygons.length}'),
+                    points: poly,
+                    fillColor: Colors.green.withOpacity(0.15),
+                    strokeColor: Colors.green,
+                    strokeWidth: 2,
+                  ),
+                );
               }
             }
           }
@@ -161,34 +167,32 @@ class _CombinedControlScreenState extends State<CombinedControlScreen> {
         .doc('current')
         .snapshots()
         .listen((snap) {
-      if (!snap.exists) return;
-      final data = snap.data()!;
+          if (!snap.exists) return;
+          final data = snap.data()!;
 
-      setState(() {
-        _robotOnline = data['online'] == true;
-        _carStatus = data['obstacle_status'] ?? 'CLEAR';
+          setState(() {
+            _robotOnline = data['online'] == true;
+            _carStatus = data['obstacle_status'] ?? 'CLEAR';
 
-        final lat = (data['latitude'] as num?)?.toDouble();
-        final lng = (data['longitude'] as num?)?.toDouble();
-        if (lat != null && lng != null) {
-          _carPosition = LatLng(lat, lng);
-          _updateCarMarker(_carPosition!);
-        }
+            final lat = (data['latitude'] as num?)?.toDouble();
+            final lng = (data['longitude'] as num?)?.toDouble();
+            if (lat != null && lng != null) {
+              _carPosition = LatLng(lat, lng);
+              _updateCarMarker(_carPosition!);
+            }
 
-        if (_carStatus == 'BLOCKED') {
-          _statusMessage = '⚠️ Obstacle detected — car paused';
-        } else if (_carStatus == 'CLEAR' && _patrolActive && !_isTurning) {
-          _statusMessage = '🚗 Moving forward';
-        }
-      });
-    });
+            if (_carStatus == 'BLOCKED') {
+              _statusMessage = '⚠️ Obstacle detected — car paused';
+            } else if (_carStatus == 'CLEAR' && _patrolActive && !_isTurning) {
+              _statusMessage = '🚗 Moving forward';
+            }
+          });
+        });
   }
 
   // ── Listen to alert locations ─────────────────────────────────────────────
   void _listenAlertLocations() {
-    _alertSub = _alertService
-        .streamAlerts(limit: 50)
-        .listen((alerts) {
+    _alertSub = _alertService.streamAlerts(limit: 50).listen((alerts) {
       if (!mounted) return;
       // Remove old alert markers
       _markers.removeWhere((m) => m.markerId.value.startsWith('alert_'));
@@ -197,19 +201,21 @@ class _CombinedControlScreenState extends State<CombinedControlScreen> {
         for (final alert in alerts) {
           if (!alert.hasLocation) continue;
           final isUnknown = alert.type == AlertType.unknownFace;
-          _markers.add(Marker(
-            markerId: MarkerId('alert_${alert.id}'),
-            position: LatLng(alert.latitude!, alert.longitude!),
-            icon: BitmapDescriptor.defaultMarkerWithHue(
-              isUnknown
-                  ? BitmapDescriptor.hueViolet
-                  : BitmapDescriptor.hueCyan,
+          _markers.add(
+            Marker(
+              markerId: MarkerId('alert_${alert.id}'),
+              position: LatLng(alert.latitude!, alert.longitude!),
+              icon: BitmapDescriptor.defaultMarkerWithHue(
+                isUnknown
+                    ? BitmapDescriptor.hueViolet
+                    : BitmapDescriptor.hueCyan,
+              ),
+              infoWindow: InfoWindow(
+                title: alert.type.displayName,
+                snippet: alert.note.isEmpty ? alert.lens : alert.note,
+              ),
             ),
-            infoWindow: InfoWindow(
-              title: alert.type.displayName,
-              snippet: alert.note.isEmpty ? alert.lens : alert.note,
-            ),
-          ));
+          );
         }
       }
       if (mounted) setState(() {});
@@ -218,16 +224,18 @@ class _CombinedControlScreenState extends State<CombinedControlScreen> {
 
   void _updateCarMarker(LatLng pos) {
     _markers.removeWhere((m) => m.markerId.value == 'car');
-    _markers.add(Marker(
-      markerId: const MarkerId('car'),
-      position: pos,
-      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-      infoWindow: InfoWindow(
-        title: '🚗 Car',
-        snippet:
-            '${pos.latitude.toStringAsFixed(5)}, ${pos.longitude.toStringAsFixed(5)}',
+    _markers.add(
+      Marker(
+        markerId: const MarkerId('car'),
+        position: pos,
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+        infoWindow: InfoWindow(
+          title: '🚗 Car',
+          snippet:
+              '${pos.latitude.toStringAsFixed(5)}, ${pos.longitude.toStringAsFixed(5)}',
+        ),
       ),
-    ));
+    );
     if (mounted) setState(() {});
   }
 
@@ -309,8 +317,7 @@ class _CombinedControlScreenState extends State<CombinedControlScreen> {
     _isTurning = true;
 
     setState(() {
-      _statusMessage =
-          'Manual ${dir == "L" ? "Left ←" : "Right →"}';
+      _statusMessage = 'Manual ${dir == "L" ? "Left ←" : "Right →"}';
     });
 
     await _sendCommand(dir);
@@ -335,8 +342,7 @@ class _CombinedControlScreenState extends State<CombinedControlScreen> {
           ).createShader(bounds),
           child: const Text(
             'Car Control',
-            style: TextStyle(
-                fontWeight: FontWeight.w900, color: Colors.white),
+            style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
           ),
         ),
         actions: [
@@ -353,7 +359,8 @@ class _CombinedControlScreenState extends State<CombinedControlScreen> {
               setState(() {
                 _showAlertMarkers = !_showAlertMarkers;
                 _markers.removeWhere(
-                    (m) => m.markerId.value.startsWith('alert_'));
+                  (m) => m.markerId.value.startsWith('alert_'),
+                );
               });
               _listenAlertLocations();
             },
@@ -389,8 +396,7 @@ class _CombinedControlScreenState extends State<CombinedControlScreen> {
             right: 0,
             child: Container(
               color: Colors.black87,
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 12, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -407,21 +413,13 @@ class _CombinedControlScreenState extends State<CombinedControlScreen> {
                   Row(
                     children: [
                       _Chip(
-                        label: _robotOnline
-                            ? '🟢 CAR ONLINE'
-                            : '⚫ CAR OFFLINE',
-                        color: _robotOnline
-                            ? Colors.green
-                            : Colors.grey,
+                        label: _robotOnline ? '🟢 CAR ONLINE' : '⚫ CAR OFFLINE',
+                        color: _robotOnline ? Colors.green : Colors.grey,
                       ),
                       const SizedBox(width: 8),
                       _Chip(
-                        label: _patrolActive
-                            ? '🟢 RUNNING'
-                            : '⏸ IDLE',
-                        color: _patrolActive
-                            ? Colors.green
-                            : Colors.grey,
+                        label: _patrolActive ? '🟢 RUNNING' : '⏸ IDLE',
+                        color: _patrolActive ? Colors.green : Colors.grey,
                       ),
                       const SizedBox(width: 8),
                       _Chip(
@@ -479,9 +477,7 @@ class _CombinedControlScreenState extends State<CombinedControlScreen> {
                   icon: Icons.turn_left,
                   color: Colors.teal,
                   tooltip: 'Turn Left',
-                  onPressed: _patrolActive
-                      ? () => _manualTurn('L')
-                      : null,
+                  onPressed: _patrolActive ? () => _manualTurn('L') : null,
                   small: true,
                 ),
                 const SizedBox(height: 8),
@@ -491,9 +487,7 @@ class _CombinedControlScreenState extends State<CombinedControlScreen> {
                   icon: Icons.turn_right,
                   color: Colors.teal,
                   tooltip: 'Turn Right',
-                  onPressed: _patrolActive
-                      ? () => _manualTurn('R')
-                      : null,
+                  onPressed: _patrolActive ? () => _manualTurn('R') : null,
                   small: true,
                 ),
               ],
@@ -556,23 +550,23 @@ class _RoundButton extends StatelessWidget {
       return FloatingActionButton.small(
         heroTag: tooltip,
         onPressed: onPressed,
-        backgroundColor:
-            onPressed == null ? Colors.grey.shade800 : color,
+        backgroundColor: onPressed == null ? Colors.grey.shade800 : color,
         tooltip: tooltip,
-        child: Icon(icon,
-            color: iconColor ??
-                (onPressed == null ? Colors.grey : Colors.white)),
+        child: Icon(
+          icon,
+          color: iconColor ?? (onPressed == null ? Colors.grey : Colors.white),
+        ),
       );
     }
     return FloatingActionButton(
       heroTag: tooltip,
       onPressed: onPressed,
-      backgroundColor:
-          onPressed == null ? Colors.grey.shade800 : color,
+      backgroundColor: onPressed == null ? Colors.grey.shade800 : color,
       tooltip: tooltip,
-      child: Icon(icon,
-          color: iconColor ??
-              (onPressed == null ? Colors.grey : Colors.white)),
+      child: Icon(
+        icon,
+        color: iconColor ?? (onPressed == null ? Colors.grey : Colors.white),
+      ),
     );
   }
 }
