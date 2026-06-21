@@ -25,8 +25,8 @@ final FlutterLocalNotificationsPlugin _local =
     FlutterLocalNotificationsPlugin();
 
 const AndroidNotificationChannel _alertsChannel = AndroidNotificationChannel(
-  'alerts_channel',
-  'Alerts',
+  'visionbot_alerts', // ✅ FIXED: same channel ID as Railway server
+  'VisionBot Alerts',
   description: 'VisionBot alert notifications',
   importance: Importance.high,
 );
@@ -91,8 +91,8 @@ Future<void> _showLocalFromRemote(RemoteMessage message) async {
 
   const details = NotificationDetails(
     android: AndroidNotificationDetails(
-      'alerts_channel',
-      'Alerts',
+      'visionbot_alerts', // ✅ FIXED: same channel ID
+      'VisionBot Alerts',
       channelDescription: 'VisionBot alert notifications',
       importance: Importance.high,
       priority: Priority.high,
@@ -181,9 +181,26 @@ void main() async {
       );
 
       final fcm = FirebaseMessaging.instance;
+
+      // ✅ FIXED: Ask notification permission
+      await fcm.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+
+      // ✅ FIXED: Subscribe phone to Railway notification topic
+      await fcm.subscribeToTopic('visionbot_alerts');
+
       final token = await fcm.getToken();
+
       debugPrint('');
-      debugPrint('🔐 FCM Token: ${token?.substring(0, 20)}...');
+      if (token != null && token.length >= 20) {
+        debugPrint('🔐 FCM Token: ${token.substring(0, 20)}...');
+      } else {
+        debugPrint('🔐 FCM Token: $token');
+      }
+      debugPrint('✅ Subscribed to topic: visionbot_alerts');
       debugPrint('');
 
       // ✅ Handle foreground messages
