@@ -255,6 +255,7 @@ class _CombinedControlScreenState extends State<CombinedControlScreen> {
       await _db.collection('ble_commands').add({
         'command': cmd,
         'sent_at': FieldValue.serverTimestamp(),
+        'sent_at_client': Timestamp.fromDate(DateTime.now()),
         'executed': false,
       });
 
