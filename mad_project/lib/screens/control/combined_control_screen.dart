@@ -287,6 +287,7 @@ class _CombinedControlScreenState extends State<CombinedControlScreen> {
   // ── Patrol control ────────────────────────────────────────────────────────
 
   Future<void> _startPatrol() async {
+    _emergencyLatched = false;
     setState(() {
       _patrolActive = true;
       _statusMessage = '🚗 Moving forward...';
@@ -303,13 +304,19 @@ class _CombinedControlScreenState extends State<CombinedControlScreen> {
     await _sendCommand('S');
   }
 
+  bool _emergencyLatched = false;
   Future<void> _emergencyStop() async {
     _isTurning = false;
+    _emergencyLatched = true;
     setState(() {
       _patrolActive = false;
       _statusMessage = '🚨 EMERGENCY STOP';
     });
     await _sendCommand('E');
+    await _db.collection('car_status').doc('current').set(
+      {'emergency_latched': true},
+      SetOptions(merge: true),
+    );
     HapticFeedback.heavyImpact();
   }
 
