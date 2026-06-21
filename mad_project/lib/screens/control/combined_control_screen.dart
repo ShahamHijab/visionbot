@@ -257,6 +257,7 @@ class _CombinedControlScreenState extends State<CombinedControlScreen> {
         'sent_at': FieldValue.serverTimestamp(),
         'sent_at_client': Timestamp.fromDate(DateTime.now()),
         'executed': false,
+        'source': 'user_app',
       });
 
       // Also use existing RobotControlService for compatibility
