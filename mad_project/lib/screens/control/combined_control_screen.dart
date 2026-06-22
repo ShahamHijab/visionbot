@@ -188,7 +188,14 @@ class _CombinedControlScreenState extends State<CombinedControlScreen> {
   final msSinceUserCmd = DateTime.now()
       .difference(_lastUserAppCommandAt).inMilliseconds;
   if (msSinceUserCmd > 3000) {
-    _sendCommand('F');
+    // Check Firestore emergency latch too before sending F
+    final emergencyInFirestore = data['emergency_latched'] == true;
+    if (!emergencyInFirestore) {
+      _sendCommand('F');
+    } else {
+      _emergencyLatched = true; // Sync local state with Firestore
+      _patrolActive = false;
+    }
   }
 }
           });
@@ -276,6 +283,10 @@ class _CombinedControlScreenState extends State<CombinedControlScreen> {
 
   Future<void> _startPatrol() async {
     _emergencyLatched = false;
+    await _db.collection('car_status').doc('current').set(
+    {'emergency_latched': false},
+    SetOptions(merge: true),
+  );
     setState(() {
       _patrolActive = true;
       _statusMessage = '🚗 Moving forward...';
