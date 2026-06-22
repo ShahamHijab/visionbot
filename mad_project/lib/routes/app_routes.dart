@@ -21,7 +21,7 @@ import '../screens/settings/user_guide_screen.dart';
 import '../screens/auth/verify_email_screen.dart';
 import '../screens/admin/admin_management_screen.dart';
 // import '../screens/control/robot_control_screen.dart';
-import '../screens/remote_control/remote_control_screen.dart'; 
+// import '../screens/remote_control/remote_control_screen.dart'; 
 import '../screens/control/combined_control_screen.dart';
 
 class AppRoutes {
@@ -32,7 +32,7 @@ class AppRoutes {
   static const String forgotPassword = '/forgot-password';
   static const String roleSelection = '/role-selection';
   static const String verifyEmail = '/verify-email';
-  static const String remoteControl = '/remote-control';  
+  // static const String remoteControl = '/remote-control';  
 
   // Main Routes
   static const String dashboard = '/dashboard';
@@ -91,6 +91,6 @@ class AppRoutes {
     userGuide: (_) => const UserGuideScreen(),
     verifyEmail: (_) => const VerifyEmailScreen(),
     adminManagement: (_) => const AdminManagementScreen(),
-    remoteControl: (_) => const RemoteControlScreen(),
+    // remoteControl: (_) => const RemoteControlScreen(),
   };
 }

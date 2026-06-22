@@ -10,7 +10,7 @@ import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../services/robot_control_service.dart';
+// import '../../services/robot_control_service.dart';
 import '../../models/alert_model.dart';
 import '../../services/alert_service.dart';
 
@@ -22,6 +22,7 @@ class CombinedControlScreen extends StatefulWidget {
 }
 
 class _CombinedControlScreenState extends State<CombinedControlScreen> {
+  DateTime _lastUserAppCommandAt = DateTime.fromMillisecondsSinceEpoch(0);
   // ── Map ───────────────────────────────────────────────────────────────────
   GoogleMapController? _mapController;
   final Set<Marker> _markers = {};
@@ -29,7 +30,6 @@ class _CombinedControlScreenState extends State<CombinedControlScreen> {
   final Set<Polygon> _polygons = {};
 
   // ── Robot control ─────────────────────────────────────────────────────────
-  final RobotControlService _robotService = RobotControlService();
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   // ── Navigation state ──────────────────────────────────────────────────────
@@ -182,10 +182,15 @@ class _CombinedControlScreenState extends State<CombinedControlScreen> {
             }
 
             if (_carStatus == 'BLOCKED') {
-              _statusMessage = '⚠️ Obstacle detected — car paused';
-            } else if (_carStatus == 'CLEAR' && _patrolActive && !_isTurning) {
-              _statusMessage = '🚗 Moving forward';
-            }
+  _statusMessage = '⚠️ Obstacle detected — car paused';
+} else if (_carStatus == 'CLEAR' && _patrolActive && !_isTurning && !_emergencyLatched) {
+  _statusMessage = '🚗 Moving forward';
+  final msSinceUserCmd = DateTime.now()
+      .difference(_lastUserAppCommandAt).inMilliseconds;
+  if (msSinceUserCmd > 3000) {
+    _sendCommand('F');
+  }
+}
           });
         });
   }
@@ -250,6 +255,7 @@ class _CombinedControlScreenState extends State<CombinedControlScreen> {
 
   // ── Send command to Firestore (surveillance app reads this) ───────────────
   Future<void> _sendCommand(String cmd) async {
+    _lastUserAppCommandAt = DateTime.now();
     try {
       // Write to Firestore — surveillance app polls this
       await _db.collection('ble_commands').add({
@@ -259,25 +265,6 @@ class _CombinedControlScreenState extends State<CombinedControlScreen> {
         'executed': false,
         'source': 'user_app',
       });
-
-      // Also use existing RobotControlService for compatibility
-      switch (cmd) {
-        case 'F':
-          await _robotService.sendCommand(RobotDirection.forward);
-          break;
-        case 'L':
-          await _robotService.sendCommand(RobotDirection.left);
-          break;
-        case 'R':
-          await _robotService.sendCommand(RobotDirection.right);
-          break;
-        case 'S':
-          await _robotService.sendCommand(RobotDirection.stop);
-          break;
-        case 'E':
-          await _robotService.emergencyStop();
-          break;
-      }
 
       debugPrint('[CMD] Sent: $cmd');
     } catch (e) {
