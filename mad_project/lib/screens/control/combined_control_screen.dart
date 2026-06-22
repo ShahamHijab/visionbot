@@ -185,18 +185,18 @@ class _CombinedControlScreenState extends State<CombinedControlScreen> {
   _statusMessage = '⚠️ Obstacle detected — car paused';
 } else if (_carStatus == 'CLEAR' && _patrolActive && !_isTurning && !_emergencyLatched) {
   _statusMessage = '🚗 Moving forward';
-  final msSinceUserCmd = DateTime.now()
-      .difference(_lastUserAppCommandAt).inMilliseconds;
-  if (msSinceUserCmd > 3000) {
-    // Check Firestore emergency latch too before sending F
-    final emergencyInFirestore = data['emergency_latched'] == true;
-    if (!emergencyInFirestore) {
-      _sendCommand('F');
-    } else {
-      _emergencyLatched = true; // Sync local state with Firestore
-      _patrolActive = false;
-    }
-  }
+  // final msSinceUserCmd = DateTime.now()
+  //     .difference(_lastUserAppCommandAt).inMilliseconds;
+  // if (msSinceUserCmd > 3000) {
+  //   // Check Firestore emergency latch too before sending F
+  //   final emergencyInFirestore = data['emergency_latched'] == true;
+  //   if (!emergencyInFirestore) {
+  //     _sendCommand('F');
+  //   } else {
+  //     _emergencyLatched = true; // Sync local state with Firestore
+  //     _patrolActive = false;
+  //   }
+  // }
 }
           });
         });
