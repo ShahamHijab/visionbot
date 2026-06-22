@@ -71,7 +71,7 @@ class _CombinedControlScreenState extends State<CombinedControlScreen> {
     _positionSub?.cancel();
     _alertSub?.cancel();
     _carStatusSub?.cancel();
-    _robotService.dispose();
+    // _robotService.dispose();
     super.dispose();
   }
 
