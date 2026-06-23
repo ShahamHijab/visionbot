@@ -19,6 +19,11 @@ class _LoginScreenState extends State<LoginScreen>
   bool _obscurePassword = true;
   bool _loading = false;
 
+  bool _emailTouched = false;
+  bool _passwordTouched = false;
+  String? _emailError;
+  String? _passwordError;
+
   final AuthService _authService = AuthService();
   late AnimationController _animationController;
   late AnimationController _logoAnimationController;
@@ -99,12 +104,17 @@ class _LoginScreenState extends State<LoginScreen>
     final email = _emailController.text.trim();
     final password = _passwordController.text;
 
-    if (email.isEmpty || password.isEmpty) {
-      _showError('Please enter email and password');
-      return;
-    }
-    if (password.length < 6) {
-      _showError('Password must be at least 6 characters long');
+    final emailError = _validateEmailField(email);
+    final passwordError = _validatePasswordField(password);
+
+    setState(() {
+      _emailTouched = true;
+      _passwordTouched = true;
+      _emailError = emailError;
+      _passwordError = passwordError;
+    });
+
+    if (emailError != null || passwordError != null) {
       return;
     }
 
@@ -236,6 +246,31 @@ class _LoginScreenState extends State<LoginScreen>
     }
   }
 
+  String? _validateEmailField(String email) {
+    final trimmed = email.trim();
+    if (trimmed.isEmpty) {
+      return 'Email is required';
+    }
+    if (!_isValidEmail(trimmed)) {
+      return 'Enter a valid email address';
+    }
+    return null;
+  }
+
+  String? _validatePasswordField(String password) {
+    if (password.isEmpty) {
+      return 'Password is required';
+    }
+    if (password.length < 6) {
+      return 'Password must be at least 6 characters long';
+    }
+    return null;
+  }
+
+  bool _isValidEmail(String email) {
+    return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email.trim());
+  }
+
   void _showError(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).clearSnackBars();
@@ -304,6 +339,8 @@ class _LoginScreenState extends State<LoginScreen>
     bool obscure = false,
     Widget? suffix,
     TextInputType keyboardType = TextInputType.text,
+    String? errorText,
+    ValueChanged<String>? onChanged,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -350,6 +387,7 @@ class _LoginScreenState extends State<LoginScreen>
               controller: controller,
               obscureText: obscure,
               keyboardType: keyboardType,
+              onChanged: onChanged,
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
@@ -396,6 +434,18 @@ class _LoginScreenState extends State<LoginScreen>
             ),
           ),
         ),
+        if (errorText != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8, left: 4),
+            child: Text(
+              errorText,
+              style: const TextStyle(
+                color: Color(0xFFDC2626),
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -425,6 +475,16 @@ class _LoginScreenState extends State<LoginScreen>
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   const SizedBox(height: 50),
+                  Text(
+                    'Vision Bot',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.grey.shade800,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   Hero(
                     tag: 'app_logo',
                     child: AnimatedBuilder(
@@ -525,6 +585,13 @@ class _LoginScreenState extends State<LoginScreen>
                     icon: Icons.alternate_email_rounded,
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
+                    errorText: _emailTouched ? _emailError : null,
+                    onChanged: (value) {
+                      setState(() {
+                        _emailTouched = true;
+                        _emailError = _validateEmailField(value);
+                      });
+                    },
                   ),
                   const SizedBox(height: 24),
                   _inputField(
@@ -533,6 +600,13 @@ class _LoginScreenState extends State<LoginScreen>
                     icon: Icons.lock_outline_rounded,
                     controller: _passwordController,
                     obscure: _obscurePassword,
+                    errorText: _passwordTouched ? _passwordError : null,
+                    onChanged: (value) {
+                      setState(() {
+                        _passwordTouched = true;
+                        _passwordError = _validatePasswordField(value);
+                      });
+                    },
                     suffix: IconButton(
                       onPressed: () =>
                           setState(() => _obscurePassword = !_obscurePassword),

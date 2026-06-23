@@ -23,6 +23,16 @@ class _SignupScreenState extends State<SignupScreen>
   bool _obscureConfirmPassword = true;
   bool _loading = false;
 
+  bool _nameTouched = false;
+  bool _emailTouched = false;
+  bool _passwordTouched = false;
+  bool _confirmTouched = false;
+
+  String? _nameError;
+  String? _emailError;
+  String? _passwordError;
+  String? _confirmError;
+
   final AuthService _authService = AuthService();
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -51,8 +61,66 @@ class _SignupScreenState extends State<SignupScreen>
     super.dispose();
   }
 
+  bool _isValidName(String name) {
+    final trimmed = name.trim();
+    return trimmed.length >= 3 && trimmed.contains(RegExp(r'[A-Za-z]'));
+  }
+
   bool _isValidEmail(String email) {
-    return RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email.trim());
+    return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email.trim());
+  }
+
+  bool _isValidPassword(String password) {
+    final hasUppercase = password.contains(RegExp(r'[A-Z]'));
+    final hasLowercase = password.contains(RegExp(r'[a-z]'));
+    final hasNumber = password.contains(RegExp(r'[0-9]'));
+    return password.length >= 8 && hasUppercase && hasLowercase && hasNumber;
+  }
+
+  String? _validateNameField(String name) {
+    if (name.isEmpty) {
+      return 'Full name is required';
+    }
+    if (!_isValidName(name)) {
+      return 'Enter a valid full name (at least 3 letters)';
+    }
+    return null;
+  }
+
+  String? _validateEmailField(String email) {
+    if (email.isEmpty) {
+      return 'Email is required';
+    }
+    if (!_isValidEmail(email)) {
+      return 'Enter a valid email address';
+    }
+    return null;
+  }
+
+  String? _validatePasswordField(String password) {
+    if (password.isEmpty) {
+      return 'Password is required';
+    }
+    if (password.contains(' ')) {
+      return 'Password cannot contain spaces';
+    }
+    if (password.length < 8) {
+      return 'Password must be at least 8 characters long';
+    }
+    if (!_isValidPassword(password)) {
+      return 'Password must include uppercase, lowercase, and a number';
+    }
+    return null;
+  }
+
+  String? _validateConfirmPasswordField(String password, String confirm) {
+    if (confirm.isEmpty) {
+      return 'Confirm password is required';
+    }
+    if (password != confirm) {
+      return 'Passwords do not match';
+    }
+    return null;
   }
 
   Future<void> _handleSignup() async {
@@ -63,38 +131,31 @@ class _SignupScreenState extends State<SignupScreen>
     final password = _passwordController.text;
     final confirm = _confirmPasswordController.text;
 
+    final nameError = _validateNameField(name);
+    final emailError = _validateEmailField(email);
+    final passwordError = _validatePasswordField(password);
+    final confirmError = _validateConfirmPasswordField(password, confirm);
+
+    setState(() {
+      _nameTouched = true;
+      _emailTouched = true;
+      _passwordTouched = true;
+      _confirmTouched = true;
+      _nameError = nameError;
+      _emailError = emailError;
+      _passwordError = passwordError;
+      _confirmError = confirmError;
+    });
+
+    if (nameError != null ||
+        emailError != null ||
+        passwordError != null ||
+        confirmError != null) {
+      return;
+    }
+
     if (!_agreeToTerms) {
       _showError('Please agree to Terms and Privacy Policy');
-      return;
-    }
-
-    if (name.isEmpty || email.isEmpty || password.isEmpty || confirm.isEmpty) {
-      _showError('Please fill all fields');
-      return;
-    }
-
-    if (!_isValidEmail(email)) {
-      _showError('Enter a valid email');
-      return;
-    }
-
-    if (password != confirm) {
-      _showError('Passwords do not match');
-      return;
-    }
-    if (password.length < 6) {
-      _showError('Password must be at least 6 characters long');
-      return;
-    }
-    // Check for at least one capital letter and one number
-    final hasUppercase = password.contains(RegExp(r'[A-Z]'));
-    final hasNumber = password.contains(RegExp(r'[0-9]'));
-    if (!hasUppercase) {
-      _showError('Password must contain at least one capital letter');
-      return;
-    }
-    if (!hasNumber) {
-      _showError('Password must contain at least one number');
       return;
     }
 
@@ -252,6 +313,8 @@ class _SignupScreenState extends State<SignupScreen>
     bool obscure = false,
     Widget? suffix,
     TextInputType keyboardType = TextInputType.text,
+    String? errorText,
+    ValueChanged<String>? onChanged,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -288,6 +351,7 @@ class _SignupScreenState extends State<SignupScreen>
             controller: controller,
             obscureText: obscure,
             keyboardType: keyboardType,
+            onChanged: onChanged,
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w500,
@@ -328,6 +392,18 @@ class _SignupScreenState extends State<SignupScreen>
             ),
           ),
         ),
+        if (errorText != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8, left: 4),
+            child: Text(
+              errorText,
+              style: const TextStyle(
+                color: Color(0xFFDC2626),
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -356,6 +432,16 @@ class _SignupScreenState extends State<SignupScreen>
               child: Column(
                 children: [
                   const SizedBox(height: 40),
+                  Text(
+                    'Vision Bot',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.grey.shade800,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   // Logo
                   Hero(
                     tag: 'app_logo',
@@ -406,7 +492,7 @@ class _SignupScreenState extends State<SignupScreen>
                       ],
                     ).createShader(bounds),
                     child: const Text(
-                      "Join VisionBot",
+                      "Join Vision Bot",
                       style: TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.w900,
@@ -432,6 +518,13 @@ class _SignupScreenState extends State<SignupScreen>
                     hint: "Your name",
                     icon: Icons.person_outline_rounded,
                     controller: _nameController,
+                    errorText: _nameTouched ? _nameError : null,
+                    onChanged: (value) {
+                      setState(() {
+                        _nameTouched = true;
+                        _nameError = _validateNameField(value.trim());
+                      });
+                    },
                   ),
                   const SizedBox(height: 20),
                   // Email Field
@@ -441,6 +534,13 @@ class _SignupScreenState extends State<SignupScreen>
                     icon: Icons.alternate_email_rounded,
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
+                    errorText: _emailTouched ? _emailError : null,
+                    onChanged: (value) {
+                      setState(() {
+                        _emailTouched = true;
+                        _emailError = _validateEmailField(value.trim());
+                      });
+                    },
                   ),
                   const SizedBox(height: 20),
                   // Password Field
@@ -450,6 +550,17 @@ class _SignupScreenState extends State<SignupScreen>
                     icon: Icons.lock_outline_rounded,
                     controller: _passwordController,
                     obscure: _obscurePassword,
+                    errorText: _passwordTouched ? _passwordError : null,
+                    onChanged: (value) {
+                      setState(() {
+                        _passwordTouched = true;
+                        _passwordError = _validatePasswordField(value);
+                        _confirmError = _validateConfirmPasswordField(
+                          value,
+                          _confirmPasswordController.text,
+                        );
+                      });
+                    },
                     suffix: IconButton(
                       icon: Icon(
                         _obscurePassword
@@ -470,6 +581,16 @@ class _SignupScreenState extends State<SignupScreen>
                     icon: Icons.lock_outline_rounded,
                     controller: _confirmPasswordController,
                     obscure: _obscureConfirmPassword,
+                    errorText: _confirmTouched ? _confirmError : null,
+                    onChanged: (value) {
+                      setState(() {
+                        _confirmTouched = true;
+                        _confirmError = _validateConfirmPasswordField(
+                          _passwordController.text,
+                          value,
+                        );
+                      });
+                    },
                     suffix: IconButton(
                       icon: Icon(
                         _obscureConfirmPassword
