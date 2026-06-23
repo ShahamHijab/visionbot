@@ -15,8 +15,7 @@ class AlertService {
 
   static const String _collection = 'alerts';
 
-  static final String laptopServerUrl =
-      dotenv.env['LAPTOP_SERVER_URL'] ?? '';
+  static final String laptopServerUrl = dotenv.env['LAPTOP_SERVER_URL'] ?? '';
 
   Stream<List<AlertModel>> streamAlerts({
     int limit = 50,
@@ -61,41 +60,43 @@ class AlertService {
           .limit(limit)
           .snapshots()
           .listen(
-        (snapshot) {
-          try {
-            final alerts = snapshot.docs
-                .map((doc) {
-                  try {
-                    return AlertModel.fromFirestore(doc);
-                  } catch (e) {
-                    debugPrint('⚠️ Error converting doc ${doc.id}: $e');
-                    return null;
-                  }
-                })
-                .whereType<AlertModel>()
-                .toList();
+            (snapshot) {
+              try {
+                final alerts = snapshot.docs
+                    .map((doc) {
+                      try {
+                        return AlertModel.fromFirestore(doc);
+                      } catch (e) {
+                        debugPrint('⚠️ Error converting doc ${doc.id}: $e');
+                        return null;
+                      }
+                    })
+                    .whereType<AlertModel>()
+                    .toList();
 
-            debugPrint('✅ Firebase stream received ${alerts.length} alerts');
+                debugPrint(
+                  '✅ Firebase stream received ${alerts.length} alerts',
+                );
 
-            if (!controller.isClosed) {
-              controller.add(alerts);
-            }
+                if (!controller.isClosed) {
+                  controller.add(alerts);
+                }
 
-            if (alerts.isEmpty) {
-              debugPrint('⚠️ Firebase empty, checking laptop server...');
-              fetchLaptopAlerts();
-            }
-          } catch (e) {
-            debugPrint('❌ Stream conversion error: $e');
-            startLaptopPolling();
-          }
-        },
-        onError: (error) {
-          debugPrint('⚠️ Firebase stream error: $error');
-          debugPrint('📡 Switching to laptop server polling...');
-          startLaptopPolling();
-        },
-      );
+                if (alerts.isEmpty) {
+                  debugPrint('⚠️ Firebase empty, checking laptop server...');
+                  fetchLaptopAlerts();
+                }
+              } catch (e) {
+                debugPrint('❌ Stream conversion error: $e');
+                startLaptopPolling();
+              }
+            },
+            onError: (error) {
+              debugPrint('⚠️ Firebase stream error: $error');
+              debugPrint('📡 Switching to laptop server polling...');
+              startLaptopPolling();
+            },
+          );
     } catch (e) {
       debugPrint('❌ Firebase stream setup failed: $e');
       startLaptopPolling();
@@ -128,7 +129,8 @@ class AlertService {
     final models = rawAlerts.map<AlertModel>((item) {
       final alert = Map<String, dynamic>.from(item as Map);
 
-      final id = alert['alert_id']?.toString() ??
+      final id =
+          alert['alert_id']?.toString() ??
           alert['id']?.toString() ??
           DateTime.now().millisecondsSinceEpoch.toString();
 
@@ -139,17 +141,18 @@ class AlertService {
         'id': id,
         'title': _makeTitle(alert),
         'description': _makeDescription(alert),
-        'timestamp':
-            createdAtLocal ?? DateTime.now().toIso8601String(),
+        'timestamp': createdAtLocal ?? DateTime.now().toIso8601String(),
         'created_at_local': createdAtLocal,
 
         // 🔧 FIX 2: support Supabase + backend image keys (NO logic change)
-        'imageUrl': alert['image_url']?.toString() ??
+        'imageUrl':
+            alert['image_url']?.toString() ??
             alert['image_path']?.toString() ??
             alert['imageUrl']?.toString() ??
             '',
 
-        'location': alert['location_name']?.toString() ??
+        'location':
+            alert['location_name']?.toString() ??
             alert['location']?.toString() ??
             '',
         'locationName': alert['location_name']?.toString(),
@@ -212,8 +215,7 @@ class AlertService {
 
   Future<AlertModel?> getAlert(String alertId) async {
     try {
-      final doc =
-          await _firestore.collection(_collection).doc(alertId).get();
+      final doc = await _firestore.collection(_collection).doc(alertId).get();
 
       if (!doc.exists) {
         final laptopAlerts = await _fetchLaptopServerAlerts(500);
@@ -245,6 +247,34 @@ class AlertService {
       });
     } catch (e) {
       debugPrint('❌ Mark read error: $e');
+    }
+  }
+
+  Future<void> markAllAsRead({String? collection}) async {
+    final targetCollection = collection ?? _collection;
+
+    try {
+      final snapshot = await _firestore
+          .collection(targetCollection)
+          .where('isRead', isEqualTo: false)
+          .limit(500)
+          .get();
+
+      if (snapshot.docs.isEmpty) {
+        return;
+      }
+
+      final batch = _firestore.batch();
+      for (final doc in snapshot.docs) {
+        batch.update(doc.reference, {
+          'isRead': true,
+          'read_at': FieldValue.serverTimestamp(),
+        });
+      }
+
+      await batch.commit();
+    } catch (e) {
+      debugPrint('❌ Mark all read error: $e');
     }
   }
 
@@ -293,15 +323,15 @@ class AlertService {
           .where('isRead', isEqualTo: false)
           .snapshots()
           .listen(
-        (snapshot) {
-          if (!controller.isClosed) {
-            controller.add(snapshot.size);
-          }
-        },
-        onError: (error) {
-          startLaptopPolling();
-        },
-      );
+            (snapshot) {
+              if (!controller.isClosed) {
+                controller.add(snapshot.size);
+              }
+            },
+            onError: (error) {
+              startLaptopPolling();
+            },
+          );
     } catch (e) {
       startLaptopPolling();
     }

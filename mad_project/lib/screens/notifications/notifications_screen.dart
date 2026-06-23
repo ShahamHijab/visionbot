@@ -3,6 +3,7 @@ import 'package:timeago/timeago.dart' as timeago;
 
 import '../../models/alert_model.dart';
 import '../../services/alert_service.dart';
+import '../../widgets/visionbot_app_bar.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -42,9 +43,21 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   }
 
   Future<void> _markAllAsRead() async {
-    // Backend method not available in AlertService yet.
-    // Implement marking logic here when AlertService exposes it.
-    return Future.value();
+    try {
+      await _alertService.markAllAsRead(collection: 'alerts');
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('All notifications marked as read')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Unable to mark all as read: $e')));
+    }
   }
 
   @override
@@ -61,8 +74,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
         return Scaffold(
           backgroundColor: const Color(0xFFF8F9FA),
-          appBar: AppBar(
-            elevation: 0,
+          appBar: VisionBotAppBar(
+            subtitle: 'Notifications',
             backgroundColor: Colors.white,
             leading: Container(
               margin: const EdgeInsets.all(8),
@@ -83,18 +96,6 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                   color: Color(0xFF1F2937),
                 ),
                 onPressed: () => Navigator.pop(context),
-              ),
-            ),
-            title: ShaderMask(
-              shaderCallback: (bounds) => const LinearGradient(
-                colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
-              ).createShader(bounds),
-              child: const Text(
-                'Notifications',
-                style: TextStyle(
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white,
-                ),
               ),
             ),
             actions: [
@@ -278,14 +279,12 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     return Material(
       color: Colors.transparent,
       child: InkWell(
-      onTap: alert.isRead ? null : () => _markAllAsRead(),
+        onTap: alert.isRead ? null : () => _alertService.markAsRead(alert.id),
         borderRadius: BorderRadius.circular(20),
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: alert.isRead
-                ? Colors.white
-                : typeColor.withOpacity(0.05),
+            color: alert.isRead ? Colors.white : typeColor.withOpacity(0.05),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: alert.isRead
