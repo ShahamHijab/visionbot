@@ -75,7 +75,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         return Scaffold(
           backgroundColor: const Color(0xFFF8F9FA),
           appBar: VisionBotAppBar(
-            subtitle: 'Notifications',
+            pageTitle: 'Notifications',
             backgroundColor: Colors.white,
             leading: Container(
               margin: const EdgeInsets.all(8),

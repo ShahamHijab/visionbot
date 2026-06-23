@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/visionbot_app_bar.dart';
 
 class ImageDetailScreen extends StatelessWidget {
   const ImageDetailScreen({super.key});
@@ -19,8 +20,9 @@ class ImageDetailScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
-      appBar: AppBar(
-        elevation: 0,
+      appBar: VisionBotAppBar(
+        pageTitle: title,
+        pageSubtitle: 'Image Details',
         backgroundColor: Colors.white,
         leading: Container(
           margin: const EdgeInsets.all(8),
@@ -41,18 +43,6 @@ class ImageDetailScreen extends StatelessWidget {
               color: Color(0xFF1F2937),
             ),
             onPressed: () => Navigator.pop(context),
-          ),
-        ),
-        title: ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
-          ).createShader(bounds),
-          child: Text(
-            title,
-            style: const TextStyle(
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-            ),
           ),
         ),
       ),
@@ -126,9 +116,7 @@ class ImageDetailScreen extends StatelessWidget {
   Widget _row(String title, String time, {bool bold = false}) {
     return Text(
       '$title $time',
-      style: TextStyle(
-        fontWeight: bold ? FontWeight.bold : FontWeight.normal,
-      ),
+      style: TextStyle(fontWeight: bold ? FontWeight.bold : FontWeight.normal),
     );
   }
 
@@ -137,10 +125,7 @@ class ImageDetailScreen extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label),
-          Text(value),
-        ],
+        children: [Text(label), Text(value)],
       ),
     );
   }

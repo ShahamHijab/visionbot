@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/visionbot_app_bar.dart';
 import '../../models/alert_model.dart';
 import '../../models/gallery_image_item.dart';
 import '../../services/alert_service.dart';
@@ -26,8 +27,10 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       vsync: this,
       duration: const Duration(milliseconds: 800),
     );
-    _fadeAnim =
-        CurvedAnimation(parent: _animController, curve: Curves.easeInOut);
+    _fadeAnim = CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeInOut,
+    );
     _animController.forward();
   }
 
@@ -198,9 +201,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
-      appBar: AppBar(
+      appBar: const VisionBotAppBar(
+        pageTitle: 'Image Gallery',
         backgroundColor: Colors.white,
-        title: const Text("Image Gallery"),
       ),
       body: StreamBuilder<List<AlertModel>>(
         stream: _alertService.streamAlerts(limit: 200),
@@ -225,15 +228,17 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                         padding: const EdgeInsets.all(12),
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 10,
-                          mainAxisSpacing: 10,
-                        ),
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 10,
+                              mainAxisSpacing: 10,
+                            ),
                         itemCount: filtered.length,
                         itemBuilder: (context, index) {
                           final item = filtered[index];
-                          return Image.network(item.imageUrl,
-                              fit: BoxFit.cover);
+                          return Image.network(
+                            item.imageUrl,
+                            fit: BoxFit.cover,
+                          );
                         },
                       ),
               ),
@@ -250,8 +255,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       availableTypes.add(item.alertType);
     }
 
-    final visibleFilters =
-        _filterTypes.where((t) => availableTypes.contains(t)).toList();
+    final visibleFilters = _filterTypes
+        .where((t) => availableTypes.contains(t))
+        .toList();
 
     return SizedBox(
       height: 50,

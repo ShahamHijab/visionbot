@@ -8,6 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/alert_model.dart';
 import '../../services/alert_service.dart';
 import '../../widgets/protected_route.dart';
+import '../../widgets/visionbot_app_bar.dart';
 import '../../services/permission_service.dart';
 
 class GPSTrackingScreen extends StatelessWidget {
@@ -18,7 +19,11 @@ class GPSTrackingScreen extends StatelessWidget {
     if (kIsWeb) {
       return Scaffold(
         backgroundColor: const Color(0xFFF8F9FA),
-        appBar: _simpleAppBar('GPS Tracking'),
+        appBar: const VisionBotAppBar(
+          pageTitle: 'GPS Tracking',
+          backgroundColor: Colors.white,
+          centerTitle: true,
+        ),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,

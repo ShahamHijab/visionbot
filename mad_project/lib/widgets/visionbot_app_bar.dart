@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
 class VisionBotAppBar extends StatelessWidget implements PreferredSizeWidget {
-  final String subtitle;
+  final String pageTitle;
+  final String? pageSubtitle;
+  @deprecated
+  final String? subtitle;
   final Widget? leading;
   final List<Widget>? actions;
   final Color backgroundColor;
@@ -10,7 +13,9 @@ class VisionBotAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   const VisionBotAppBar({
     super.key,
-    required this.subtitle,
+    required this.pageTitle,
+    this.pageSubtitle,
+    this.subtitle,
     this.leading,
     this.actions,
     this.backgroundColor = Colors.white,
@@ -23,6 +28,8 @@ class VisionBotAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final String? _effectiveSubtitle = pageSubtitle ?? subtitle;
+
     return AppBar(
       backgroundColor: backgroundColor,
       elevation: elevation,
@@ -30,7 +37,9 @@ class VisionBotAppBar extends StatelessWidget implements PreferredSizeWidget {
       leading: leading,
       actions: actions,
       title: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: centerTitle
+            ? CrossAxisAlignment.center
+            : CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
           ShaderMask(
@@ -46,13 +55,22 @@ class VisionBotAppBar extends StatelessWidget implements PreferredSizeWidget {
               ),
             ),
           ),
-          if (subtitle.isNotEmpty)
+          if (pageTitle.isNotEmpty)
             Text(
-              subtitle,
+              pageTitle,
               style: TextStyle(
                 fontWeight: FontWeight.w700,
                 color: Colors.grey.shade700,
                 fontSize: 14,
+              ),
+            ),
+          if (_effectiveSubtitle?.isNotEmpty ?? false)
+            Text(
+              _effectiveSubtitle!,
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: Colors.grey.shade700,
+                fontSize: 12,
               ),
             ),
         ],
