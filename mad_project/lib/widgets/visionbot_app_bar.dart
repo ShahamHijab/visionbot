@@ -1,7 +1,7 @@
-import 'package:mad_project/widgets/visionbot_app_bar.dart';
 import 'package:flutter/material.dart';
 
-class VisionBotAppBar extends StatelessWidget implements PreferredSizeWidget {
+class VisionBotAppBar extends StatelessWidget
+    implements PreferredSizeWidget {
   final String pageTitle;
   final String? pageSubtitle;
   @deprecated
@@ -28,56 +28,84 @@ class VisionBotAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Size get preferredSize =>
-      Size.fromHeight(kToolbarHeight + (bottom?.preferredSize.height ?? 0));
+      Size.fromHeight(
+        kToolbarHeight + (bottom?.preferredSize.height ?? 0),
+      );
 
   @override
   Widget build(BuildContext context) {
-    final String? _effectiveSubtitle = pageSubtitle ?? subtitle;
+    final String? effectiveSubtitle =
+        pageSubtitle ?? subtitle;
 
     return AppBar(
       backgroundColor: backgroundColor,
       elevation: elevation,
-      centerTitle: centerTitle,
+      centerTitle: false,
+
       leading: leading,
       actions: actions,
       bottom: bottom,
-      title: Column(
-        crossAxisAlignment: centerTitle
-            ? CrossAxisAlignment.center
-            : CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
+
+      title: Row(
         children: [
-          ShaderMask(
-            shaderCallback: (bounds) => const LinearGradient(
-              colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
-            ).createShader(bounds),
-            child: const Text(
-              'VisionBot',
-              style: TextStyle(
-                fontWeight: FontWeight.w900,
-                color: Colors.white,
-                fontSize: 18,
-              ),
+
+          // LOGO LEFT TOP CORNER
+          Image.asset(
+            'assets/logobg.png',
+            height: 42,
+            width: 42,
+            fit: BoxFit.contain,
+          ),
+
+          const SizedBox(width: 10),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+
+                ShaderMask(
+                  shaderCallback: (bounds) =>
+                      const LinearGradient(
+                    colors: [
+                      Color(0xFFEC4899),
+                      Color(0xFF06B6D4),
+                    ],
+                  ).createShader(bounds),
+                  child: const Text(
+                    'VisionBot',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                      fontSize: 18,
+                    ),
+                  ),
+                ),
+
+                if (pageTitle.isNotEmpty)
+                  Text(
+                    pageTitle,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: Colors.grey,
+                      fontSize: 14,
+                    ),
+                  ),
+
+                if (effectiveSubtitle?.isNotEmpty ?? false)
+                  Text(
+                    effectiveSubtitle!,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey,
+                      fontSize: 12,
+                    ),
+                  ),
+              ],
             ),
           ),
-          if (pageTitle.isNotEmpty)
-            Text(
-              pageTitle,
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: Colors.grey.shade700,
-                fontSize: 14,
-              ),
-            ),
-          if (_effectiveSubtitle?.isNotEmpty ?? false)
-            Text(
-              _effectiveSubtitle!,
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: Colors.grey.shade700,
-                fontSize: 12,
-              ),
-            ),
         ],
       ),
     );
