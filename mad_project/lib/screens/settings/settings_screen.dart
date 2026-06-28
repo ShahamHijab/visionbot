@@ -5,6 +5,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 
 import '../../routes/app_routes.dart';
 import '../../services/auth_service.dart';
+import '../../widgets/visionbot_app_bar.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -195,9 +196,8 @@ class _SettingsScreenState extends State<SettingsScreen>
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.white,
+      appBar: VisionBotAppBar(
+        pageTitle: 'Settings',
         leading: Container(
           margin: const EdgeInsets.all(8),
           decoration: BoxDecoration(
@@ -217,15 +217,6 @@ class _SettingsScreenState extends State<SettingsScreen>
               color: Color(0xFF1F2937),
             ),
             onPressed: () => Navigator.pop(context),
-          ),
-        ),
-        title: ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
-          ).createShader(bounds),
-          child: const Text(
-            'Settings',
-            style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
           ),
         ),
       ),

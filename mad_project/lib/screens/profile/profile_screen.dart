@@ -4,6 +4,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_service.dart';
 import '../../models/user_model.dart';
+import '../../widgets/visionbot_app_bar.dart';
+import '../../widgets/visionbot_app_bar.dart';
+import '../../widgets/visionbot_app_bar.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -204,18 +207,8 @@ class _ProfileScreenState extends State<ProfileScreen>
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.white,
-        title: ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
-          ).createShader(bounds),
-          child: const Text(
-            'My Profile',
-            style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
-          ),
-        ),
+      appBar: VisionBotAppBar(
+        pageTitle: 'My Profile',
         actions: [
           if (!_isEditing)
             Padding(

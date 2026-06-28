@@ -489,19 +489,9 @@ class _GPSTrackingContentState extends State<_GPSTrackingContent>
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.white,
+      appBar: VisionBotAppBar(
+        pageTitle: 'GPS Tracking',
         leading: _backButton(),
-        title: ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
-          ).createShader(bounds),
-          child: const Text(
-            'GPS Tracking',
-            style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
-          ),
-        ),
         actions: [
           // Toggle alert markers
           Padding(

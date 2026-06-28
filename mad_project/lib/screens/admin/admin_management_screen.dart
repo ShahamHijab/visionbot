@@ -214,8 +214,8 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
   Widget build(BuildContext context) {
     if (!_hasPermission) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Admin Management'),
+        appBar: VisionBotAppBar(
+          pageTitle: 'Admin Management',
           backgroundColor: Colors.transparent,
           elevation: 0,
         ),
@@ -245,8 +245,8 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Create Admin Account'),
+      appBar: VisionBotAppBar(
+        pageTitle: 'Create Admin Account',
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,

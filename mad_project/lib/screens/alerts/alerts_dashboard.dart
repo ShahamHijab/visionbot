@@ -4,6 +4,7 @@ import '../../services/alert_service.dart';
 import '../../services/backend_fetch_service.dart';
 import '../../models/alert_model.dart';
 import '../../routes/app_routes.dart';
+import '../../widgets/visionbot_app_bar.dart';
 
 class AlertsDashboard extends StatefulWidget {
   const AlertsDashboard({super.key});
@@ -97,15 +98,13 @@ class _AlertsDashboardState extends State<AlertsDashboard> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
-      appBar: AppBar(
-        title: const Text('Alerts'),
-        backgroundColor: Colors.white,
-        elevation: 0,
+      appBar: VisionBotAppBar(
+        pageTitle: 'Alerts',
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadCachedAlerts,
-          )
+          ),
         ],
       ),
       body: StreamBuilder<List<AlertModel>>(
@@ -152,7 +151,7 @@ class _AlertsDashboardState extends State<AlertsDashboard> {
                         color: Colors.black.withOpacity(0.05),
                         blurRadius: 10,
                         offset: const Offset(0, 5),
-                      )
+                      ),
                     ],
                   ),
                   child: Row(

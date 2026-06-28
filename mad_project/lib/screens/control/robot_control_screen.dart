@@ -9,6 +9,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 import '../../services/robot_control_service.dart';
+import '../../widgets/visionbot_app_bar.dart';
 
 class RobotControlScreen extends StatefulWidget {
   const RobotControlScreen({super.key});
@@ -300,18 +301,10 @@ class _RobotControlScreenState extends State<RobotControlScreen>
   }
 
   PreferredSizeWidget _buildAppBar() {
-    return AppBar(
+    return VisionBotAppBar(
+      pageTitle: 'Robot Control',
       backgroundColor: const Color(0xFF0D0F14),
       elevation: 0,
-      title: ShaderMask(
-        shaderCallback: (b) => const LinearGradient(
-          colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
-        ).createShader(b),
-        child: const Text(
-          'Robot Control',
-          style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
-        ),
-      ),
       actions: [
         StreamBuilder<List<Map<String, dynamic>>>(
           stream: _service.streamRecentCommands(limit: 1),

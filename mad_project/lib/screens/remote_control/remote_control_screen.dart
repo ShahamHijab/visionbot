@@ -33,12 +33,13 @@ class _RemoteControlScreenState extends State<RemoteControlScreen> {
       FlutterBluetoothSerial.instance.state.then((state) {
         setState(() => _bluetoothState = state);
       });
-      _stateSubscription =
-          FlutterBluetoothSerial.instance.onStateChanged().listen((state) {
-        if (mounted) {
-          setState(() => _bluetoothState = state);
-        }
-      });
+      _stateSubscription = FlutterBluetoothSerial.instance
+          .onStateChanged()
+          .listen((state) {
+            if (mounted) {
+              setState(() => _bluetoothState = state);
+            }
+          });
     }
   }
 
@@ -70,20 +71,26 @@ class _RemoteControlScreenState extends State<RemoteControlScreen> {
     });
 
     _discoverySubscription?.cancel();
-    _discoverySubscription =
-        FlutterBluetoothSerial.instance.startDiscovery().listen((result) {
-      if (!_devices.any((device) => device.device.address == result.device.address)) {
-        setState(() {
-          _devices.add(result);
-        });
-      }
-    }, onDone: () {
-      if (mounted) {
-        setState(() {
-          _isDiscovering = false;
-        });
-      }
-    });
+    _discoverySubscription = FlutterBluetoothSerial.instance
+        .startDiscovery()
+        .listen(
+          (result) {
+            if (!_devices.any(
+              (device) => device.device.address == result.device.address,
+            )) {
+              setState(() {
+                _devices.add(result);
+              });
+            }
+          },
+          onDone: () {
+            if (mounted) {
+              setState(() {
+                _isDiscovering = false;
+              });
+            }
+          },
+        );
   }
 
   Future<void> _connectToDevice(BluetoothDevice device) async {
@@ -102,18 +109,20 @@ class _RemoteControlScreenState extends State<RemoteControlScreen> {
       _isConnected = true;
       _logCommand('Connected to ${device.name ?? device.address}.');
 
-      connection.input?.listen((Uint8List data) {
-        final incoming = utf8.decode(data);
-        _logCommand('Received: $incoming');
-      }).onDone(() {
-        if (mounted) {
-          setState(() {
-            _isConnected = false;
-            _connection = null;
-            _logCommand('Connection closed.');
+      connection.input
+          ?.listen((Uint8List data) {
+            final incoming = utf8.decode(data);
+            _logCommand('Received: $incoming');
+          })
+          .onDone(() {
+            if (mounted) {
+              setState(() {
+                _isConnected = false;
+                _connection = null;
+                _logCommand('Connection closed.');
+              });
+            }
           });
-        }
-      });
     } catch (error) {
       _logCommand('Connection failed: $error');
       if (mounted) {
@@ -176,22 +185,22 @@ class _RemoteControlScreenState extends State<RemoteControlScreen> {
     final status = kIsWeb
         ? 'Unsupported on web'
         : _isConnected
-            ? 'Connected'
-            : _isConnecting
-                ? 'Connecting...'
-                : _bluetoothState == BluetoothState.STATE_OFF
-                    ? 'Bluetooth off'
-                    : _isDiscovering
-                        ? 'Scanning for devices'
-                        : 'Disconnected';
+        ? 'Connected'
+        : _isConnecting
+        ? 'Connecting...'
+        : _bluetoothState == BluetoothState.STATE_OFF
+        ? 'Bluetooth off'
+        : _isDiscovering
+        ? 'Scanning for devices'
+        : 'Disconnected';
 
     final color = kIsWeb
         ? Colors.grey
         : _isConnected
-            ? Colors.green
-            : _bluetoothState == BluetoothState.STATE_OFF
-                ? Colors.red
-                : Colors.orange;
+        ? Colors.green
+        : _bluetoothState == BluetoothState.STATE_OFF
+        ? Colors.red
+        : Colors.orange;
 
     return Row(
       children: [
@@ -203,17 +212,17 @@ class _RemoteControlScreenState extends State<RemoteControlScreen> {
             children: [
               Text(
                 'Connection Status',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 4),
               Text(
                 status,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: color,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
@@ -263,8 +272,9 @@ class _RemoteControlScreenState extends State<RemoteControlScreen> {
           subtitle: Text(device.address),
           trailing: ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor:
-                  isSelected && _isConnected ? Colors.red : Colors.blue,
+              backgroundColor: isSelected && _isConnected
+                  ? Colors.red
+                  : Colors.blue,
             ),
             onPressed: _isConnecting
                 ? null
@@ -275,9 +285,7 @@ class _RemoteControlScreenState extends State<RemoteControlScreen> {
                     }
                     _connectToDevice(device);
                   },
-            child: Text(
-              _isConnected && isSelected ? 'Disconnect' : 'Connect',
-            ),
+            child: Text(_isConnected && isSelected ? 'Disconnect' : 'Connect'),
           ),
         );
       },
@@ -307,21 +315,37 @@ class _RemoteControlScreenState extends State<RemoteControlScreen> {
         Row(
           children: [
             const Spacer(),
-            _buildControlButton('Forward', Icons.arrow_upward, 'FORWARD:${_speed.toInt()}'),
+            _buildControlButton(
+              'Forward',
+              Icons.arrow_upward,
+              'FORWARD:${_speed.toInt()}',
+            ),
             const Spacer(),
           ],
         ),
         Row(
           children: [
-            _buildControlButton('Left', Icons.arrow_back, 'LEFT:${_speed.toInt()}'),
+            _buildControlButton(
+              'Left',
+              Icons.arrow_back,
+              'LEFT:${_speed.toInt()}',
+            ),
             _buildControlButton('Stop', Icons.stop, 'STOP'),
-            _buildControlButton('Right', Icons.arrow_forward, 'RIGHT:${_speed.toInt()}'),
+            _buildControlButton(
+              'Right',
+              Icons.arrow_forward,
+              'RIGHT:${_speed.toInt()}',
+            ),
           ],
         ),
         Row(
           children: [
             const Spacer(),
-            _buildControlButton('Backward', Icons.arrow_downward, 'BACKWARD:${_speed.toInt()}'),
+            _buildControlButton(
+              'Backward',
+              Icons.arrow_downward,
+              'BACKWARD:${_speed.toInt()}',
+            ),
             const Spacer(),
           ],
         ),
@@ -335,9 +359,9 @@ class _RemoteControlScreenState extends State<RemoteControlScreen> {
       children: [
         Text(
           'Speed: ${_speed.toInt()}%',
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
         Slider(
           value: _speed,
@@ -366,9 +390,9 @@ class _RemoteControlScreenState extends State<RemoteControlScreen> {
           children: [
             Text(
               'Command Log',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
             TextButton(
               onPressed: () {
@@ -414,8 +438,8 @@ class _RemoteControlScreenState extends State<RemoteControlScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Remote Controls'),
+      appBar: VisionBotAppBar(
+        pageTitle: 'Remote Controls',
         centerTitle: true,
         actions: [
           if (!kIsWeb)
@@ -453,9 +477,7 @@ class _RemoteControlScreenState extends State<RemoteControlScreen> {
                               children: [
                                 Text(
                                   'Available Devices',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodyLarge
+                                  style: Theme.of(context).textTheme.bodyLarge
                                       ?.copyWith(fontWeight: FontWeight.bold),
                                 ),
                                 const SizedBox(height: 12),
@@ -474,9 +496,7 @@ class _RemoteControlScreenState extends State<RemoteControlScreen> {
                             children: [
                               Text(
                                 'Drive Controls',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyLarge
+                                style: Theme.of(context).textTheme.bodyLarge
                                     ?.copyWith(fontWeight: FontWeight.bold),
                               ),
                               const SizedBox(height: 12),

@@ -162,44 +162,45 @@ class _CombinedControlScreenState extends State<CombinedControlScreen> {
   // ── Listen to car status updates from surveillance app via Firestore ───────
   // Surveillance app writes its BLE/Arduino status here
   void _listenCarStatus() {
-    _carStatusSub = _db
-        .collection('car_status')
-        .doc('current')
-        .snapshots()
-        .listen((snap) {
-          if (!snap.exists) return;
-          final data = snap.data()!;
+    _carStatusSub = _db.collection('car_status').doc('current').snapshots().listen(
+      (snap) {
+        if (!snap.exists) return;
+        final data = snap.data()!;
 
-          setState(() {
-            _robotOnline = data['online'] == true;
-            _carStatus = data['obstacle_status'] ?? 'CLEAR';
+        setState(() {
+          _robotOnline = data['online'] == true;
+          _carStatus = data['obstacle_status'] ?? 'CLEAR';
 
-            final lat = (data['latitude'] as num?)?.toDouble();
-            final lng = (data['longitude'] as num?)?.toDouble();
-            if (lat != null && lng != null) {
-              _carPosition = LatLng(lat, lng);
-              _updateCarMarker(_carPosition!);
-            }
+          final lat = (data['latitude'] as num?)?.toDouble();
+          final lng = (data['longitude'] as num?)?.toDouble();
+          if (lat != null && lng != null) {
+            _carPosition = LatLng(lat, lng);
+            _updateCarMarker(_carPosition!);
+          }
 
-            if (_carStatus == 'BLOCKED') {
-  _statusMessage = '⚠️ Obstacle detected — car paused';
-} else if (_carStatus == 'CLEAR' && _patrolActive && !_isTurning && !_emergencyLatched) {
-  _statusMessage = '🚗 Moving forward';
-  // final msSinceUserCmd = DateTime.now()
-  //     .difference(_lastUserAppCommandAt).inMilliseconds;
-  // if (msSinceUserCmd > 3000) {
-  //   // Check Firestore emergency latch too before sending F
-  //   final emergencyInFirestore = data['emergency_latched'] == true;
-  //   if (!emergencyInFirestore) {
-  //     _sendCommand('F');
-  //   } else {
-  //     _emergencyLatched = true; // Sync local state with Firestore
-  //     _patrolActive = false;
-  //   }
-  // }
-}
-          });
+          if (_carStatus == 'BLOCKED') {
+            _statusMessage = '⚠️ Obstacle detected — car paused';
+          } else if (_carStatus == 'CLEAR' &&
+              _patrolActive &&
+              !_isTurning &&
+              !_emergencyLatched) {
+            _statusMessage = '🚗 Moving forward';
+            // final msSinceUserCmd = DateTime.now()
+            //     .difference(_lastUserAppCommandAt).inMilliseconds;
+            // if (msSinceUserCmd > 3000) {
+            //   // Check Firestore emergency latch too before sending F
+            //   final emergencyInFirestore = data['emergency_latched'] == true;
+            //   if (!emergencyInFirestore) {
+            //     _sendCommand('F');
+            //   } else {
+            //     _emergencyLatched = true; // Sync local state with Firestore
+            //     _patrolActive = false;
+            //   }
+            // }
+          }
         });
+      },
+    );
   }
 
   // ── Listen to alert locations ─────────────────────────────────────────────
@@ -283,10 +284,9 @@ class _CombinedControlScreenState extends State<CombinedControlScreen> {
 
   Future<void> _startPatrol() async {
     _emergencyLatched = false;
-    await _db.collection('car_status').doc('current').set(
-    {'emergency_latched': false},
-    SetOptions(merge: true),
-  );
+    await _db.collection('car_status').doc('current').set({
+      'emergency_latched': false,
+    }, SetOptions(merge: true));
     setState(() {
       _patrolActive = true;
       _statusMessage = '🚗 Moving forward...';
@@ -312,10 +312,9 @@ class _CombinedControlScreenState extends State<CombinedControlScreen> {
       _statusMessage = '🚨 EMERGENCY STOP';
     });
     await _sendCommand('E');
-    await _db.collection('car_status').doc('current').set(
-      {'emergency_latched': true},
-      SetOptions(merge: true),
-    );
+    await _db.collection('car_status').doc('current').set({
+      'emergency_latched': true,
+    }, SetOptions(merge: true));
     HapticFeedback.heavyImpact();
   }
 
@@ -340,18 +339,8 @@ class _CombinedControlScreenState extends State<CombinedControlScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.white,
-        title: ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
-          ).createShader(bounds),
-          child: const Text(
-            'Car Control',
-            style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
-          ),
-        ),
+      appBar: VisionBotAppBar(
+        pageTitle: 'Car Control',
         actions: [
           // Toggle alert markers
           IconButton(

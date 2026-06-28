@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/visionbot_app_bar.dart';
 
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
@@ -7,9 +8,8 @@ class AboutScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.white,
+      appBar: VisionBotAppBar(
+        pageTitle: 'About',
         leading: Container(
           margin: const EdgeInsets.all(8),
           decoration: BoxDecoration(
@@ -29,15 +29,6 @@ class AboutScreen extends StatelessWidget {
               color: Color(0xFF1F2937),
             ),
             onPressed: () => Navigator.pop(context),
-          ),
-        ),
-        title: ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            colors: [Color(0xFFEC4899), Color(0xFF06B6D4)],
-          ).createShader(bounds),
-          child: const Text(
-            'About',
-            style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white),
           ),
         ),
       ),

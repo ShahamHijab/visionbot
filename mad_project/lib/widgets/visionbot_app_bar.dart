@@ -7,6 +7,7 @@ class VisionBotAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String? subtitle;
   final Widget? leading;
   final List<Widget>? actions;
+  final PreferredSizeWidget? bottom;
   final Color backgroundColor;
   final double elevation;
   final bool centerTitle;
@@ -18,13 +19,15 @@ class VisionBotAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.subtitle,
     this.leading,
     this.actions,
+    this.bottom,
     this.backgroundColor = Colors.white,
     this.elevation = 0,
     this.centerTitle = false,
   });
 
   @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+  Size get preferredSize =>
+      Size.fromHeight(kToolbarHeight + (bottom?.preferredSize.height ?? 0));
 
   @override
   Widget build(BuildContext context) {
@@ -36,6 +39,7 @@ class VisionBotAppBar extends StatelessWidget implements PreferredSizeWidget {
       centerTitle: centerTitle,
       leading: leading,
       actions: actions,
+      bottom: bottom,
       title: Column(
         crossAxisAlignment: centerTitle
             ? CrossAxisAlignment.center
