@@ -320,20 +320,26 @@ class _CombinedControlScreenState extends State<CombinedControlScreen> {
   }
 
   Future<void> _manualTurn(String dir) async {
-    if (!_patrolActive || _isTurning) return;
-    _isTurning = true;
+  if (_isTurning) return;
+  _isTurning = true;
 
-    setState(() {
-      _statusMessage = 'Manual ${dir == "L" ? "Left ←" : "Right →"}';
-    });
+  setState(() {
+    _statusMessage = 'Manual ${dir == "L" ? "Left ←" : "Right →"}';
+  });
 
-    await _sendCommand(dir);
-    await Future.delayed(const Duration(milliseconds: 700));
+  await _sendCommand(dir);
+  await Future.delayed(const Duration(milliseconds: 700));
+
+  if (_patrolActive) {
     await _sendCommand('F');
-
-    _isTurning = false;
     setState(() => _statusMessage = '🚗 Resumed forward');
+  } else {
+    await _sendCommand('S');
+    setState(() => _statusMessage = '⏹️ Stopped');
   }
+
+  _isTurning = false;
+}
 
   // ── Build ──────────────────────────────────────────────────────────────────
 
@@ -474,7 +480,7 @@ class _CombinedControlScreenState extends State<CombinedControlScreen> {
                   icon: Icons.turn_left,
                   color: Colors.teal,
                   tooltip: 'Turn Left',
-                  onPressed: _patrolActive ? () => _manualTurn('L') : null,
+                  onPressed: () => _manualTurn('L'),
                   small: true,
                 ),
                 const SizedBox(height: 8),
@@ -484,7 +490,7 @@ class _CombinedControlScreenState extends State<CombinedControlScreen> {
                   icon: Icons.turn_right,
                   color: Colors.teal,
                   tooltip: 'Turn Right',
-                  onPressed: _patrolActive ? () => _manualTurn('R') : null,
+                  onPressed: () => _manualTurn('R'),
                   small: true,
                 ),
               ],
