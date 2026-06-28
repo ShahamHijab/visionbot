@@ -1,3 +1,4 @@
+import 'package:mad_project/widgets/visionbot_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -7,6 +8,7 @@ import '../../models/user_model.dart';
 import '../../widgets/visionbot_app_bar.dart';
 import '../../widgets/visionbot_app_bar.dart';
 import '../../widgets/visionbot_app_bar.dart';
+import 'package:mad_project/widgets/visionbot_app_bar.dart'; 
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});

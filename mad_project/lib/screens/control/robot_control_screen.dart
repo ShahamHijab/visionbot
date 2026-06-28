@@ -1,3 +1,4 @@
+import 'package:mad_project/widgets/visionbot_app_bar.dart';
 // mad_project/lib/screens/control/robot_control_screen.dart
 // ✅ Robot Control UI — sends commands to detectapp via Firebase
 
