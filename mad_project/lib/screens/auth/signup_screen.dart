@@ -105,7 +105,7 @@ class _SignupScreenState extends State<SignupScreen>
       return 'Password cannot contain spaces';
     }
     if (password.length < 8) {
-      return 'Password must be at least 8 characters long';
+      return 'Password must be at least eight characters long';
     }
     if (!_isValidPassword(password)) {
       return 'Password must include uppercase, lowercase, and a number';

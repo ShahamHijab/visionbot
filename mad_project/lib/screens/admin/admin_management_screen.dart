@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/user_model.dart';
 import '../../services/auth_service.dart';
-import 'package:mad_project/widgets/visionbot_app_bar.dart'; 
+import 'package:mad_project/widgets/visionbot_app_bar.dart';
 
 class AdminManagementScreen extends StatefulWidget {
   const AdminManagementScreen({super.key});
@@ -23,6 +23,16 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
   bool _loading = false;
   UserModel? _currentUser;
   bool _hasPermission = false;
+
+  bool _nameTouched = false;
+  bool _emailTouched = false;
+  bool _passwordTouched = false;
+  bool _confirmTouched = false;
+
+  String? _nameError;
+  String? _emailError;
+  String? _passwordError;
+  String? _confirmError;
 
   @override
   void initState() {
@@ -56,8 +66,62 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
     }
   }
 
+  bool _isValidName(String name) {
+    final trimmed = name.trim();
+    return trimmed.length >= 3 && trimmed.contains(RegExp(r'[A-Za-z]'));
+  }
+
   bool _isValidEmail(String email) {
-    return RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email.trim());
+    return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email.trim());
+  }
+
+  String? _validateNameField(String name) {
+    if (name.isEmpty) {
+      return 'Full name is required';
+    }
+    if (!_isValidName(name)) {
+      return 'Enter a valid full name (at least three letters)';
+    }
+    return null;
+  }
+
+  String? _validateEmailField(String email) {
+    if (email.isEmpty) {
+      return 'Email is required';
+    }
+    if (!_isValidEmail(email)) {
+      return 'Enter a valid email address';
+    }
+    return null;
+  }
+
+  String? _validatePasswordField(String password) {
+    if (password.isEmpty) {
+      return 'Password is required';
+    }
+    if (password.contains(' ')) {
+      return 'Password cannot contain spaces';
+    }
+    if (password.length < 8) {
+      return 'Password must be at least eight characters long';
+    }
+    final hasUppercase = password.contains(RegExp(r'[A-Z]'));
+    final hasLowercase = password.contains(RegExp(r'[a-z]'));
+    final hasNumber = password.contains(RegExp(r'[0-9]'));
+    if (!hasUppercase || !hasLowercase || !hasNumber) {
+      return 'Password must include uppercase, lowercase, and a number';
+    }
+    return null;
+  }
+
+  String? _validateConfirmPasswordField(String password, String confirm) {
+    if (confirm.isEmpty) {
+      return 'Confirm password is required';
+    }
+    if (password != confirm) {
+      return 'Passwords do not match';
+    }
+    return null;
   }
 
   Future<void> _handleCreateAdmin() async {
@@ -68,36 +132,26 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
     final password = _passwordController.text;
     final confirm = _confirmPasswordController.text;
 
-    if (name.isEmpty || email.isEmpty || password.isEmpty || confirm.isEmpty) {
-      _showError('Please fill all fields');
-      return;
-    }
+    final nameError = _validateNameField(name);
+    final emailError = _validateEmailField(email);
+    final passwordError = _validatePasswordField(password);
+    final confirmError = _validateConfirmPasswordField(password, confirm);
 
-    if (!_isValidEmail(email)) {
-      _showError('Enter a valid email');
-      return;
-    }
+    setState(() {
+      _nameTouched = true;
+      _emailTouched = true;
+      _passwordTouched = true;
+      _confirmTouched = true;
+      _nameError = nameError;
+      _emailError = emailError;
+      _passwordError = passwordError;
+      _confirmError = confirmError;
+    });
 
-    if (password != confirm) {
-      _showError('Passwords do not match');
-      return;
-    }
-
-    if (password.length < 6) {
-      _showError('Password must be at least 6 characters');
-      return;
-    }
-
-    final hasUppercase = password.contains(RegExp(r'[A-Z]'));
-    final hasNumber = password.contains(RegExp(r'[0-9]'));
-
-    if (!hasUppercase) {
-      _showError('Password must contain at least one capital letter');
-      return;
-    }
-
-    if (!hasNumber) {
-      _showError('Password must contain at least one number');
+    if (nameError != null ||
+        emailError != null ||
+        passwordError != null ||
+        confirmError != null) {
       return;
     }
 
@@ -296,6 +350,12 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
             TextField(
               controller: _nameController,
               enabled: !_loading,
+              onChanged: (value) {
+                setState(() {
+                  _nameTouched = true;
+                  _nameError = _validateNameField(value);
+                });
+              },
               decoration: InputDecoration(
                 labelText: 'Full Name',
                 hintText: 'Enter admin full name',
@@ -303,7 +363,7 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                errorText: null,
+                errorText: _nameTouched ? _nameError : null,
               ),
             ),
             const SizedBox(height: 16),
@@ -312,6 +372,12 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
               controller: _emailController,
               enabled: !_loading,
               keyboardType: TextInputType.emailAddress,
+              onChanged: (value) {
+                setState(() {
+                  _emailTouched = true;
+                  _emailError = _validateEmailField(value);
+                });
+              },
               decoration: InputDecoration(
                 labelText: 'Email',
                 hintText: 'admin@example.com',
@@ -319,7 +385,7 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                errorText: null,
+                errorText: _emailTouched ? _emailError : null,
               ),
             ),
             const SizedBox(height: 16),
@@ -328,9 +394,20 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
               controller: _passwordController,
               enabled: !_loading,
               obscureText: _obscurePassword,
+              onChanged: (value) {
+                setState(() {
+                  _passwordTouched = true;
+                  _passwordError = _validatePasswordField(value);
+                  _confirmError = _validateConfirmPasswordField(
+                    value,
+                    _confirmPasswordController.text,
+                  );
+                });
+              },
               decoration: InputDecoration(
                 labelText: 'Password',
-                hintText: 'Min 6 chars (uppercase + number)',
+                hintText:
+                    'At least eight characters with uppercase, lowercase, and number',
                 prefixIcon: const Icon(Icons.lock_outline),
                 suffixIcon: IconButton(
                   icon: Icon(
@@ -342,7 +419,7 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                errorText: null,
+                errorText: _passwordTouched ? _passwordError : null,
               ),
             ),
             const SizedBox(height: 16),
@@ -351,6 +428,15 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
               controller: _confirmPasswordController,
               enabled: !_loading,
               obscureText: _obscureConfirmPassword,
+              onChanged: (value) {
+                setState(() {
+                  _confirmTouched = true;
+                  _confirmError = _validateConfirmPasswordField(
+                    _passwordController.text,
+                    value,
+                  );
+                });
+              },
               decoration: InputDecoration(
                 labelText: 'Confirm Password',
                 hintText: 'Re-enter password',
@@ -368,7 +454,7 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                errorText: null,
+                errorText: _confirmTouched ? _confirmError : null,
               ),
             ),
             const SizedBox(height: 32),
